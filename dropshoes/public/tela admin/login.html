@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delicias Da Lucy | Login</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"> 
+    <script type="module" src="../js/login.js"></script> 
+</head>
+<body class="login-page">
+
+    <div class="login-container">
+        <form id="form-login" class="card-login">
+            <a href="index.html" class="logo">Delicias<span> Da Lucy</span></a>
+            <h2>Acessar sua conta Administrativo</h2>
+            
+            <div class="form-group">
+        <div class="input-with-icon">
+            <span class="material-symbols-outlined">badge</span>
+            <input type="email" id="email" placeholder="Seu e-mail" required>        
+        </div>
+        </div>
+            
+            <div class="form-group">
+        <div class="input-with-icon">
+            <span class="material-symbols-outlined">lock</span>
+            <input type="password" id="senha" class="form-control" placeholder="Senha">
+        </div>
+        </div>
+            
+            <button type="submit" class="btn btn-primary">Entrar</button>
+            
+            <p class="login-footer">
+                Não tem conta? <a href="../tela de login/cadastro.html">Criar agora</a>
+            </p>
+        </form>
+    </div>
+
+</body>
+</html>

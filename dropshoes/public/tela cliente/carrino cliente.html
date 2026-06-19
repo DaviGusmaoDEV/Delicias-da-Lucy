@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeliciasDaLucy | Carrinho</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+    <script type="module" src="./js/carrinho.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    
+    <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a>
+        <h2>Painel de Navegação</h2>
+    </div>  
+
+    <nav class="sidebar-nav">
+        <a href="./principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
+        <a href="./Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+        <a href="./meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
+        <a href="./carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
+        <a href="../tela de login/login cliente.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <a href="#" class="nav-item"><span class="material-symbols-outlined">logout</span> Sair</a>
+    </div>
+    </aside>
+
+    <main class="main-wrapper">
+        <div class="container">
+            
+            <section class="box-sidebar">
+                <h3>🛒 Seu Carrinho</h3>
+                
+                <div id="itens-carrinho"></div>
+                <p id="carrinho-vazio-mensagem" class="carrinho-vazio">Seu carrinho está vazio.</p>
+
+                <div class="frete-calculo-container">
+                    <label class="frete-label">Calcular Entrega</label>
+                    <div class="frete-container-inline">
+                        <input type="text" id="cep" class="form-control" placeholder="Digite sua Rua, Bairro e numero">
+                        <button onclick="calcularFrete()" class="btn-calcular">Calcular</button>
+                    </div>
+                    <div id="info-frete" class="info-frete-dinamico"></div>
+                </div>
+
+                <div class="resumo-carrinho">
+                    <h3>Resumo do Pedido</h3>
+                    <hr>
+                    <div class="resumo-linha">
+                        <span>Subtotal:</span>
+                        <strong id="cart-subtotal">R$ 0,00</strong> 
+                    </div>
+                    <div class="resumo-linha">
+                        <span>Taxa de Entrega:</span>
+                        <strong id="cart-frete">R$ 0,00</strong>    
+                    </div>
+                    <hr>
+                    <div class="resumo-linha total">
+                        <span>Total:</span>
+                        <strong id="cart-total">R$ 0,00</strong>    
+                    </div>
+                    <button class="btn-finalizar" onclick="finalizarCompra()">Finalizar Compra</button>
+                </div>
+            </section>
+
+        </div>
+</main>
+
+    <template id="template-item-carrinho">
+        <div class="item-carrinho-linha item-carrinho-flex">
+            <div>
+                <h4 class="carrinho-item-nome"></h4>
+                <small class="carrinho-item-detalhes item-carrinho-detalhes-texto"></small>
+            </div>
+            <div class="item-carrinho-acoes-qtd">
+                <button class="btn-qtd-menos btn-controle-qtd">-</button>
+                <span class="carrinho-item-qtd"></span>
+                <button class="btn-qtd-mais btn-controle-qtd">+</button>
+            </div>
+            <div>
+                <strong class="carrinho-item-total"></strong>
+            </div>
+        </div>
+    </template>
+    <!-- O parâmetro &libraries=places é obrigatório para as sugestões -->
+    <script src="../js/carrinho.js" defer></script>
+</body>
+</html>

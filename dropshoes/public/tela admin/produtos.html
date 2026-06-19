@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delicias Da Lucy | Catálogo de Produtos</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="../js/produtos.js" defer></script>
+</head>
+<body>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a>
+            <h2>Painel de navegação</h2>
+        </div>
+     
+        <nav class="sidebar-nav">
+            <a href="principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> <span>Início</span></a>
+            <a href="fluxo de caixa.html" class="nav-item"><span class="material-symbols-outlined">payments</span> <span>Fluxo de Caixa</span></a>
+            <a href="produtos.html" class="nav-item active"><span class="material-symbols-outlined">inventory_2</span> <span>Meus Produtos</span></a>
+            <a href="Meu Perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> <span>Meu Perfil</span></a>
+            <a href="carrinho.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> <span>Carrinho</span></a>
+            <a href="login.html" class="nav-item"><span class="material-symbols-outlined">login</span> <span>Login</span></a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">logout</span> <span>Sair</span></a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <main class="container">
+            
+            <header class="hero">
+                <h1>Aqui Estão todos os Produtos</h1>
+                <p>Gerencie o cardápio, adicione novas receitas e altere informações do catálogo em tempo real.</p>
+            </header>
+
+            <section class="filtros-fluxo-caixa">
+                <div class="form-group-inline">
+                    <label for="filtro-categoria">Categoria</label>
+                    <select id="filtro-categoria" class="form-control select-filtro">
+                        <option value="todos">Todos os Produtos</option>
+                        <option value="pasteis-salgados">Pasteis Salgados</option>
+                        <option value="pasteis-doces">Pasteis Doces</option>
+                        <option value="panquecas-salgadas">Panqueca Salgada</option>
+                        <option value="panquecas-doces">Panqueca Doce</option>
+                    </select>
+                </div>
+                
+                <div class="botoes-acoes-wrapper">
+                    <button class="btn btn-success btn-adicionar" id="abrirModalProduto">
+                        + Adicionar Produto
+                    </button>
+                    <button class="produtos-especiais" id="abrirModalProdutoEspecial">
+                        + Adicionar Produto Promocional/Especial
+                    </button>
+                </div>
+            </section>
+
+            <section class="grid-produtos" id="lista-produtos"></section>
+
+            <footer class="card-footer">
+                <p>© 2026 Delicias Da Lucy. Painel Administrativo Premium.</p>
+            </footer>
+        </main>
+    </div>
+
+    <dialog id="modal-produto">
+        <form id="form-produto" class="form-dialog">
+            <h2 id="modal-produto-titulo">Novo Produto</h2>
+            <input type="hidden" id="prod-id">
+            
+            <div class="form-group">
+                <label for="prod-nome">Nome da Delícia</label>
+                <input type="text" id="prod-nome" class="form-control" required placeholder="Ex: Bolo de Pote Ninho com Morango">
+            </div>
+
+            <div class="form-group">
+                <label for="prod-preco">Preço de Venda (R$)</label>
+                <input type="text" id="prod-preco" class="form-control" required placeholder="0,00">
+            </div>
+
+            <div class="form-group">
+                <label>Foto do Produto</label>
+                <label class="file-wrapper" for="prod-imagem">
+                    <span class="material-symbols-outlined icon-upload">cloud_upload</span>
+                    <p class="text-upload">Clique para carregar a imagem</p>
+                    <input type="file" id="prod-imagem" accept="image/*">
+                </label>
+            </div>
+
+            <div class="botoes-dialog">
+                <button type="button" class="btn btn-cancelar" id="btn-fechar-modal">Cancelar</button>
+                <button type="submit" class="btn btn-success" id="btnSalvarProduto">Salvar Produto</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="modal-produto-especial">
+        <form id="form-produto-especial" class="form-dialog">
+            <h2 id="modal-produto-titulo-especial">Novo Produto Especial</h2>
+            <input type="hidden" id="prod-id-especial">
+            
+            <div class="form-group">
+                <label for="prod-nome-especial">Nome da Delícia Especial</label>
+                <input type="text" id="prod-nome-especial" class="form-control" required placeholder="Ex: Palito de pastel de chocolate">
+            </div>
+
+            <div class="form-group">
+                <label for="prod-preco-especial">Preço de Venda Especial (R$)</label>
+                <input type="text" id="prod-preco-especial" class="form-control" required placeholder="0,00">
+            </div>
+
+            <div class="form-group">
+                <label>Foto do Produto Especial</label>
+                <label class="file-wrapper" for="prod-imagem-especial">
+                    <span class="material-symbols-outlined icon-upload">cloud_upload</span>
+                    <p class="text-upload">Clique para carregar a imagem</p>
+                    <input type="file" id="prod-imagem-especial" accept="image/*">
+                </label>
+            </div>
+
+            <div class="botoes-dialog">
+                <button type="button" class="btn btn-cancelar" id="btn-fechar-modal-especial">Cancelar</button>
+                <button type="submit" class="btn produtos-especiais" id="btnSalvarProdutoEspecial">Salvar Especial</button>
+            </div>
+        </form>
+    </dialog>
+
+    <template id="template-card-produto">
+        <div class="product-card">
+            <div class="produto-imagem-wrapper">
+                <span class="badge-especial" style="display: none;">PROMO / ESPECIAL</span>
+                <img src="" alt="" class="img-vitrine">
+            </div>
+            <div class="product-info">
+                <h3 class="titulo-vitrine"></h3>
+                <p class="preco-vitrine"></p>
+                
+                <div class="secao-tamanhos">
+                    <span class="rotulo-tamanhos">Tamanhos Disponíveis:</span>
+                    <div class="container-tamanhos-dinamicos tamanho-selector"></div>
+                </div>
+                
+                <button type="button" class="btn btn-success btn-card-action btn-add-cart">
+                    <span class="material-symbols-outlined icon-card">shopping_cart</span> Adicionar ao Carrinho
+                </button>
+                <button type="button" class="btn btn-primary btn-card-action btn-editar">
+                    <span class="material-symbols-outlined icon-card">edit</span> Editar
+                </button>
+                <button type="button" class="btn btn-danger btn-card-action btn-excluir">
+                    <span class="material-symbols-outlined icon-card">delete</span> Excluir Produto
+                </button>
+            </div>
+        </div>
+    </template>
+
+</body>
+</html>
