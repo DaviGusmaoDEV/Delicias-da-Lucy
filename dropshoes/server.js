@@ -4,7 +4,6 @@ console.log('Arquivos aqui:', require('fs').readdirSync('.'));
 require('dotenv').config();
 const express = require('express');
 require('dotenv').config();
-const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
