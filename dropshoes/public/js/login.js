@@ -1,5 +1,3 @@
-import Swal from 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
-
 // Defina a URL base. Use o link do seu Render que você copiou do painel.
 const API_URL = 'https://delicias-da-lucy.onrender.com';
 
@@ -8,14 +6,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (formLogin) {
         formLogin.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const identificador = document.getElementById("nome-usuario").value;
-            const senha = document.getElementById("senha").value;
+            const identificador = document.getElementById("nome-usuario").value.trim();
+            const senha = document.getElementById("senha").value.trim();
             await realizarLogin(identificador, senha);
         });
     }
 });
 
-export async function realizarLogin(identificador, senha) {
+async function realizarLogin(identificador, senha) {
     try {
         const resposta = await fetch(`${API_URL}/api/login`, {
             method: 'POST',
@@ -24,17 +22,22 @@ export async function realizarLogin(identificador, senha) {
         });
 
         const dados = await resposta.json();
-        if (!resposta.ok) throw new Error(dados.erro || "Falha na autenticação.");
+        if (!resposta.ok) throw new Error(dados.erro || dados.mensagem || "Falha na autenticação.");
 
-        // Guardando dados com segurança
-        localStorage.setItem('token', dados.token);
-        localStorage.setItem('role', dados.role);
-        localStorage.setItem('nomeUsuario', dados.nome);
+        const token = dados.token || dados.session?.access_token;
+        const role = dados.role || dados.user?.app_metadata?.role || dados.user?.user_metadata?.role || 'cliente';
+        const nome = dados.nome || dados.user?.user_metadata?.nome || identificador;
 
-        // Redirecionamento baseado na role
-        const destino = dados.role.includes('admin')
+        if (!token) throw new Error("Token de acesso não retornado pelo servidor.");
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('role', role);
+        localStorage.setItem('nomeUsuario', nome);
+
+        const destino = role.toLowerCase().includes('admin')
             ? '../tela admin/Meu Perfil.html'
             : '../tela cliente/principal.html';
+            
         window.location.href = destino;
         return true;
     } catch (erro) {
