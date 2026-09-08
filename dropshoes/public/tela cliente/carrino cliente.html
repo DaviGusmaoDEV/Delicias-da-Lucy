@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeliciasDaLucy | Carrinho</title>
     <link rel="stylesheet" href="../css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
-    <script type="module" src="./js/carrinho.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -39,6 +37,11 @@
                 
                 <div id="itens-carrinho"></div>
                 <p id="carrinho-vazio-mensagem" class="carrinho-vazio">Seu carrinho está vazio.</p>
+
+                <div class="observacao-pedido-container">
+                    <label for="observacao-geral" class="frete-label">Observação do pedido</label>
+                    <textarea id="observacao-geral" class="form-control" placeholder="Ex: sem cebola, troco para R$ 50, ponto de referência..." rows="3"></textarea>
+                </div>
 
                 <div class="frete-calculo-container">
                     <label class="frete-label">Calcular Entrega</label>
@@ -88,7 +91,8 @@
             </div>
         </div>
     </template>
-    <!-- O parâmetro &libraries=places é obrigatório para as sugestões -->
-    <script src="../js/carrinho.js" defer></script>
+
+    <!-- Carregado apenas UMA vez, como module (necessário por usar import/export) -->
+    <script type="module" src="../js/carrinho.js"></script>
 </body>
 </html>

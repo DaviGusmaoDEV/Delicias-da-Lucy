@@ -15,7 +15,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a>
-            <h2>Painel de navegação</h2>
+            <h2>Painel de Navegação</h2>
         </div>
 
         <nav class="sidebar-nav">
@@ -24,39 +24,42 @@
             <a href="produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
             <a href="Meu Perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
             <a href="carrinho.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
-            <a href="./login.html"  class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
+            <a href="./login.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
         </nav>
 
         <div class="sidebar-footer">
             <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">logout</span> Sair</a>
         </div>
     </aside>
+
     <div class="main-wrapper">
         <main class="container">
             <div class="main-content">
-                <h1>Fluxo de Caixa</h1>
-                <p>Aqui você pode visualizar o fluxo de caixa do seu negócio, incluindo o que entrou de dinheiro, quanto gastou com mercadorias e saldo final.</p>
-                <p>Use a data de início e fim para filtrar as transações corretas e finais.</p>
-                
-                <div class="filtros-fluxo-caixa">
-                    <div class="form-group-inline">
-                        <label for="data-inicial">Data Inicial:</label>
-                        <input type="date" id="data-inicial" name="data-inicial" class="form-control">
+                <div class="header-fluxo-topo" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <h1>Fluxo de Caixa</h1>
+                        <p>Visualize as entradas, saídas e controle financeiro completo do seu negócio de forma moderna.</p>
                     </div>
-                    <div class="form-group-inline">
-                        <label for="data-final">Data Final:</label>
-                        <input type="date" id="data-final" name="data-final" class="form-control">
-                    </div>
-                    <div class="form-group-inline">
-                        <label for="gestao">Pesquisa</label>
-                        <input class="pesquisa" type="text" name="funcionario" id="funcionario">
-                    </div>
-                    <button class="btn btn-primary" onclick="filtrarFluxoCaixa()">Filtrar</button>
                     
-                    <button class="btn btn-success btn-adicionar" id="btnAbrirModalTransacao">
-                        + Adicionar Transação
-                    </button>
+                    <!-- Barra de Ações com Botão de Filtro por Ícone Moderno -->
+                    <div class="acoes-topo-fluxo" style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn btn-outline" id="btnAbrirModalFiltro" title="Filtrar Transações" style="display: flex; align-items: center; justify-content: center; padding: 10px 14px; gap: 6px;">
+                            <span class="material-symbols-outlined">filter_list</span> Filtrar
+                        </button>
+                        
+                        <button class="btn btn-success btn-adicionar" id="btnAbrirModalTransacao">
+                            + Adicionar Transação
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Menu de Categorias de Despesas / Visão Rápida -->
+                <div class="menu-opcoes-despesas" style="display: flex; gap: 10px; margin: 20px 0; overflow-x: auto; padding-bottom: 5px;">
+                    <span style="background: var(--surface, #f8f9fa); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; border: 1px solid #e0e0e0; display: inline-flex; align-items: center; gap: 6px;">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">category</span> Visão Geral Ativa
+                    </span>
+                </div>
+                
                 <div class="table-responsive">
                     <table class="modern-table">
                         <thead>
@@ -84,14 +87,16 @@
                     </div>
 
                     <div class="card-financeiro">
+                        <span>Despesa Funcionário</span>
+                        <h2 id="total-despesa-funcionario">R$ 0,00</h2>
+                    </div>
+
+                    <div class="card-financeiro">
                         <span>Saldo Líquido</span>
                         <h2 id="saldo-liquido">R$ 0,00</h2>
                     </div>
-                    <div class="card-financeiro">
-                        <span>Despesa Funcionario</span>
-                        <h2 id="total-despesa-funcionario">R$ 0,00</h2>
-                    </div>
                 </div>
+
                 <template id="template-linha-transacao">
                     <tr>
                         <td class="col-data"></td>
@@ -103,10 +108,10 @@
                         <td class="col-valor"></td>
                         <td class="col-acoes-corpo">
                             <button class="btn-edicao" title="Editar">
-                                <span class="material-symbols-outlined" id="btn-edicao">edit</span>
+                                <span class="material-symbols-outlined">edit</span>
                             </button>
                             <button class="btn-exclusao" title="Excluir">
-                                <span class="material-symbols-outlined" id="btn-exclusao">delete</span>
+                                <span class="material-symbols-outlined">delete</span>
                             </button>
                         </td>
                     </tr>
@@ -118,6 +123,37 @@
             </footer>
         </main>
 
+        <!-- Modal de Filtro por Ícone (Mini-tela flutuante) -->
+        <dialog id="modalFiltro" class="form-dialog">
+            <div class="form-dialog" style="padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="font-size: 1.2rem; margin: 0;">Filtrar Transações</h2>
+                    <button type="button" id="btnFecharModalFiltro" style="background: none; border: none; cursor: pointer; font-size: 1.2rem;"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label for="data-inicial" style="font-size: 0.9rem;">Data Inicial:</label>
+                    <input type="date" id="data-inicial" class="form-control">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label for="data-final" style="font-size: 0.9rem;">Data Final:</label>
+                    <input type="date" id="data-final" class="form-control">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="funcionario-filtro" style="font-size: 0.9rem;">Pesquisar por Descrição:</label>
+                    <input class="form-control" type="text" id="funcionario-filtro" placeholder="Ex: Funcionário, fornecedor...">
+                </div>
+                
+                <div class="botoes-dialog" style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-primary" id="btnAplicarFiltro" style="flex: 1;">Aplicar Filtro</button>
+                    <button type="button" class="btn btn-cancelar" id="btnLimparFiltro" style="flex: 1;">Limpar</button>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- Modal Adicionar Transação -->
         <dialog id="modalTransacao" class="form-dialog">
             <form id="form-transacao" class="form-dialog">
                 <h2>Adicionar Transação</h2>
@@ -130,9 +166,9 @@
                 <div class="form-group">
                     <label for="tipo">Tipo:</label>
                     <select id="tipo" class="form-control" required>
-                        <option value="receita">Receita</option>
-                        <option value="despesa">Despesa</option>
-                        <option value="total-despesa-funcionario">Despesa Funcionario</option>
+                        <option value="receita">Entrada</option>
+                        <option value="despesa">Saída</option>
+                        <option value="total-despesa-funcionario">Despesa por Funcionário</option>
                     </select>
                 </div>
                 
@@ -147,11 +183,13 @@
                 </div>
                 
                 <div class="botoes-dialog">
-                    <button type="submit" class="btn btn-success" id="btnSalvarTransacao">Salvar</button>
+                    <button type="submit" class="btn btn-success">Salvar</button>
                     <button type="button" class="btn btn-cancelar" id="btnFecharModalTransacao-add">Cancelar</button>
                 </div>
             </form>
         </dialog>
+
+        <!-- Modal Editar Transação -->
         <dialog id="modalEditar" class="form-dialog">
             <form id="form-editar-transacao" class="form-dialog">
                 <h2>Editar Transação</h2>
@@ -164,9 +202,9 @@
                 <div class="form-group">
                     <label for="tipo-edicao">Tipo:</label>
                     <select id="tipo-edicao" class="form-control" required>
-                        <option value="receita">Receita</option>
-                        <option value="despesa">Despesa</option>
-                        <option value="total-despesa-funcionario">Despesa Funcionario</option>
+                        <option value="receita">Entrada</option>
+                        <option value="despesa">Saída</option>
+                        <option value="total-despesa-funcionario">Despesa por Funcionário</option>
                     </select>
                 </div>
                 
@@ -181,21 +219,11 @@
                 </div>
                 
                 <div class="botoes-dialog">
-                    <button type="submit" class="btn btn-success" id="btnSalvarTransacao">Salvar Alterações</button>
-                    <button type="button" class="btn btn-cancelar" id="btnFecharModalTransacao-edit">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Salvar Alterações</button>
+                    <button type="button" class="btn btn-cancelar" id="btn-edicao-fechar">Cancelar</button>
                 </div>
             </form>
         </dialog>
-        <dialog id="modalExclusao" class="form-dialog">
-            <div class="modal-exclusao-container">
-                <h2>Confirmar Exclusão</h2>
-                <p>Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.</p>
-                <div class="botoes-dialog">
-                    <button id="btn-confirmar-exclusao" class="btn btn-danger">Excluir</button>
-                    <button type="button" class="btn btn-cancelar" id="btnFecharModalTransacao-delete">Cancelar</button>
-                </div>
-            </div>
-        </dialog>
-        </div>
+    </div>
 </body>
 </html>

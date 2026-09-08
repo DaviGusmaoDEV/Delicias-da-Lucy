@@ -540,23 +540,22 @@ a {
     box-shadow: 0 0 0 4px rgba(255, 167, 3, 0.15);
 }
 
-.input-with-icon {
+.input-with-icon .email {
     position: relative;
     display: flex;
     align-items: center;
     width: 100%;
 }
-.input-with-icon .material-symbols-outlined {
+.input-with-icon .material-symbols-outlined .email{
     position: absolute;
     left: 14px;
     color: var(--text-muted);
     font-size: 20px;
     font-weight: 700; 
 }
-.input-with-icon input {
+.input-with-icon .email {
     padding-left: 44px !important;
 }
-
 .opcoes-cadastro { 
     display: flex; 
     flex-direction: column; 

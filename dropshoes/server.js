@@ -104,6 +104,112 @@ app.delete('/api/fluxo-caixa/:id', autenticar, async (req, res) => {
 });
 
 // ===================================================
+// --- ROTAS DE PEDIDOS ---
+// ===================================================
+
+// Cliente cria um pedido completo (pedido + itens) de uma vez só
+// Body esperado:
+// {
+//   observacao_geral: "entregar na portaria",
+//   itens: [
+//     { produto_id: 1, quantidade: 2, preco_unitario: 15.90, observacao_item: "sem cebola" },
+//     { produto_id: 3, quantidade: 1, preco_unitario: 8.00, observacao_item: "" }
+//   ]
+// }
+app.post('/api/pedidos', autenticar, async (req, res) => {
+    const { observacao_geral, itens } = req.body;
+
+    if (!itens || !Array.isArray(itens) || itens.length === 0) {
+        return res.status(400).json({ erro: 'O pedido precisa ter pelo menos um item.' });
+    }
+
+    // Calcula o valor total do pedido a partir dos itens recebidos
+    const valorTotal = itens.reduce((soma, item) => {
+        return soma + (Number(item.preco_unitario) * Number(item.quantidade));
+    }, 0);
+
+    // 1. Cria o registro principal do pedido
+    const { data: pedidoCriado, error: erroPedido } = await supabase
+        .from('pedidos')
+        .insert([{
+            usuario_id: req.user.id,
+            valor: valorTotal,
+            status: 'pendente',
+            observacao_geral: observacao_geral || null
+        }])
+        .select()
+        .single();
+
+    if (erroPedido) return res.status(400).json({ erro: erroPedido.message });
+
+    // 2. Monta e insere os itens vinculados a esse pedido
+    const itensParaInserir = itens.map(item => ({
+        pedido_id: pedidoCriado.id,
+        produto_id: item.produto_id,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario,
+        observacao_item: item.observacao_item || null
+    }));
+
+    const { error: erroItens } = await supabase
+        .from('itens_pedido')
+        .insert(itensParaInserir);
+
+    if (erroItens) {
+        // Se os itens falharem, desfaz o pedido criado para não deixar lixo no banco
+        await supabase.from('pedidos').delete().eq('id', pedidoCriado.id);
+        return res.status(400).json({ erro: erroItens.message });
+    }
+
+    res.status(201).json({ mensagem: 'Pedido realizado com sucesso!', pedido: pedidoCriado });
+});
+
+// Cliente vê o histórico dos próprios pedidos (com os itens de cada um)
+app.get('/api/meus-pedidos', autenticar, async (req, res) => {
+    const { data: pedidos, error } = await supabase
+        .from('pedidos')
+        .select('*, itens_pedido(*, products(nome))')
+        .eq('usuario_id', req.user.id)
+        .order('data_criacao', { ascending: false });
+
+    if (error) return res.status(400).json({ erro: error.message });
+    res.json(pedidos);
+});
+
+// Admin (1 ou 2) vê todos os pedidos, com os itens de cada um
+app.get('/api/pedidos', autenticar, async (req, res) => {
+    if (req.user.role !== 'admin1' && req.user.role !== 'admin2') {
+        return res.status(403).json({ erro: 'Acesso negado.' });
+    }
+
+    const { data: pedidos, error } = await supabase
+        .from('pedidos')
+        .select('*, itens_pedido(*, products(nome)), profiles(nome)')
+        .order('data_criacao', { ascending: false });
+
+    if (error) return res.status(400).json({ erro: error.message });
+    res.json(pedidos);
+});
+
+// Admin atualiza o status de um pedido (ex: pendente -> em preparo -> concluido)
+app.patch('/api/pedidos/:id/status', autenticar, async (req, res) => {
+    if (req.user.role !== 'admin1' && req.user.role !== 'admin2') {
+        return res.status(403).json({ erro: 'Acesso negado.' });
+    }
+
+    const { status } = req.body;
+    const { data, error } = await supabase
+        .from('pedidos')
+        .update({ status })
+        .eq('id', req.params.id)
+        .select()
+        .single();
+
+    if (error) return res.status(400).json({ erro: error.message });
+    res.json({ mensagem: 'Status atualizado!', pedido: data });
+});
+
+// ===================================================
 // --- ARQUIVOS ESTÁTICOS (FRONT-END) ---
 // ===================================================
 // Serve toda a pasta "public" (CSS, JS, imagens, e os HTMLs por nome de arquivo)

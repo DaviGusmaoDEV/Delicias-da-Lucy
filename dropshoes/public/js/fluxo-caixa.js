@@ -5,86 +5,84 @@ const el = {
     formTransacao: document.getElementById("form-transacao"),
     btnAbrirTransacao: document.getElementById("btnAbrirModalTransacao"),
     btnFecharTransacao: document.getElementById("btnFecharModalTransacao-add"),
-    btnFecharModalEdicao: document.getElementById("btn-edicao-fechar"),
-    btnSalvarEdicao: document.getElementById("btnSalvarTransacao"),
-    btnAbrirEdicao: document.getElementById("btn-edicao"),
+    
+    // Elementos do Modal de Edição
     dialogEdicao: document.getElementById("modalEditar"),
-    btnExcluirTransacao: document.getElementById("btnExcluirTransacao"),
+    formEdicao: document.getElementById("form-editar-transacao"),
+    btnFecharModalEdicao: document.getElementById("btn-edicao-fechar"),
+    
+    // Elementos do Modal de Filtro por Ícone
+    modalFiltro: document.getElementById("modalFiltro"),
+    btnAbrirFiltro: document.getElementById("btnAbrirModalFiltro"),
+    btnFecharFiltro: document.getElementById("btnFecharModalFiltro"),
+    btnAplicarFiltro: document.getElementById("btnAplicarFiltro"),
+    btnLimparFiltro: document.getElementById("btnLimparFiltro"),
+    inputDataInicial: document.getElementById("data-inicial"),
+    inputDataFinal: document.getElementById("data-final"),
+    inputFuncionarioFiltro: document.getElementById("funcionario-filtro"),
+
+    // Campos do formulário de cadastro
     inputDescricao: document.getElementById("descricao"),
     selectTipo: document.getElementById("tipo"),
     inputValor: document.getElementById("valor"),
     inputData: document.getElementById("data"),
+
+    // Campos do formulário de edição
+    inputDescricaoEdicao: document.getElementById("descricao-edicao"),
+    selectTipoEdicao: document.getElementById("tipo-edicao"),
+    inputValorEdicao: document.getElementById("valor-edicao"),
+    inputDataEdicao: document.getElementById("data-edicao"),
 };
 
 let transacoes = [];
+let transacoesFiltradas = [];
+let idTransacaoEmEdicao = null;
 
 if (localStorage.getItem("transacoes")) {
     transacoes = JSON.parse(localStorage.getItem("transacoes"));
+    transacoesFiltradas = [...transacoes];
 }
 
+// Eventos de Abertura/Fechamento de Modais
 if (el.btnAbrirTransacao) {
-    el.btnAbrirTransacao.addEventListener("click", () => {
-        if (el.modalTransacao) el.modalTransacao.showModal();
-    });
+    el.btnAbrirTransacao.addEventListener("click", () => el.modalTransacao?.showModal());
 }
-
 if (el.btnFecharTransacao) {
-    el.btnFecharTransacao.addEventListener("click", () => {
-        if (el.modalTransacao) el.modalTransacao.close();
-    });
+    el.btnFecharTransacao.addEventListener("click", () => el.modalTransacao?.close());
 }
-
 if (el.modalTransacao) {
     el.modalTransacao.addEventListener("click", (e) => {
         if (e.target === el.modalTransacao) el.modalTransacao.close();
     });
 }
 
-// CORREÇÃO: Vinculado corretamente para abrir e fechar a janela de Edição dedicada (dialogEdicao)
-if (el.btnAbrirEdicao) {
-    el.btnAbrirEdicao.addEventListener("click", () => {
-        if (el.dialogEdicao) el.dialogEdicao.showModal();
+// Modal de Filtro por Ícone
+if (el.btnAbrirFiltro) {
+    el.btnAbrirFiltro.addEventListener("click", () => el.modalFiltro?.showModal());
+}
+if (el.btnFecharFiltro) {
+    el.btnFecharFiltro.addEventListener("click", () => el.modalFiltro?.close());
+}
+if (el.modalFiltro) {
+    el.modalFiltro.addEventListener("click", (e) => {
+        if (e.target === el.modalFiltro) el.modalFiltro.close();
     });
 }
+
+// Fechar Edição
 if (el.btnFecharModalEdicao) {
-    el.btnFecharModalEdicao.addEventListener("click", () => {
-        if (el.dialogEdicao) el.dialogEdicao.close();
+    el.btnFecharModalEdicao.addEventListener("click", () => el.dialogEdicao?.close());
+}
+if (el.dialogEdicao) {
+    el.dialogEdicao.addEventListener("click", (e) => {
+        if (e.target === el.dialogEdicao) el.dialogEdicao.close();
     });
 }
 
-if (el.btnExcluirTransacao) {
-    el.btnExcluirTransacao.addEventListener("click", () => {
-        Swal.fire({
-            title: 'Excluir transação?',
-            text: 'Essa ação não pode ser desfeita.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Sim, excluir',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const id = parseInt(el.btnExcluirTransacao.dataset.id);
-                transacoes = transacoes.filter(t => t.id !== id);
-                localStorage.setItem("transacoes", JSON.stringify(transacoes));
-                exibirTransacoes();
-                if (el.modalTransacao) el.modalTransacao.close();
-                
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Excluída',
-                    text: 'Transação excluída com sucesso.',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-            }
-        });
-    });
-}
-
+// Submissão: Nova Transação
 if (el.formTransacao) {
     el.formTransacao.addEventListener("submit", (e) => {
         e.preventDefault();
-        
         try {
             const descricao = el.inputDescricao?.value.trim();
             const tipo = el.selectTipo?.value;
@@ -106,7 +104,7 @@ if (el.formTransacao) {
             };
             
             transacoes.push(novaTransacao);
-            localStorage.setItem("transacoes", JSON.stringify(transacoes));
+            sincronizarDados();
             
             Swal.fire({
                 icon: 'success',
@@ -117,13 +115,86 @@ if (el.formTransacao) {
             });
             
             el.formTransacao.reset();
-            if (el.modalTransacao) el.modalTransacao.close();
-            exibirTransacoes();
+            el.modalTransacao?.close();
         } catch (erro) {
             Swal.fire({ icon: 'error', title: 'Erro', text: erro.message });
-            console.error(erro.message);
         }
     });
+}
+
+// Submissão: Editar Transação
+if (el.formEdicao) {
+    el.formEdicao.addEventListener("submit", (e) => {
+        e.preventDefault();
+        try {
+            const descricao = el.inputDescricaoEdicao?.value.trim();
+            const tipo = el.selectTipoEdicao?.value;
+            const valor = parseFloat(el.inputValorEdicao?.value);
+            const data = el.inputDataEdicao?.value;
+            
+            if (!descricao || !tipo || isNaN(valor) || !data) throw new Error("Preencha todos os campos corretamente.");
+
+            transacoes = transacoes.map(t => {
+                if (t.id === idTransacaoEmEdicao) {
+                    return { ...t, descricao, tipo, valor, data };
+                }
+                return t;
+            });
+
+            sincronizarDados();
+            el.dialogEdicao?.close();
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Atualizado!',
+                text: 'Transação alterada com sucesso.',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (erro) {
+            Swal.fire({ icon: 'error', title: 'Erro', text: erro.message });
+        }
+    });
+}
+
+// Lógica de Filtragem Avançada via Mini-Modal
+if (el.btnAplicarFiltro) {
+    el.btnAplicarFiltro.addEventListener("click", () => {
+        const dataIni = el.inputDataInicial.value;
+        const dataFim = el.inputDataFinal.value;
+        const termoBusca = el.inputFuncionarioFiltro.value.toLowerCase().trim();
+
+        transacoesFiltradas = transacoes.filter(t => {
+            let matchData = true;
+            let matchBusca = true;
+
+            if (dataIni && t.data < dataIni) matchData = false;
+            if (dataFim && t.data > dataFim) matchData = false;
+            if (termoBusca && !t.descricao.toLowerCase().includes(termoBusca)) matchBusca = false;
+
+            return matchData && matchBusca;
+        });
+
+        el.modalFiltro?.close();
+        exibirTransacoes();
+    });
+}
+
+if (el.btnLimparFiltro) {
+    el.btnLimparFiltro.addEventListener("click", () => {
+        el.inputDataInicial.value = "";
+        el.inputDataFinal.value = "";
+        el.inputFuncionarioFiltro.value = "";
+        transacoesFiltradas = [...transacoes];
+        el.modalFiltro?.close();
+        exibirTransacoes();
+    });
+}
+
+function sincronizarDados() {
+    localStorage.setItem("transacoes", JSON.stringify(transacoes));
+    transacoesFiltradas = [...transacoes];
+    exibirTransacoes();
 }
 
 function exibirTransacoes() {
@@ -133,36 +204,53 @@ function exibirTransacoes() {
     if (!corpoTabela || !template) return;
     corpoTabela.innerHTML = "";
     
-    if (transacoes.length === 0) {
-        corpoTabela.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #999;">Nenhuma transação registrada</td></tr>';
+    if (transacoesFiltradas.length === 0) {
+        corpoTabela.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #999; padding: 20px;">Nenhuma transação encontrada</td></tr>';
+        calcularTotais();
         return;
     }
     
-    transacoes.forEach((transacao) => {
+    transacoesFiltradas.forEach((transacao) => {
         const clone = template.content.cloneNode(true);
         const data = new Date(transacao.data + "T00:00:00");
         const dataFormatada = data.toLocaleDateString("pt-BR");
         
         clone.querySelector(".col-data").textContent = dataFormatada;
         clone.querySelector(".txt-descricao").textContent = transacao.descricao;
-        clone.querySelector(".badge-tipo").textContent = transacao.tipo.charAt(0).toUpperCase() + transacao.tipo.slice(1);
-        clone.querySelector(".col-valor").textContent = `R$ ${transacao.valor.toFixed(2).replace(".", ",")}`;
+        
+        const badgeTipo = clone.querySelector(".badge-tipo");
+        let tipoTexto = transacao.tipo;
+        if (tipoTexto === "receita") tipoTexto = "Entrada";
+        else if (tipoTexto === "despesa") tipoTexto = "Saída";
+        else if (tipoTexto === "total-despesa-funcionario") tipoTexto = "Despesa Funcionário";
+        
+        badgeTipo.textContent = tipoTexto;
+        const colValor = clone.querySelector(".col-valor");
+        colValor.textContent = `R$ ${transacao.valor.toFixed(2).replace(".", ",")}`;
         
         if (transacao.tipo === "receita") {
-            clone.querySelector(".col-valor").classList.add("status-receita");
-            clone.querySelector(".badge-tipo").classList.add("status-receita");
+            colValor.classList.add("status-receita");
+            badgeTipo.classList.add("status-receita");
         } else if (transacao.tipo === "despesa") {
-            clone.querySelector(".col-valor").classList.add("status-despesa");
-            clone.querySelector(".badge-tipo").classList.add("status-despesa");
+            colValor.classList.add("status-despesa");
+            badgeTipo.classList.add("status-despesa");
         } else if (transacao.tipo === "total-despesa-funcionario") {
-            clone.querySelector(".col-valor").classList.add("status-despesa-funcionario");
-            clone.querySelector(".badge-tipo").classList.add("status-despesa-funcionario");
+            colValor.classList.add("status-despesa-funcionario");
+            badgeTipo.classList.add("status-despesa-funcionario");
         }
         
+        // Botão de Editar na linha
         clone.querySelector(".btn-edicao").addEventListener("click", () => {
-            if (el.dialogEdicao) el.dialogEdicao.showModal();
+            idTransacaoEmEdicao = transacao.id;
+            if (el.inputDescricaoEdicao) el.inputDescricaoEdicao.value = transacao.descricao;
+            if (el.selectTipoEdicao) el.selectTipoEdicao.value = transacao.tipo;
+            if (el.inputValorEdicao) el.inputValorEdicao.value = transacao.valor;
+            if (el.inputDataEdicao) el.inputDataEdicao.value = transacao.data;
+            
+            el.dialogEdicao?.showModal();
         });
         
+        // Botão de Excluir na linha
         clone.querySelector(".btn-exclusao").addEventListener("click", () => {
             Swal.fire({
                 title: 'Excluir transação?',
@@ -174,8 +262,7 @@ function exibirTransacoes() {
             }).then((result) => {
                 if (result.isConfirmed) {
                     transacoes = transacoes.filter(t => t.id !== transacao.id);
-                    localStorage.setItem("transacoes", JSON.stringify(transacoes));
-                    exibirTransacoes();
+                    sincronizarDados();
                     Swal.fire({ icon: 'success', title: 'Excluída!', timer: 1500, showConfirmButton: false });
                 }
             });
@@ -192,7 +279,7 @@ function calcularTotais() {
     let totalDespesa = 0;
     let totalDespesaFuncionario = 0;
     
-    transacoes.forEach((transacao) => {
+    transacoesFiltradas.forEach((transacao) => {
         if (transacao.tipo === "receita") totalFaturamento += transacao.valor;
         else if (transacao.tipo === "despesa") totalDespesa += transacao.valor;
         else if (transacao.tipo === "total-despesa-funcionario") totalDespesaFuncionario += transacao.valor;

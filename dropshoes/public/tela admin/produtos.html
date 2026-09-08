@@ -6,8 +6,7 @@
     <title>Delicias Da Lucy | Catálogo de Produtos</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">    
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="../js/produtos.js" defer></script>
 </head>
 <body>
@@ -15,7 +14,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a>
-            <h2>Painel de navegação</h2>
+            <h2>Painel de Navegação</h2>
         </div>
      
         <nav class="sidebar-nav">
@@ -36,28 +35,28 @@
         <main class="container">
             
             <header class="hero">
-                <h1>Aqui Estão todos os Produtos</h1>
+                <h1>Catálogo de Produtos</h1>
                 <p>Gerencie o cardápio, adicione novas receitas e altere informações do catálogo em tempo real.</p>
             </header>
 
             <section class="filtros-fluxo-caixa">
                 <div class="form-group-inline">
-                    <label for="filtro-categoria">Categoria</label>
+                    <label for="filtro-categoria">Categoria:</label>
                     <select id="filtro-categoria" class="form-control select-filtro">
-                        <option value="todos">Todos os Produtos</option>
-                        <option value="pasteis-salgados">Pasteis Salgados</option>
-                        <option value="pasteis-doces">Pasteis Doces</option>
-                        <option value="panquecas-salgadas">Panqueca Salgada</option>
-                        <option value="panquecas-doces">Panqueca Doce</option>
+                        <option value="todos">Modo Geral (Todos)</option>
+                        <option value="pasteis-salgados">Pastéis Salgados</option>
+                        <option value="pasteis-doces">Pastéis Doces</option>
+                        <option value="panquecas-salgadas">Panquecas Salgadas</option>
+                        <option value="panquecas-doces">Panquecas Doces</option>
                     </select>
                 </div>
                 
-                <div class="botoes-acoes-wrapper">
+                <div class="botoes-acoes-wrapper" style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn btn-success btn-adicionar" id="abrirModalProduto">
                         + Adicionar Produto
                     </button>
-                    <button class="produtos-especiais" id="abrirModalProdutoEspecial">
-                        + Adicionar Produto Promocional/Especial
+                    <button class="produtos-especiais btn" id="abrirModalProdutoEspecial" style="background: var(--warning, #f39c12); color: white;">
+                        + Promocional / Especial
                     </button>
                 </div>
             </section>
@@ -65,97 +64,96 @@
             <section class="grid-produtos" id="lista-produtos"></section>
 
             <footer class="card-footer">
-                <p>© 2026 Delicias Da Lucy. Painel Administrativo Premium.</p>
+                <p>© 2026 Delicias Da Lucy. Painel Administrativo</p>
             </footer>
         </main>
     </div>
 
-    <dialog id="modal-produto">
+    <!-- Modal Produto Padrão -->
+    <dialog id="modal-produto" class="form-dialog">
         <form id="form-produto" class="form-dialog">
             <h2 id="modal-produto-titulo">Novo Produto</h2>
             <input type="hidden" id="prod-id">
             
             <div class="form-group">
-                <label for="prod-nome">Nome da Delícia</label>
-                <input type="text" id="prod-nome" class="form-control" required placeholder="Ex: Bolo de Pote Ninho com Morango">
+                <label for="prod-nome">Nome da Delícia:</label>
+                <input type="text" id="prod-nome" class="form-control" required placeholder="Ex: Pastel de Carne com Queijo">
             </div>
 
             <div class="form-group">
-                <label for="prod-preco">Preço de Venda (R$)</label>
+                <label for="prod-categoria">Categoria:</label>
+                <select id="prod-categoria" class="form-control" required>
+                    <option value="pasteis-salgados">Pastéis Salgados</option>
+                    <option value="pasteis-doces">Pastéis Doces</option>
+                    <option value="panquecas-salgadas">Panquecas Salgadas</option>
+                    <option value="panquecas-doces">Panquecas Doces</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="prod-preco">Preço de Venda (R$):</label>
                 <input type="text" id="prod-preco" class="form-control" required placeholder="0,00">
             </div>
 
-            <div class="form-group">
-                <label>Foto do Produto</label>
-                <label class="file-wrapper" for="prod-imagem">
-                    <span class="material-symbols-outlined icon-upload">cloud_upload</span>
-                    <p class="text-upload">Clique para carregar a imagem</p>
-                    <input type="file" id="prod-imagem" accept="image/*">
-                </label>
-            </div>
-
             <div class="botoes-dialog">
-                <button type="button" class="btn btn-cancelar" id="btn-fechar-modal">Cancelar</button>
                 <button type="submit" class="btn btn-success" id="btnSalvarProduto">Salvar Produto</button>
+                <button type="button" class="btn btn-cancelar" id="btn-fechar-modal">Cancelar</button>
             </div>
         </form>
     </dialog>
 
-    <dialog id="modal-produto-especial">
+    <!-- Modal Produto Especial / Promocional -->
+    <dialog id="modal-produto-especial" class="form-dialog">
         <form id="form-produto-especial" class="form-dialog">
             <h2 id="modal-produto-titulo-especial">Novo Produto Especial</h2>
             <input type="hidden" id="prod-id-especial">
             
             <div class="form-group">
-                <label for="prod-nome-especial">Nome da Delícia Especial</label>
-                <input type="text" id="prod-nome-especial" class="form-control" required placeholder="Ex: Palito de pastel de chocolate">
+                <label for="prod-nome-especial">Nome da Delícia Especial:</label>
+                <input type="text" id="prod-nome-especial" class="form-control" required placeholder="Ex: Combo Especial da Lucy">
             </div>
 
             <div class="form-group">
-                <label for="prod-preco-especial">Preço de Venda Especial (R$)</label>
+                <label for="prod-categoria-especial">Categoria:</label>
+                <select id="prod-categoria-especial" class="form-control" required>
+                    <option value="pasteis-salgados">Pastéis Salgados</option>
+                    <option value="pasteis-doces">Pastéis Doces</option>
+                    <option value="panquecas-salgadas">Panquecas Salgadas</option>
+                    <option value="panquecas-doces">Panquecas Doces</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="prod-preco-especial">Preço de Venda Especial (R$):</label>
                 <input type="text" id="prod-preco-especial" class="form-control" required placeholder="0,00">
             </div>
 
-            <div class="form-group">
-                <label>Foto do Produto Especial</label>
-                <label class="file-wrapper" for="prod-imagem-especial">
-                    <span class="material-symbols-outlined icon-upload">cloud_upload</span>
-                    <p class="text-upload">Clique para carregar a imagem</p>
-                    <input type="file" id="prod-imagem-especial" accept="image/*">
-                </label>
-            </div>
-
             <div class="botoes-dialog">
+                <button type="submit" class="btn btn-success" id="btnSalvarProdutoEspecial">Salvar Especial</button>
                 <button type="button" class="btn btn-cancelar" id="btn-fechar-modal-especial">Cancelar</button>
-                <button type="submit" class="btn produtos-especiais" id="btnSalvarProdutoEspecial">Salvar Especial</button>
             </div>
         </form>
     </dialog>
 
+    <!-- Template do Card -->
     <template id="template-card-produto">
         <div class="product-card">
             <div class="produto-imagem-wrapper">
-                <span class="badge-especial" style="display: none;">PROMO / ESPECIAL</span>
+                <span class="badge-especial" style="display: none; background: #e67e22; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; position: absolute; top: 10px; left: 10px; z-index: 2;">PROMO / ESPECIAL</span>
                 <img src="" alt="" class="img-vitrine">
             </div>
             <div class="product-info">
                 <h3 class="titulo-vitrine"></h3>
                 <p class="preco-vitrine"></p>
                 
-                <div class="secao-tamanhos">
-                    <span class="rotulo-tamanhos">Tamanhos Disponíveis:</span>
-                    <div class="container-tamanhos-dinamicos tamanho-selector"></div>
+                <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-primary btn-card-action btn-editar" style="flex: 1; padding: 6px 10px; font-size: 0.85rem;">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">edit</span> Editar
+                    </button>
+                    <button type="button" class="btn btn-danger btn-card-action btn-excluir" style="flex: 1; padding: 6px 10px; font-size: 0.85rem;">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">delete</span> Excluir
+                    </button>
                 </div>
-                
-                <button type="button" class="btn btn-success btn-card-action btn-add-cart">
-                    <span class="material-symbols-outlined icon-card">shopping_cart</span> Adicionar ao Carrinho
-                </button>
-                <button type="button" class="btn btn-primary btn-card-action btn-editar">
-                    <span class="material-symbols-outlined icon-card">edit</span> Editar
-                </button>
-                <button type="button" class="btn btn-danger btn-card-action btn-excluir">
-                    <span class="material-symbols-outlined icon-card">delete</span> Excluir Produto
-                </button>
             </div>
         </div>
     </template>

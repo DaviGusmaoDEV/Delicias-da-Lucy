@@ -2,14 +2,13 @@
 import { realizarLogin } from './login.js';
 import { adicionarAoCarrinho } from './carrinho.js';
 
-// Exemplo de execução estruturada de teste
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
     console.log("Sistema Delícias da Lucy inicializado via ES Modules.");
-    
-    // Teste controlado de fluxo (Remover ou comentar em produção se necessário)
-    const logado = await realizarLogin("admin", "123");
-    if (logado) {
-        const produtoTeste = { id: 1, nome: "Bolo de Pote Premium", preco: 12.50 };
-        adicionarAoCarrinho(produtoTeste);
-    }
 });
+
+// As funções realizarLogin e adicionarAoCarrinho são importadas aqui
+// apenas para garantir que estejam disponíveis caso este arquivo
+// seja usado como ponto de entrada compartilhado pelas páginas.
+// A execução de login e a adição ao carrinho devem ocorrer apenas
+// em resposta a ações reais do usuário (clique em botão, envio de
+// formulário), nunca automaticamente ao carregar a página.
