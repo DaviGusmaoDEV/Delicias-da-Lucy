@@ -143,8 +143,8 @@ const page = (...parts) => (req, res, next) => res.sendFile(
 rota('get', '/vendor/sweetalert2.js', (req, res) => res.sendFile(path.join(__dirname, 'node_modules/sweetalert2/dist/sweetalert2.all.min.js')));
 rota('get', '/vendor/sweetalert2.esm.js', (req, res) => res.sendFile(path.join(__dirname, 'node_modules/sweetalert2/dist/sweetalert2.esm.all.min.js')));
 rota('get', '/', page('tela de login', 'login cliente.html'));
-rota('get', '/login', page('tela de login', 'login.html'));
-rota('get', '/login-cliente', page('tela de login', 'login cliente.html'));
+rota('get', ['/login', '/login.html', '/admin/login'], page('tela de login', 'login.html'));
+rota('get', ['/login-cliente', '/login-cliente.html', '/login%20cliente.html', '/cliente/login'], page('tela de login', 'login cliente.html'));
 // A página de cadastro é pública. O envio dos dados continua em POST /api/cadastro.
 rota('get', ['/cadastro', '/cadastro-cliente', '/cliente/cadastro', '/cadastro.html', '/cadastro-cliente.html', '/cadastro%20cliente.html'], page('tela de login', 'cadastro cliente.html'));
 rota('get', '/admin/principal', page('tela admin', 'principal.html')); rota('get', '/admin/produtos', page('tela admin', 'produtos.html')); rota('get', '/admin/fluxo-caixa', page('tela admin', 'fluxo de caixa.html')); rota('get', '/admin/meu-perfil', page('tela admin', 'meu perfil.html')); rota('get', '/cliente/principal', page('tela cliente', 'principal.html')); rota('get', '/cliente/produtos', page('tela cliente', 'Produtos.html')); rota('get', '/cliente/carrinho', page('tela cliente', 'carrino cliente.html')); rota('get', '/cliente/meu-perfil', page('tela cliente', 'meu perfil cliente.html'));
