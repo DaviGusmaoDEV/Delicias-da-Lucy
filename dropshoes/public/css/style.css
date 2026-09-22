@@ -60,6 +60,36 @@ body {
     min-height: 100vh;
 }
 
+/* Leitura confortável, controles grandes e foco sempre visível. */
+button, input, select, textarea { font: inherit; }
+button, .btn, .nav-item { min-height: 44px; }
+:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 3px; }
+.ajuda-campo { color: var(--text-muted); margin: 6px 0 12px; }
+.grid-entrega { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.frete-calculo-container, .pagamento-container { border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; }
+.frete-calculo-container label, .pagamento-container label { display: block; font-weight: 700; margin: 8px 0; }
+.pedido-card { background: var(--card-bg); border: 1px solid var(--border-color); border-left: 6px solid var(--primary); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin-bottom: 18px; font-size: 16px; }
+.pedido-card p { margin: 8px 0; }
+.pedido-card select { padding: 8px; margin: 0 12px 0 6px; }
+.pedido-cabecalho, .pedido-acoes { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pedido-cabecalho { justify-content: space-between; margin-bottom: 8px; }
+.pedido-acoes { margin-top: 16px; }
+.status-pedido { display: inline-block; width: fit-content; padding: 6px 10px; border-radius: 999px; font-size: .86rem; font-weight: 800; line-height: 1.2; }
+.status-detalhe { display: block; color: var(--text-muted); margin: 6px 0 10px; }
+.status-pedido.status-pendente { color: #713f12; background: #fef3c7; }
+.status-pedido.status-aceito { color: #fff; background: #7c3aed; }
+.status-pedido.status-em_preparo { color: #78350f; background: #fed7aa; }
+.status-pedido.status-pronto_entrega { color: #4c1d95; background: #ddd6fe; }
+.status-pedido.status-recebido { color: #065f46; background: #bbf7d0; }
+.status-pedido.status-cancelado { color: #991b1b; background: #fee2e2; }
+.pedido-card.status-aceito { border-left-color: #7c3aed; }
+.pedido-card.status-em_preparo { border-left-color: #fb923c; }
+.pedido-card.status-pronto_entrega { border-left-color: #a78bfa; }
+.pedido-card.status-recebido { border-left-color: #22c55e; }
+.btn-recebido { background: #15803d; color: #fff; margin-top: 10px; }
+.btn-whatsapp { background: #25d366; color: #062b14; }
+@media (max-width: 680px) { .grid-entrega { grid-template-columns: 1fr; } .frete-container-inline { flex-direction: column; } }
+
 /* Suporte de alinhamento global para fontes de ícones do Google */
 .material-symbols-outlined {
     display: inline-flex;

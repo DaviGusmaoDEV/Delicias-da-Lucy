@@ -1,4 +1,4 @@
-const API_URL = 'https://delicias-da-lucy.onrender.com';
+const API_URL = window.location.origin;
 
 document.addEventListener("DOMContentLoaded", () => {
     const formLogin = document.getElementById("form-login");
@@ -41,8 +41,8 @@ export async function realizarLogin(identificador, senha) {
 
         // Diferenciação e Redirecionamento por cargo (Admin vs Cliente)
         const cargoFormatado = role.toLowerCase();
-        const destino = cargoFormatado.includes('admin') || cargoFormatado.includes('gerente')
-            ? '../tela admin/Meu Perfil.html'
+        const destino = cargoFormatado === 'admin1' || cargoFormatado === 'admin2'
+            ? '../tela admin/principal.html'
             : '../tela cliente/principal.html';
             
         window.location.href = destino;

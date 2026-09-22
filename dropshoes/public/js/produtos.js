@@ -1,245 +1,89 @@
-// produtos.js
+import { adicionarAoCarrinho } from './carrinho.js';
 
-const el = {
-    listaProdutos: document.getElementById("lista-produtos"),
-    templateCard: document.getElementById("template-card-produto"),
-    modal: document.getElementById("modal-produto"),
-    formProduto: document.getElementById("form-produto"),
-    modalEspecial: document.getElementById("modal-produto-especial"),
-    formProdutoEspecial: document.getElementById("form-produto-especial"),
-    
-    // Inputs Produto Comum
-    inputId: document.getElementById("prod-id"),
-    inputNome: document.getElementById("prod-nome"),
-    inputPreco: document.getElementById("prod-preco"),
-    selectCategoria: document.getElementById("prod-categoria"),
-    
-    // Inputs Produto Especial
-    inputIdEspecial: document.getElementById("prod-id-especial"),
-    inputNomeEspecial: document.getElementById("prod-nome-especial"),
-    inputPrecoEspecial: document.getElementById("prod-preco-especial"),
-    selectCategoriaEspecial: document.getElementById("prod-categoria-especial"),
-    
-    // Botões de Abertura de Modal
-    btnAbrirModal: document.getElementById("abrirModalProduto"),
-    btnAbrirModalEspecial: document.getElementById("abrirModalProdutoEspecial"),
-    
-    // Filtro de Categoria
-    filtroCategoria: document.getElementById("filtro-categoria")
-};
+const API_URL = window.location.origin;
+const admin = ['admin1', 'admin2'].includes(localStorage.getItem('role'));
+let produtos = [];
+const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
+const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+const aviso = mensagem => { const area = document.getElementById('mensagem-produto'); if (area) area.textContent = mensagem; };
 
-const API_URL = 'https://delicias-da-lucy.onrender.com';
-let listaProdutosGlobal = [];
-
-// --- BUSCA DE DADOS ---
+function normalizarPreco(valor) {
+  const texto = String(valor).trim().replace(/\s/g, '').replace('R$', '');
+  const numero = Number(texto.includes(',') ? texto.replace(/\./g, '').replace(',', '.') : texto);
+  return Number.isFinite(numero) ? numero : NaN;
+}
+function validarProduto({ nome, preco, categoria }) {
+  if (nome.length < 3 || nome.length > 100) return 'Digite um nome entre 3 e 100 caracteres.';
+  if (!Number.isFinite(preco) || preco <= 0 || preco > 9999.99) return 'Informe um preço entre R$ 0,01 e R$ 9.999,99.';
+  if (!categoria) return 'Escolha uma categoria.';
+  return '';
+}
 async function carregarProdutos() {
-    const token = localStorage.getItem('token');
-    try {
-        const resposta = await fetch(`${API_URL}/api/produtos`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (resposta.status === 401 || resposta.status === 403) {
-            alert('Sua sessão expirou ou você não tem permissão. Faça login novamente.');
-            localStorage.removeItem('token');
-            window.location.href = 'login.html';
-            return;
-        }
-
-        if (!resposta.ok) throw new Error("Erro ao buscar.");
-
-        listaProdutosGlobal = await resposta.json();
-        aplicarFiltroECategoria();
-    } catch (erro) {
-        console.error(erro);
-        if (el.listaProdutos) {
-            el.listaProdutos.innerHTML = '<p style="text-align:center; color: var(--danger, #e74c3c); grid-column: 1/-1;">Não foi possível carregar os produtos do servidor.</p>';
-        }
-    }
+  aviso('Carregando cardápio…');
+  try {
+    const resposta = await fetch(`${API_URL}/api/produtos`, { headers: headers() });
+    if (!resposta.ok) throw new Error((await resposta.json()).erro || 'Não foi possível carregar o cardápio.');
+    produtos = await resposta.json(); renderizar(); aviso(`${produtos.length} produto(s) no cardápio.`);
+  } catch (erro) { aviso(erro.message); }
 }
-
-// --- ABRIR / FECHAR MODAIS ---
-if (el.btnAbrirModal && el.modal) {
-    el.btnAbrirModal.addEventListener("click", () => {
-        el.formProduto?.reset();
-        if (el.inputId) el.inputId.value = "";
-        el.modal.showModal();
-    });
+function renderizar() {
+  const lista = document.getElementById('lista-produtos'); const template = document.getElementById('template-card-produto'); const filtro = document.getElementById('filtro-categoria')?.value || 'todos';
+  if (!lista || !template) return; lista.innerHTML = '';
+  const visiveis = produtos.filter(produto => filtro === 'todos' || produto.categoria === filtro);
+  if (!visiveis.length) { lista.innerHTML = '<p>Nenhum produto nesta categoria.</p>'; return; }
+  visiveis.forEach(produto => {
+    const clone = template.content.cloneNode(true); const imagem = clone.querySelector('.img-vitrine');
+    if (imagem) { imagem.src = produto.imagem_url || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=400'; imagem.alt = `Foto de ${produto.nome}`; }
+    clone.querySelector('.titulo-vitrine').textContent = produto.nome;
+    clone.querySelector('.preco-vitrine').textContent = dinheiro(produto.preco);
+    const destaque = clone.querySelector('.badge-especial'); if (destaque) destaque.style.display = produto.isEspecial ? 'inline-block' : 'none';
+    const botaoCarrinho = clone.querySelector('.btn-add-cart'); if (botaoCarrinho) botaoCarrinho.onclick = () => adicionarAoCarrinho(produto);
+    const editar = clone.querySelector('.btn-editar'); const excluir = clone.querySelector('.btn-excluir');
+    if (editar) { editar.hidden = !admin; editar.onclick = () => abrirModal(produto, Boolean(produto.isEspecial)); }
+    if (excluir) { excluir.hidden = !admin; excluir.onclick = () => excluirProduto(produto.id); }
+    lista.append(clone);
+  });
 }
-
-if (el.btnAbrirModalEspecial && el.modalEspecial) {
-    el.btnAbrirModalEspecial.addEventListener("click", () => {
-        el.formProdutoEspecial?.reset();
-        if (el.inputIdEspecial) el.inputIdEspecial.value = "";
-        el.modalEspecial.showModal();
-    });
+function dadosDoFormulario(especial) {
+  const sufixo = especial ? '-especial' : '';
+  return {
+    id: document.getElementById(`prod-id${sufixo}`).value,
+    nome: document.getElementById(`prod-nome${sufixo}`).value.trim(),
+    preco: normalizarPreco(document.getElementById(`prod-preco${sufixo}`).value),
+    categoria: document.getElementById(`prod-categoria${sufixo}`)?.value || 'outros',
+    isEspecial: especial
+  };
 }
-
-if (el.modal) {
-    el.modal.addEventListener("click", (e) => {
-        if (e.target === el.modal) el.modal.close();
-    });
-    document.getElementById("btn-fechar-modal")?.addEventListener("click", () => el.modal.close());
+function abrirModal(produto = null, especial = false) {
+  const sufixo = especial ? '-especial' : ''; const modal = document.getElementById(`modal-produto${sufixo}`); const form = document.getElementById(`form-produto${sufixo}`);
+  if (!modal || !form) return; form.reset();
+  document.getElementById(`prod-id${sufixo}`).value = produto?.id || '';
+  document.getElementById(`prod-nome${sufixo}`).value = produto?.nome || '';
+  document.getElementById(`prod-preco${sufixo}`).value = produto ? dinheiro(produto.preco).replace('R$ ', '') : '';
+  const categoria = document.getElementById(`prod-categoria${sufixo}`); if (categoria && produto?.categoria) categoria.value = produto.categoria;
+  modal.showModal();
 }
-
-if (el.modalEspecial) {
-    el.modalEspecial.addEventListener("click", (e) => {
-        if (e.target === el.modalEspecial) el.modalEspecial.close();
-    });
-    document.getElementById("btn-fechar-modal-especial")?.addEventListener("click", () => el.modalEspecial.close());
+async function salvarProduto(event, especial) {
+  event.preventDefault(); if (!admin) return;
+  const produto = dadosDoFormulario(especial); const erro = validarProduto(produto);
+  if (erro) return aviso(erro);
+  const resposta = await fetch(`${API_URL}/api/produtos${produto.id ? `/${produto.id}` : ''}`, { method: produto.id ? 'PUT' : 'POST', headers: { ...headers(), 'Content-Type': 'application/json' }, body: JSON.stringify(produto) });
+  const retorno = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) return aviso(retorno.erro || 'Não foi possível salvar o produto.');
+  document.getElementById(`modal-produto${especial ? '-especial' : ''}`).close(); aviso(`“${retorno.nome}” foi salvo e já está visível no cardápio.`); carregarProdutos();
 }
-
-// --- FILTRAGEM ---
-if (el.filtroCategoria) {
-    el.filtroCategoria.addEventListener("change", aplicarFiltroECategoria);
+async function excluirProduto(id) {
+  if (!confirm('Excluir este produto do cardápio?')) return;
+  const resposta = await fetch(`${API_URL}/api/produtos/${id}`, { method: 'DELETE', headers: headers() });
+  if (!resposta.ok) return aviso('Não foi possível excluir o produto.'); carregarProdutos();
 }
-
-function aplicarFiltroECategoria() {
-    const categoriaSelecionada = el.filtroCategoria ? el.filtroCategoria.value : "todos";
-    
-    const produtosFiltrados = listaProdutosGlobal.filter(produto => {
-        if (categoriaSelecionada === "todos") return true;
-        return produto.categoria === categoriaSelecionada;
-    });
-
-    exibirProdutos(produtosFiltrados);
-}
-
-// --- RENDERIZAÇÃO ---
-function exibirProdutos(lista) {
-    if (!el.listaProdutos || !el.templateCard) return;
-    el.listaProdutos.innerHTML = "";
-
-    if (lista.length === 0) {
-        el.listaProdutos.innerHTML = '<p style="text-align:center; color: #888; grid-column: 1/-1; padding: 20px;">Nenhum produto encontrado nesta categoria.</p>';
-        return;
-    }
-
-    lista.forEach(produto => {
-        const clone = el.templateCard.content.cloneNode(true);
-
-        const imgVitrine = clone.querySelector(".img-vitrine");
-        if (imgVitrine) {
-            imgVitrine.src = produto.imagem || "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=400";
-            imgVitrine.alt = produto.nome;
-        }
-
-        clone.querySelector(".titulo-vitrine").textContent = produto.nome;
-        clone.querySelector(".preco-vitrine").textContent = `R$ ${parseFloat(produto.preco || 0).toFixed(2).replace(".", ",")}`;
-
-        const badgeEspecial = clone.querySelector(".badge-especial");
-        if (badgeEspecial && produto.isEspecial) {
-            badgeEspecial.style.display = "inline-block";
-        }
-
-        clone.querySelector(".btn-editar")?.addEventListener("click", () => abrirEdicao(produto));
-        clone.querySelector(".btn-excluir")?.addEventListener("click", () => confirmarExclusao(produto.id));
-
-        el.listaProdutos.appendChild(clone);
-    });
-}
-
-// --- SUPORTE À EDIÇÃO ---
-function abrirEdicao(produto) {
-    if (produto.isEspecial) {
-        if (el.inputIdEspecial) el.inputIdEspecial.value = produto.id;
-        if (el.inputNomeEspecial) el.inputNomeEspecial.value = produto.nome;
-        if (el.inputPrecoEspecial) el.inputPrecoEspecial.value = produto.preco.toString().replace(".", ",");
-        if (el.selectCategoriaEspecial) el.selectCategoriaEspecial.value = produto.categoria || "pasteis-salgados";
-        el.modalEspecial?.showModal();
-    } else {
-        if (el.inputId) el.inputId.value = produto.id;
-        if (el.inputNome) el.inputNome.value = produto.nome;
-        if (el.inputPreco) el.inputPreco.value = produto.preco.toString().replace(".", ",");
-        if (el.selectCategoria) el.selectCategoria.value = produto.categoria || "pasteis-salgados";
-        el.modal?.showModal();
-    }
-}
-
-// --- ENVIO DE DADOS (POST / PUT) ---
-async function processarFormulario(event, tipoModal) {
-    event.preventDefault();
-    const esEspecial = (tipoModal === 'especial');
-
-    const id = esEspecial ? el.inputIdEspecial?.value : el.inputId?.value;
-    const nome = esEspecial ? el.inputNomeEspecial?.value : el.inputNome?.value;
-    const precoTexto = esEspecial ? el.inputPrecoEspecial?.value : el.inputPreco?.value;
-    const categoria = esEspecial ? el.selectCategoriaEspecial?.value : el.selectCategoria?.value;
-    const preco = parseFloat(precoTexto?.replace(",", ".") || "0");
-
-    if (!nome || nome.trim() === "") {
-        alert('Informe o nome do produto.');
-        return;
-    }
-    if (isNaN(preco) || preco <= 0) {
-        alert('Informe um preço válido.');
-        return;
-    }
-
-    const produto = {
-        id: id ? (isNaN(id) ? id : Number(id)) : null,
-        nome: nome.trim(),
-        preco,
-        categoria,
-        isEspecial: esEspecial
-    };
-
-    const token = localStorage.getItem('token');
-    const metodo = produto.id ? 'PUT' : 'POST';
-    const urlEndpoint = produto.id ? `${API_URL}/api/produtos/${produto.id}` : `${API_URL}/api/produtos`;
-
-    try {
-        const res = await fetch(urlEndpoint, {
-            method: metodo,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(produto)
-        });
-
-        if (res.ok) {
-            carregarProdutos();
-            if (esEspecial) {
-                el.modalEspecial?.close();
-                el.formProdutoEspecial?.reset();
-            } else {
-                el.modal?.close();
-                el.formProduto?.reset();
-            }
-        } else {
-            const erroData = await res.json().catch(() => null);
-            alert(erroData?.mensagem || 'Não foi possível salvar o produto.');
-        }
-    } catch (erro) {
-        console.error(erro);
-        alert('Falha de conexão com o servidor.');
-    }
-}
-
-// --- EXCLUSÃO ---
-async function confirmarExclusao(id) {
-    if (!confirm('Deseja realmente excluir este produto?')) return;
-
-    try {
-        const resposta = await fetch(`${API_URL}/api/produtos/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-
-        if (resposta.ok) {
-            carregarProdutos();
-        } else {
-            alert('Não foi possível excluir o produto.');
-        }
-    } catch (erro) {
-        console.error(erro);
-        alert('Falha de conexão com o servidor.');
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    carregarProdutos();
-    el.formProduto?.addEventListener("submit", (e) => processarFormulario(e, 'tradicional'));
-    el.formProdutoEspecial?.addEventListener("submit", (e) => processarFormulario(e, 'especial'));
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('filtro-categoria')?.addEventListener('change', renderizar);
+  document.getElementById('abrirModalProduto')?.addEventListener('click', () => abrirModal());
+  document.getElementById('abrirModalProdutoEspecial')?.addEventListener('click', () => abrirModal(null, true));
+  document.getElementById('form-produto')?.addEventListener('submit', evento => salvarProduto(evento, false));
+  document.getElementById('form-produto-especial')?.addEventListener('submit', evento => salvarProduto(evento, true));
+  document.getElementById('btn-fechar-modal')?.addEventListener('click', () => document.getElementById('modal-produto').close());
+  document.getElementById('btn-fechar-modal-especial')?.addEventListener('click', () => document.getElementById('modal-produto-especial').close());
+  carregarProdutos();
 });

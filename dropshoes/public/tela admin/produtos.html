@@ -7,9 +7,10 @@
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="../js/produtos.js" defer></script>
+    <script type="module" src="../js/produtos.js" defer></script>
+    <script type="module" src="../js/sessao.js" defer></script>
 </head>
-<body>
+<body data-acesso="admin">
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -62,6 +63,7 @@
             </section>
 
             <section class="grid-produtos" id="lista-produtos"></section>
+            <p id="mensagem-produto" role="status" aria-live="polite" class="ajuda-campo"></p>
 
             <footer class="card-footer">
                 <p>© 2026 Delicias Da Lucy. Painel Administrativo</p>

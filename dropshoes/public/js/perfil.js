@@ -1,60 +1,30 @@
-import Swal from 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
-
-// URL do seu servidor
-const API_URL = 'https://delicias-da-lucy.onrender.com';
-
-document.addEventListener("DOMContentLoaded", async () => {
-    // 1. Verificação de autenticação
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '../login.html'; // Volta se não estiver logado
-        return;
-    }
-
-    // 2. Busca dados do perfil no servidor (opcional: serve para validar se o token ainda é válido)
-    try {
-        const resposta = await fetch(`${API_URL}/api/meu-perfil`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!resposta.ok) {
-            localStorage.clear();
-            window.location.href = '../login.html';
-            return;
-        }
-    } catch (e) {
-        console.error("Erro ao validar perfil:", e);
-    }
-
-    // 3. Lógica de UI (Dados que já temos no localStorage)
-    const nome = localStorage.getItem('nomeUsuario') || "Usuário";
-    const role = localStorage.getItem('role');
-    const tituloBoasVindas = document.getElementById('boas-vindas-usuario');
-
-    if (tituloBoasVindas) tituloBoasVindas.textContent = `Olá, ${nome}`;
-
-    // 4. Lógica de Acesso e Permissões
-    if (role?.includes('admin')) {
-        document.getElementById('painel-admin-donoloja').style.display = 'block';
-
-        const ehGerente = role === 'admin2';
-        
-        // Bloqueio visual para Admin1
-        if (!ehGerente) {
-            const linkFluxo = document.querySelector('a[href="fluxo de caixa.html"]');
-            if (linkFluxo) linkFluxo.style.display = 'none';
-        }
-    } else {
-        document.getElementById('painel-cliente-pedidos').style.display = 'block';
-    }
-
-    // 5. Lógica do formulário de categoria
-    const formCategoria = document.getElementById("form-nova-categoria");
-    formCategoria?.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const categoria = document.getElementById("nome-categoria").value;
-        // Aqui você integraria com a API se tiver uma rota de categorias
-        Swal.fire({ icon: 'success', title: 'Sucesso!', text: `Categoria "${categoria}" adicionada.` });
-        formCategoria.reset();
-    });
+const API_URL = window.location.origin;
+const token = localStorage.getItem('token');
+const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
+const STATUS = {
+  pendente: ['Restaurante visualizando seu pedido', 'Seu pedido foi enviado e aguarda a confirmação do restaurante.'],
+  aceito: ['Pedido aceito pelo restaurante', 'A cozinha recebeu seu pedido.'],
+  em_preparo: ['Pedido em preparo', 'Estamos preparando sua delícia com carinho.'],
+  pronto_entrega: ['Pedido pronto / em entrega', 'Seu pedido está a caminho. Confirme quando receber.'],
+  recebido: ['Pedido recebido', 'Obrigada pela preferência!'],
+  cancelado: ['Pedido cancelado', 'Se precisar, fale com o restaurante pelo WhatsApp.']
+};
+async function api(url, opcoes = {}) { const resposta = await fetch(`${API_URL}${url}`, { ...opcoes, headers: { Authorization: `Bearer ${token}`, ...(opcoes.headers || {}) } }); const dados = await resposta.json().catch(() => ({})); if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível atualizar o pedido.'); return dados; }
+async function confirmarRecebimento(id) { try { await api(`/api/pedidos/${id}/confirmar-recebimento`, { method: 'POST' }); carregarPedidos(); } catch (erro) { alert(erro.message); } }
+async function carregarPedidos() {
+  const corpo = document.getElementById('meus-pedidos'); if (!corpo) return;
+  const pedidos = await api('/api/meus-pedidos'); corpo.innerHTML = '';
+  if (!pedidos.length) corpo.innerHTML = '<tr><td colspan="4">Você ainda não fez pedidos.</td></tr>';
+  pedidos.forEach(pedido => {
+    const [titulo, descricao] = STATUS[pedido.status] || STATUS.pendente; const linha = document.createElement('tr'); linha.className = `linha-pedido status-${pedido.status}`;
+    const id = document.createElement('td'); id.textContent = `#${pedido.id}`;
+    const data = document.createElement('td'); data.textContent = new Date(pedido.data_criacao || Date.now()).toLocaleDateString('pt-BR');
+    const situacao = document.createElement('td'); const selo = document.createElement('span'); selo.className = `status-pedido status-${pedido.status}`; selo.textContent = titulo; situacao.append(selo); const detalhe = document.createElement('small'); detalhe.className = 'status-detalhe'; detalhe.textContent = descricao; situacao.append(detalhe);
+    if (pedido.status === 'pronto_entrega') { const botao = document.createElement('button'); botao.className = 'btn btn-recebido'; botao.textContent = 'Confirmar que recebi'; botao.onclick = () => confirmarRecebimento(pedido.id); situacao.append(botao); }
+    const total = document.createElement('td'); total.textContent = dinheiro(pedido.valor); linha.append(id, data, situacao, total); corpo.append(linha);
+  });
+}
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!token) return window.location.assign('../tela de login/login cliente.html');
+  try { const { perfil } = await api('/api/meu-perfil'); document.getElementById('boas-vindas-usuario').textContent = `Olá, ${perfil.nome}. Acompanhe seus pedidos aqui.`; document.getElementById('user-nome').textContent = perfil.nome; document.getElementById('user-email').textContent = perfil.email; document.getElementById('user-fone').textContent = perfil.telefone || 'Não informado'; await carregarPedidos(); window.setInterval(carregarPedidos, 30000); } catch { localStorage.clear(); window.location.assign('../tela de login/login cliente.html'); }
 });

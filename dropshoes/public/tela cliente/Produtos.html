@@ -8,9 +8,10 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="../js/produtos.js" defer></script>
+    <script type="module" src="../js/produtos.js" defer></script>
+    <script type="module" src="../js/sessao.js" defer></script>
 </head>
-<body>
+<body data-acesso="cliente">
 
     <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -20,14 +21,13 @@
 
     <nav class="sidebar-nav">
         <a href="principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
-        <a href="produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+        <a href="Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
         <a href="meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
-        <a href="" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
-        <a href="login.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
+        <a href="carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
     </nav>
 
     <div class="sidebar-footer">
-        <a href="#" class="nav-item"><span class="material-symbols-outlined">logout</span> Sair</a>
+        <a href="#" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
     </div>
     </aside>
 
@@ -44,15 +44,17 @@
                     <label for="filtro-categoria">Categoria</label>
                     <select id="filtro-categoria" class="form-control" style="width: 200px;">
                         <option value="todos">Todos os Produtos</option>
-                        <option value="bolos">Bolos</option>
-                        <option value="doces">Doces Gourmet</option>
-                        <option value="salgados">Salgados</option>
+                        <option value="pasteis-salgados">Pastéis Salgados</option>
+                        <option value="pasteis-doces">Pastéis Doces</option>
+                        <option value="panquecas-salgadas">Panquecas Salgadas</option>
+                        <option value="panquecas-doces">Panquecas Doces</option>
                     </select>
                 </div>
             </section>
 
             <section class="grid-produtos" id="lista-produtos">
                 </section>
+            <p id="mensagem-produto" role="status" aria-live="polite" class="ajuda-campo"></p>
 
             <footer class="card-footer">
                 <p>© 2026 Delicias Da Lucy. Painel Administrativo Premium.</p>

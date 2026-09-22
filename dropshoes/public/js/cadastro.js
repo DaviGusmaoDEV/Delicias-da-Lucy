@@ -1,7 +1,7 @@
 import Swal from 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
 
 // Defina a URL base. Use o link do seu Render que você copiou do painel.
-const API_URL = 'https://delicias-da-lucy.onrender.com';
+const API_URL = window.location.origin;
 
 document.addEventListener("DOMContentLoaded", () => {
     const formCadastro = document.getElementById("form-cadastro-cliente");
