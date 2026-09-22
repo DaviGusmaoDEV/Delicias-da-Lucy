@@ -17,7 +17,11 @@ update public.pedidos set status = 'recebido' where status = 'entregue';
 -- Perfis: admin1 = dono geral; admin2 = administrador sem acesso ao caixa; cliente = pedidos próprios.
 alter table public.profiles add column if not exists telefone varchar(30);
 alter table public.profiles alter column role set default 'cliente';
-alter table public.profiles add constraint profiles_role_check check (role in ('admin1', 'admin2', 'cliente')) not valid;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'profiles_role_check' and conrelid = 'public.profiles'::regclass) then
+    alter table public.profiles add constraint profiles_role_check check (role in ('admin1', 'admin2', 'cliente')) not valid;
+  end if;
+end $$;
 
 -- Campos utilizados pelo cadastro de produto e pelo cardápio.
 alter table public.products add column if not exists categoria varchar(80);
@@ -25,7 +29,11 @@ alter table public.products add column if not exists descricao text;
 alter table public.products add column if not exists imagem_url text;
 alter table public.products add column if not exists "isEspecial" boolean not null default false;
 alter table public.products alter column nome set not null;
-alter table public.products add constraint products_preco_positivo check (preco > 0) not valid;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'products_preco_positivo' and conrelid = 'public.products'::regclass) then
+    alter table public.products add constraint products_preco_positivo check (preco > 0) not valid;
+  end if;
+end $$;
 
 -- Exemplos, substitua pelos e-mails corretos:
 -- update public.profiles set role = 'admin1' where email = 'dono@empresa.com';

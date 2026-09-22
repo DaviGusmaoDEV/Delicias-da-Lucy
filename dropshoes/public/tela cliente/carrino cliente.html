@@ -4,38 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeliciasDaLucy | Carrinho</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" src="../js/sessao.js" defer></script>
+    <script type="module" src="/js/sessao.js" defer></script>
 </head>
 <body data-acesso="cliente">
-    
+
     <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a>
+        <a href="/tela%20cliente/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
         <h2>Painel de Navegação</h2>
-    </div>  
+    </div>
 
     <nav class="sidebar-nav">
-        <a href="./principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
-        <a href="./Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
-        <a href="./meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
-        <a href="./carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
-        <a href="../tela de login/login cliente.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
+        <a href="/tela%20cliente/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
+        <a href="/tela%20cliente/Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+        <a href="/tela%20cliente/meu%20perfil%20cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
+        <a href="/tela%20cliente/carrino%20cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
+        <a href="/tela%20de%20login/login%20cliente.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
     </nav>
 
     <div class="sidebar-footer">
-        <a href="#" class="nav-item"><span class="material-symbols-outlined">logout</span> Sair</a>
+        <a href="#" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
     </div>
     </aside>
 
     <main class="main-wrapper">
         <div class="container">
-            
+
             <section class="box-sidebar">
                 <h3>🛒 Seu Carrinho</h3>
-                
+
                 <div id="itens-carrinho"></div>
                 <p id="carrinho-vazio-mensagem" class="carrinho-vazio">Seu carrinho está vazio.</p>
 
@@ -72,16 +72,16 @@
                     <hr>
                     <div class="resumo-linha">
                         <span>Subtotal:</span>
-                        <strong id="cart-subtotal">R$ 0,00</strong> 
+                        <strong id="cart-subtotal">R$ 0,00</strong>
                     </div>
                     <div class="resumo-linha">
                         <span>Taxa de Entrega:</span>
-                        <strong id="cart-frete">R$ 0,00</strong>    
+                        <strong id="cart-frete">R$ 0,00</strong>
                     </div>
                     <hr>
                     <div class="resumo-linha total">
                         <span>Total:</span>
-                        <strong id="cart-total">R$ 0,00</strong>    
+                        <strong id="cart-total">R$ 0,00</strong>
                     </div>
                     <button class="btn-finalizar" type="button" onclick="finalizarCompra()">Finalizar pedido e escolher pagamento</button>
                 </div>
@@ -108,6 +108,6 @@
     </template>
 
     <!-- Carregado apenas UMA vez, como module (necessário por usar import/export) -->
-    <script type="module" src="../js/carrinho.js"></script>
+    <script type="module" src="/js/carrinho.js"></script>
 </body>
 </html>

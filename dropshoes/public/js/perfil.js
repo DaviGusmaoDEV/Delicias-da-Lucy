@@ -1,5 +1,5 @@
-const API_URL = window.location.origin;
-const token = localStorage.getItem('token');
+import { api } from './api.js';
+import { sessaoPronta } from './sessao.js';
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 const STATUS = {
   pendente: ['Restaurante visualizando seu pedido', 'Seu pedido foi enviado e aguarda a confirmação do restaurante.'],
@@ -9,8 +9,7 @@ const STATUS = {
   recebido: ['Pedido recebido', 'Obrigada pela preferência!'],
   cancelado: ['Pedido cancelado', 'Se precisar, fale com o restaurante pelo WhatsApp.']
 };
-async function api(url, opcoes = {}) { const resposta = await fetch(`${API_URL}${url}`, { ...opcoes, headers: { Authorization: `Bearer ${token}`, ...(opcoes.headers || {}) } }); const dados = await resposta.json().catch(() => ({})); if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível atualizar o pedido.'); return dados; }
-async function confirmarRecebimento(id) { try { await api(`/api/pedidos/${id}/confirmar-recebimento`, { method: 'POST' }); carregarPedidos(); } catch (erro) { alert(erro.message); } }
+async function confirmarRecebimento(id) { try { await api(`/api/pedidos/${id}/confirmar-recebimento`, { method: 'POST' }); await carregarPedidos(); } catch (erro) { alert(erro.message); } }
 async function carregarPedidos() {
   const corpo = document.getElementById('meus-pedidos'); if (!corpo) return;
   const pedidos = await api('/api/meus-pedidos'); corpo.innerHTML = '';
@@ -24,7 +23,17 @@ async function carregarPedidos() {
     const total = document.createElement('td'); total.textContent = dinheiro(pedido.valor); linha.append(id, data, situacao, total); corpo.append(linha);
   });
 }
+function mostrarErro(erro) {
+  let aviso = document.getElementById('erro-perfil');
+  if (!aviso) { aviso = document.createElement('p'); aviso.id = 'erro-perfil'; aviso.setAttribute('role', 'alert'); document.querySelector('main')?.prepend(aviso); }
+  aviso.textContent = erro.message;
+}
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!token) return window.location.assign('../tela de login/login cliente.html');
-  try { const { perfil } = await api('/api/meu-perfil'); document.getElementById('boas-vindas-usuario').textContent = `Olá, ${perfil.nome}. Acompanhe seus pedidos aqui.`; document.getElementById('user-nome').textContent = perfil.nome; document.getElementById('user-email').textContent = perfil.email; document.getElementById('user-fone').textContent = perfil.telefone || 'Não informado'; await carregarPedidos(); window.setInterval(carregarPedidos, 30000); } catch { localStorage.clear(); window.location.assign('../tela de login/login cliente.html'); }
+  const perfil = await sessaoPronta; if (!perfil) return;
+  const campos = { 'boas-vindas-usuario': `Olá, ${perfil.nome}.`, 'user-nome': perfil.nome, 'user-email': perfil.email, 'user-fone': perfil.telefone || 'Não informado' };
+  for (const [id, valor] of Object.entries(campos)) { const el = document.getElementById(id); if (el) el.textContent = valor; }
+  if (document.getElementById('meus-pedidos')) {
+    const atualizar = () => carregarPedidos().catch(mostrarErro);
+    await atualizar(); window.setInterval(atualizar, 30000);
+  }
 });

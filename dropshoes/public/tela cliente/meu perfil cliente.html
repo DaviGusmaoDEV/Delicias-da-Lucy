@@ -4,43 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delicias da Lucy | Meu Perfil</title>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
-    <link rel="stylesheet" href="../css/style.css">   
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="../js/perfil.js" defer></script>
-    <script type="module" src="../js/sessao.js" defer></script>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/vendor/sweetalert2.js"></script>
+    <script type="module" src="/js/perfil.js" defer></script>
+    <script type="module" src="/js/sessao.js" defer></script>
 </head>
 <body data-acesso="cliente">
 
     <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a>
+        <a href="/tela%20cliente/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
         <h2>Painel de Navegação</h2>
     </div>
 
     <nav class="sidebar-nav">
-        <a href="principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
-        <a href="./Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
-        <a href="meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
-        <a href="./carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
-        <a href="../tela de login/login cliente.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
+        <a href="/tela%20cliente/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
+        <a href="/tela%20cliente/Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+        <a href="/tela%20cliente/meu%20perfil%20cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
+        <a href="/tela%20cliente/carrino%20cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
+        <a href="/tela%20de%20login/login%20cliente.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
     </nav>
 
     <div class="sidebar-footer">
-        <a href="#" class="nav-item"><span class="material-symbols-outlined">logout</span> Sair</a>
+        <a href="#" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
     </div>
     </aside>
 
     <div class="main-wrapper">
         <main class="container">
-            
+
             <header class="hero">
                 <h1 id="boas-vindas-usuario">Esse é o seu perfil de Cliente do restaurante. </h1>
-                
+
             </header>
 
             <section class="card-painel">
@@ -78,7 +77,7 @@
                 </div>
             </section>
             <div class="dado-grupo">
-                <a class="btn btn-primary" href="./Produtos.html">Fazer novo pedido</a>
+                <a class="btn btn-primary" href="/tela%20cliente/Produtos.html">Fazer novo pedido</a>
             </div>
         </main>
     </div>

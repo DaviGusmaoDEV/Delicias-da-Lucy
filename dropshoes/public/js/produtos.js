@@ -1,10 +1,10 @@
 import { adicionarAoCarrinho } from './carrinho.js';
 
-const API_URL = window.location.origin;
-const admin = ['admin1', 'admin2'].includes(localStorage.getItem('role'));
+import { api, enviar } from './api.js';
+import { sessaoPronta } from './sessao.js';
+let admin = ['admin1', 'admin2'].includes(localStorage.getItem('role'));
 let produtos = [];
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
-const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 const aviso = mensagem => { const area = document.getElementById('mensagem-produto'); if (area) area.textContent = mensagem; };
 
 function normalizarPreco(valor) {
@@ -21,9 +21,7 @@ function validarProduto({ nome, preco, categoria }) {
 async function carregarProdutos() {
   aviso('Carregando cardápio…');
   try {
-    const resposta = await fetch(`${API_URL}/api/produtos`, { headers: headers() });
-    if (!resposta.ok) throw new Error((await resposta.json()).erro || 'Não foi possível carregar o cardápio.');
-    produtos = await resposta.json(); renderizar(); aviso(`${produtos.length} produto(s) no cardápio.`);
+    produtos = await api('/api/produtos'); renderizar(); aviso(`${produtos.length} produto(s) no cardápio.`);
   } catch (erro) { aviso(erro.message); }
 }
 function renderizar() {
@@ -37,7 +35,7 @@ function renderizar() {
     clone.querySelector('.titulo-vitrine').textContent = produto.nome;
     clone.querySelector('.preco-vitrine').textContent = dinheiro(produto.preco);
     const destaque = clone.querySelector('.badge-especial'); if (destaque) destaque.style.display = produto.isEspecial ? 'inline-block' : 'none';
-    const botaoCarrinho = clone.querySelector('.btn-add-cart'); if (botaoCarrinho) botaoCarrinho.onclick = () => adicionarAoCarrinho(produto);
+    const botaoCarrinho = clone.querySelector('.btn-add-cart'); if (botaoCarrinho) { botaoCarrinho.hidden = admin; botaoCarrinho.onclick = () => adicionarAoCarrinho(produto); }
     const editar = clone.querySelector('.btn-editar'); const excluir = clone.querySelector('.btn-excluir');
     if (editar) { editar.hidden = !admin; editar.onclick = () => abrirModal(produto, Boolean(produto.isEspecial)); }
     if (excluir) { excluir.hidden = !admin; excluir.onclick = () => excluirProduto(produto.id); }
@@ -67,17 +65,24 @@ async function salvarProduto(event, especial) {
   event.preventDefault(); if (!admin) return;
   const produto = dadosDoFormulario(especial); const erro = validarProduto(produto);
   if (erro) return aviso(erro);
-  const resposta = await fetch(`${API_URL}/api/produtos${produto.id ? `/${produto.id}` : ''}`, { method: produto.id ? 'PUT' : 'POST', headers: { ...headers(), 'Content-Type': 'application/json' }, body: JSON.stringify(produto) });
-  const retorno = await resposta.json().catch(() => ({}));
-  if (!resposta.ok) return aviso(retorno.erro || 'Não foi possível salvar o produto.');
-  document.getElementById(`modal-produto${especial ? '-especial' : ''}`).close(); aviso(`“${retorno.nome}” foi salvo e já está visível no cardápio.`); carregarProdutos();
+  const botao = event.target.querySelector('[type="submit"]');
+  if (botao?.disabled) return;
+  if (botao) botao.disabled = true;
+  try {
+    const retorno = await enviar(`/api/produtos${produto.id ? `/${encodeURIComponent(produto.id)}` : ''}`, produto.id ? 'PUT' : 'POST', produto);
+    document.getElementById(`modal-produto${especial ? '-especial' : ''}`).close();
+    await carregarProdutos(); aviso(`“${retorno.nome}” foi salvo.`);
+  } catch (erro) { aviso(erro.message); alert(erro.message); }
+  finally { if (botao) botao.disabled = false; }
 }
 async function excluirProduto(id) {
   if (!confirm('Excluir este produto do cardápio?')) return;
-  const resposta = await fetch(`${API_URL}/api/produtos/${id}`, { method: 'DELETE', headers: headers() });
-  if (!resposta.ok) return aviso('Não foi possível excluir o produto.'); carregarProdutos();
+  try { await api(`/api/produtos/${encodeURIComponent(id)}`, { method: 'DELETE' }); await carregarProdutos(); }
+  catch (erro) { aviso(erro.message); }
 }
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const perfil = await sessaoPronta; if (!perfil) return;
+  admin = ['admin1', 'admin2'].includes(perfil.role);
   document.getElementById('filtro-categoria')?.addEventListener('change', renderizar);
   document.getElementById('abrirModalProduto')?.addEventListener('click', () => abrirModal());
   document.getElementById('abrirModalProdutoEspecial')?.addEventListener('click', () => abrirModal(null, true));

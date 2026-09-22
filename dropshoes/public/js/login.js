@@ -1,58 +1,33 @@
-const API_URL = window.location.origin;
+import { mensagem, enviarFormulario } from './formularios.js';
 
-document.addEventListener("DOMContentLoaded", () => {
-    const formLogin = document.getElementById("form-login");
-    if (formLogin) {
-        formLogin.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            
-            // Compatibilidade com inputs que usem 'email' ou 'nome' (identificador)
-            const inputIdentificador = document.getElementById("email") || document.getElementById("nome");
-            const identificador = inputIdentificador ? inputIdentificador.value.trim() : "";
-            const senha = document.getElementById("senha").value.trim();
-
-            await realizarLogin(identificador, senha);
-        });
-    }
+const form = document.getElementById('form-login');
+const emailCadastrado = sessionStorage.getItem('cadastroRealizado');
+if (form && emailCadastrado && form.dataset.acesso !== 'admin') {
+    form.querySelector('#email').value = emailCadastrado;
+    mensagem(form, 'Cadastro realizado! Entre com seu e-mail e senha.', true);
+    sessionStorage.removeItem('cadastroRealizado');
+}
+form?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!form.reportValidity() || form.dataset.enviando) return;
+    await realizarLogin(form.querySelector('#email').value.trim(), form.querySelector('#senha').value);
 });
 
 export async function realizarLogin(identificador, senha) {
     try {
-        const resposta = await fetch(`${API_URL}/api/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identificador, senha })
+        const dados = await enviarFormulario(form, '/api/login', {
+            identificador, senha, acesso: form?.dataset.acesso || 'cliente'
         });
-
-        const dados = await resposta.json();
-        if (!resposta.ok) throw new Error(dados.erro || dados.mensagem || "Falha na autenticação.");
-
-        // Compatibilidade com estruturas de retorno do Supabase (JWT / metadados)
-        const token = dados.token || dados.session?.access_token;
-        const role = dados.role || dados.user?.app_metadata?.role || dados.user?.user_metadata?.role || 'cliente';
-        const nome = dados.nome || dados.user?.user_metadata?.nome || identificador;
-
-        if (!token) throw new Error("Token de acesso não retornado pelo servidor.");
-
-        // Salvando credenciais de sessão
-        localStorage.setItem('token', token);
-        localStorage.setItem('role', role);
-        localStorage.setItem('nomeUsuario', nome);
-
-        // Diferenciação e Redirecionamento por cargo (Admin vs Cliente)
-        const cargoFormatado = role.toLowerCase();
-        const destino = cargoFormatado === 'admin1' || cargoFormatado === 'admin2'
-            ? '../tela admin/principal.html'
-            : '../tela cliente/principal.html';
-            
-        window.location.href = destino;
+        if (!dados.token || !['cliente', 'admin1', 'admin2'].includes(dados.role)) {
+            throw new Error('Resposta de autenticação inválida. Tente novamente.');
+        }
+        localStorage.setItem('token', dados.token);
+        localStorage.setItem('role', dados.role);
+        localStorage.setItem('nomeUsuario', dados.nome);
+        window.location.assign(dados.role === 'cliente' ? '/tela%20cliente/principal.html' : '/tela%20admin/principal.html');
         return true;
     } catch (erro) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Erro de Login',
-            text: erro.message
-        });
+        mensagem(form, erro.message);
         return false;
     }
 }

@@ -1172,3 +1172,4 @@ body.modo-acessivel span {
 body.modo-acessivel h1 { font-size: 38px !important; }
 body.modo-acessivel h2 { font-size: 28px !important; }
 body.modo-acessivel .btn { padding: 16px 32px !important; font-size: 16px !important; }
+[hidden] { display: none !important; }

@@ -4,37 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delicias Da Lucy | Catálogo de Produtos</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" src="../js/produtos.js" defer></script>
-    <script type="module" src="../js/sessao.js" defer></script>
+    <script type="module" src="/js/produtos.js" defer></script>
+    <script type="module" src="/js/sessao.js" defer></script>
 </head>
 <body data-acesso="admin">
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a>
+            <a href="/tela%20admin/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
             <h2>Painel de Navegação</h2>
         </div>
-     
+
         <nav class="sidebar-nav">
-            <a href="principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> <span>Início</span></a>
-            <a href="fluxo de caixa.html" class="nav-item"><span class="material-symbols-outlined">payments</span> <span>Fluxo de Caixa</span></a>
-            <a href="produtos.html" class="nav-item active"><span class="material-symbols-outlined">inventory_2</span> <span>Meus Produtos</span></a>
-            <a href="Meu Perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> <span>Meu Perfil</span></a>
-            <a href="carrinho.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> <span>Carrinho</span></a>
-            <a href="login.html" class="nav-item"><span class="material-symbols-outlined">login</span> <span>Login</span></a>
+            <a href="/tela%20admin/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> <span>Início</span></a>
+            <a href="/tela%20admin/fluxo%20de%20caixa.html" class="nav-item" data-caixa><span class="material-symbols-outlined">payments</span> <span>Fluxo de Caixa</span></a>
+            <a href="/tela%20admin/produtos.html" class="nav-item active"><span class="material-symbols-outlined">inventory_2</span> <span>Meus Produtos</span></a>
+            <a href="/tela%20admin/meu%20perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> <span>Meu Perfil</span></a>
+            <a href="/tela%20admin/login.html" class="nav-item"><span class="material-symbols-outlined">login</span> <span>Login</span></a>
         </nav>
 
         <div class="sidebar-footer">
-            <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">logout</span> <span>Sair</span></a>
+            <a href="/tela%20de%20login/login.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> <span>Sair</span></a>
         </div>
     </aside>
 
     <div class="main-wrapper">
         <main class="container">
-            
+
             <header class="hero">
                 <h1>Catálogo de Produtos</h1>
                 <p>Gerencie o cardápio, adicione novas receitas e altere informações do catálogo em tempo real.</p>
@@ -51,7 +50,7 @@
                         <option value="panquecas-doces">Panquecas Doces</option>
                     </select>
                 </div>
-                
+
                 <div class="botoes-acoes-wrapper" style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn btn-success btn-adicionar" id="abrirModalProduto">
                         + Adicionar Produto
@@ -76,7 +75,7 @@
         <form id="form-produto" class="form-dialog">
             <h2 id="modal-produto-titulo">Novo Produto</h2>
             <input type="hidden" id="prod-id">
-            
+
             <div class="form-group">
                 <label for="prod-nome">Nome da Delícia:</label>
                 <input type="text" id="prod-nome" class="form-control" required placeholder="Ex: Pastel de Carne com Queijo">
@@ -109,7 +108,7 @@
         <form id="form-produto-especial" class="form-dialog">
             <h2 id="modal-produto-titulo-especial">Novo Produto Especial</h2>
             <input type="hidden" id="prod-id-especial">
-            
+
             <div class="form-group">
                 <label for="prod-nome-especial">Nome da Delícia Especial:</label>
                 <input type="text" id="prod-nome-especial" class="form-control" required placeholder="Ex: Combo Especial da Lucy">
@@ -147,7 +146,7 @@
             <div class="product-info">
                 <h3 class="titulo-vitrine"></h3>
                 <p class="preco-vitrine"></p>
-                
+
                 <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
                     <button type="button" class="btn btn-primary btn-card-action btn-editar" style="flex: 1; padding: 6px 10px; font-size: 0.85rem;">
                         <span class="material-symbols-outlined" style="font-size: 16px;">edit</span> Editar

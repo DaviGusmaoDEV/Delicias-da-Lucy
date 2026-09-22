@@ -4,26 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delicias Da Lucy | Catálogo de Produtos</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">    
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script type="module" src="../js/produtos.js" defer></script>
-    <script type="module" src="../js/sessao.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/vendor/sweetalert2.js"></script>
+    <script type="module" src="/js/produtos.js" defer></script>
+    <script type="module" src="/js/sessao.js" defer></script>
 </head>
 <body data-acesso="cliente">
 
     <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a>
+        <a href="/tela%20cliente/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
         <h2>Painel de Navegação</h2>
     </div>
 
     <nav class="sidebar-nav">
-        <a href="principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
-        <a href="Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
-        <a href="meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
-        <a href="carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
+        <a href="/tela%20cliente/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
+        <a href="/tela%20cliente/Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
+        <a href="/tela%20cliente/meu%20perfil%20cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
+        <a href="/tela%20cliente/carrino%20cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
     </nav>
 
     <div class="sidebar-footer">
@@ -33,7 +33,7 @@
 
     <div class="main-wrapper">
         <main class="container">
-            
+
             <header class="hero">
                 <h1>Aqui Estão todos os Produtos</h1>
                 <p>Aqui estão todos os nosso produtos. Saboreie o nosso <span class="Sabor">SABOR</span></p>
@@ -66,7 +66,7 @@
         <form id="form-produto" class="form-dialog">
             <h2 id="modal-produto-titulo">Novo Produto</h2>
             <input type="hidden" id="prod-id">
-            
+
             <div class="form-group">
                 <label for="prod-nome">Nome da Delícia</label>
                 <input type="text" id="prod-nome" class="form-control" required placeholder="Ex: Bolo de Pote Ninho com Morango">
@@ -101,13 +101,13 @@
             <div class="product-info">
                 <h3 class="titulo-vitrine"></h3>
                 <p class="preco-vitrine"></p>
-                
+
                 <div class="secao-tamanhos">
                     <span class="rotulo-tamanhos">Tamanhos Disponíveis:</span>
                     <div class="container-tamanhos-dinamicos tamanho-selector">
                     </div>
                 </div>
-                
+
                 <button type="button" class="btn btn-success btn-add-cart" style="width: 100%; gap: 8px; margin-bottom: 8px;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">shopping_cart</span> Adicionar ao Carrinho
                 </button>
