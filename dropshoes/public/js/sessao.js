@@ -1,6 +1,6 @@
 import { api, encerrarSessao } from './api.js';
 const tipo = document.body.dataset.acesso || 'cliente';
-const entrada = tipo === 'admin' ? '/login' : '/login-cliente';
+const entrada = tipo === 'admin' ? '../tela de login/login.html' : '../tela de login/login cliente.html';
 document.querySelectorAll('[data-sair]').forEach(link => link.addEventListener('click', event => {
   event.preventDefault(); encerrarSessao(); window.location.assign(entrada);
 }));
@@ -14,7 +14,7 @@ export const sessaoPronta = (async () => {
     localStorage.setItem('nomeUsuario', perfil.nome);
     document.querySelectorAll('[data-caixa]').forEach(link => { link.hidden = perfil.role !== 'admin1'; });
     if (document.body.dataset.caixa !== undefined && perfil.role !== 'admin1') {
-      window.location.assign('/admin/principal'); return null;
+      window.location.assign('../tela admin/principal.html'); return null;
     }
     return perfil;
   } catch (erro) {

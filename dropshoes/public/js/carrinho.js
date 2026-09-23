@@ -85,7 +85,7 @@ export async function finalizarCompra() {
     const result = await Swal.fire({ icon: 'success', title: `Pedido #${dados.pedido.id} recebido!`, text: online ? 'Continue para pagar pelo site.' : 'Combine o pagamento com o restaurante pelo WhatsApp.', showDenyButton: true, showCancelButton: true, confirmButtonText: online ? 'Pagar pelo site' : 'Abrir WhatsApp', denyButtonText: 'Acompanhar pedido', cancelButtonText: 'Voltar ao cardápio' });
     if (result.isConfirmed && online) { window.location.assign(dados.payment_url); return; }
     if (result.isConfirmed) window.open(`https://wa.me/${WHATSAPP_LOJA}?text=${encodeURIComponent(mensagem)}`, '_blank', 'noopener');
-    window.location.assign(result.isDismissed ? '/cliente/produtos' : '/cliente/meu-perfil');
+    window.location.assign(result.isDismissed ? '../tela cliente/Produtos.html' : '../tela cliente/meu perfil cliente.html');
   } catch (erro) { await Swal.fire({ icon: 'error', title: 'Não foi possível finalizar', text: erro.message }); }
   finally { finalizando = false; if (botao) botao.disabled = false; }
 }

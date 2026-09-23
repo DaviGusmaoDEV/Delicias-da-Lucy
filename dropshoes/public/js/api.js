@@ -13,7 +13,7 @@ export async function api(url, opcoes = {}) {
     const dados = resposta.status === 204 ? null : await resposta.json().catch(() => null);
     if (!resposta.ok) {
       if (resposta.status === 401) {
-        const destino = ['admin1', 'admin2'].includes(localStorage.getItem('role')) ? '/login' : '/login-cliente';
+        const destino = ['admin1', 'admin2'].includes(localStorage.getItem('role')) ? '../tela de login/login.html' : '../tela de login/login cliente.html';
         encerrarSessao(); window.location.assign(destino);
       }
       const erro = new Error(dados?.erro || 'Não foi possível concluir a operação. Tente novamente.');

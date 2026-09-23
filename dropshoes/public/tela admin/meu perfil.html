@@ -5,31 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delicias da Lucy | Meu Perfil</title>
 
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
 
     <script src="/vendor/sweetalert2.js"></script>
-    <script type="module" src="/js/sessao.js"></script>
+    <script type="module" src="../js/sessao.js"></script>
 </head>
 <body data-acesso="admin">
 
         <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <a href="/tela%20admin/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
+            <a href="../tela admin/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
             <h2>Painel de Navegação</h2>
         </div>
 
-        <nav class="sidebar-nav">
-            <a href="/tela%20admin/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
-            <a href="/tela%20admin/fluxo%20de%20caixa.html" class="nav-item" data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
-            <a href="/tela%20admin/produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
-            <a href="/tela%20admin/meu%20perfil.html" class="nav-item active"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
-            <a href="/tela%20admin/login.html"  class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
+       <nav class="sidebar-nav">
+            <a href="../tela admin/principal.html" class="nav-item active"><span class="material-symbols-outlined">home</span> Início</a>
+            <a href="../tela admin/fluxo de caixa.html" class="nav-item" data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
+            <a href="../tela admin/produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+            <a href="../tela admin/meu perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
+            <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
         </nav>
 
         <div class="sidebar-footer">
-            <a href="/tela%20de%20login/login.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
+            <a href="../tela de login/login.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
         </div>
     </aside>
 
@@ -44,12 +44,12 @@
                 <p>Nome: <span id="user-nome"></span></p>
                 <p>E-mail: <span id="user-email"></span></p>
                 <p>Telefone: <span id="user-fone"></span></p>
-                <a class="btn btn-primary" href="/admin/produtos">Gerenciar produtos</a>
+                <a class="btn btn-primary" href="../tela admin/produtos.html">Gerenciar produtos</a>
             </section>
         </main>
     </div>
 
-<script type="module" src="/js/perfil.js">
+<script type="module" src="../js/perfil.js">
 </script>
 </body>
 </html>

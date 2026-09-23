@@ -24,7 +24,7 @@ export async function realizarLogin(identificador, senha) {
         localStorage.setItem('token', dados.token);
         localStorage.setItem('role', dados.role);
         localStorage.setItem('nomeUsuario', dados.nome);
-        window.location.assign(dados.role === 'cliente' ? '/tela%20cliente/principal.html' : '/tela%20admin/principal.html');
+        window.location.assign(dados.role === 'cliente' ? '../tela cliente/principal.html' : '../tela admin/principal.html');
         return true;
     } catch (erro) {
         mensagem(form, erro.message);

@@ -15,14 +15,14 @@ test('cadastro abre diretamente nas rotas públicas e carrega seus recursos', as
     assert.match(resposta.headers.get('content-type'), /text\/html/, rota);
     const html = await resposta.text();
     assert.match(html, /id="form-cadastro-cliente"/, rota);
-    assert.match(html, /src="\/js\/cadastro.js"/, rota);
+    assert.match(html, /src="\.\.\/js\/cadastro.js"/, rota);
     assert.doesNotMatch(html, /Cannot GET/, rota);
   }
   for (const recurso of ['/js/cadastro.js', '/js/formularios.js', '/css/style.css']) {
     assert.equal((await fetch(base + recurso)).status, 200, recurso);
   }
   const login = await (await fetch(base + '/login-cliente')).text();
-  assert.match(login, /href="\/cadastro-cliente"/);
+  assert.match(login, /href="\.\.\/tela de login\/cadastro cliente\.html"/);
   const cadastro = await fetch(base + '/api/cadastro', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nome: 'Teste Rotas', email: 'rotas@example.test', senha: 'senha-de-teste' })
@@ -47,10 +47,10 @@ test('rotas de login com e sem extensão abrem a tela correta', async t => {
       assert.match(resposta.headers.get('content-type'), /text\/html/, rota);
       const html = await resposta.text();
       assert.match(html, /id="form-login"/, rota);
-      assert.match(html, /src="\/js\/login.js"/, rota);
+      assert.match(html, /src="\.\.\/js\/login.js"/, rota);
       assert.equal(html.includes('data-acesso="admin"'), grupo.admin, rota);
       assert.doesNotMatch(html, /Cannot GET/, rota);
-      if (!grupo.admin) assert.match(html, /href="\/cadastro-cliente"/, rota);
+      if (!grupo.admin) assert.match(html, /href="\.\.\/tela de login\/cadastro cliente\.html"/, rota);
     }
   }
   assert.equal((await fetch(base + '/js/login.js')).status, 200);

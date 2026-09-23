@@ -21,7 +21,7 @@ export async function realizarCadastro(cliente) {
     try {
         await enviarFormulario(form, '/api/cadastro', cliente);
         sessionStorage.setItem('cadastroRealizado', cliente.email);
-        window.location.assign('/login-cliente');
+        window.location.assign('../tela de login/login cliente.html');
         return true;
     } catch (erro) {
         mensagem(form, erro.message);
