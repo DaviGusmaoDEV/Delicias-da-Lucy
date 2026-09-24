@@ -21,7 +21,7 @@ function mostrarErro(erro) {
 }
 async function atualizarStatus(id, status) {
   if (alterando) return;
-  if (status === 'cancelado' && !window.confirm('Cancelar este pedido? Se já estiver pago, o reembolso precisa ser feito no Mercado Pago.')) return;
+  if (status === 'cancelado' && !window.confirm('Cancelar este pedido? Se já estiver pago, o reembolso deve ser processado no provedor de pagamento.')) return;
   alterando = true;
   document.querySelectorAll('.pedido-acoes button').forEach(botao => { botao.disabled = true; });
   try { await enviar(`/api/pedidos/${encodeURIComponent(id)}/status`, 'PATCH', { status }); await carregar(); }
@@ -41,7 +41,7 @@ async function carregar() {
     card.className = `pedido-card status-${pedido.status}`;
     card.innerHTML = `<div class="pedido-cabecalho"><h2>Pedido N${esc(pedido.id)}</h2><span class="status-pedido status-${esc(pedido.status)}">${situacao.texto}</span></div><p class="status-detalhe">${situacao.detalhe}</p><p><strong>Cliente:</strong> ${esc(pedido.cliente_nome || pedido.profiles?.nome || 'Cliente')}</p><p><strong>Telefone:</strong> ${esc(pedido.cliente_telefone || pedido.profiles?.telefone || 'Não informado')}</p><p><strong>Horário:</strong> ${esc(new Date(pedido.data_criacao).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }))}</p><p><strong>Entrega:</strong> ${esc(pedido.endereco)}, nº ${esc(pedido.numero_casa)} — ${esc(pedido.bairro)}, CEP ${esc(pedido.cep)}</p><p><strong>Itens:</strong> ${esc(itens)}</p><p><strong>Total:</strong> ${dinheiro(pedido.valor)}</p><div class="pedido-acoes"></div>`;
     if (pedido.observacao_geral) { const obs = document.createElement('p'); obs.textContent = `Observação: ${pedido.observacao_geral}`; card.append(obs); }
-    const provedor = String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Mercado Pago';
+    const provedor = String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Pagamento online';
     const pagamento = document.createElement('p'); pagamento.textContent = pedido.pagamento === 'site' ? (pedido.pagamento_status === 'approved' ? `Pagamento aprovado — ${provedor}` : `Pagamento: ${pedido.pagamento_status || 'pendente'} — ${provedor}`) : 'Pedido anterior à integração'; card.append(pagamento);
     const acoes = card.querySelector('.pedido-acoes');
     if (situacao.proximo && (pedido.pagamento !== 'site' || pedido.pagamento_status === 'approved')) { const botao = document.createElement('button'); botao.className = 'btn btn-primary'; botao.textContent = situacao.acao; botao.onclick = () => atualizarStatus(pedido.id, situacao.proximo); acoes.append(botao); }
@@ -61,11 +61,15 @@ function imprimirBilhete(pedido) {
   janela.focus(); janela.print();
 }
 document.addEventListener('DOMContentLoaded', async () => {
-  const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
-  const valor = tipo => partes.find(p => p.type === tipo).value;
-  document.getElementById('data-pedidos').value = `${valor('year')}-${valor('month')}-${valor('day')}`;
+  const hoje = () => {
+    const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const valor = tipo => partes.find(p => p.type === tipo).value;
+    return `${valor('year')}-${valor('month')}-${valor('day')}`;
+  };
+  const definirHoje = () => { document.getElementById('data-pedidos').value = hoje(); };
+  definirHoje();
   if (!(await sessaoPronta)) return;
-  const atualizar = () => carregar().catch(mostrarErro);
+  const atualizar = () => { definirHoje(); return carregar().catch(mostrarErro); };
   document.getElementById('filtros-pedidos').addEventListener('submit', event => { event.preventDefault(); if (carregando || alterando) return; pagina = 0; atualizar(); });
   document.getElementById('pagina-anterior').addEventListener('click', () => { if (carregando || alterando) return; pagina = Math.max(0, pagina - 1); atualizar(); });
   document.getElementById('pagina-proxima').addEventListener('click', () => { if (carregando || alterando) return; pagina++; atualizar(); });

@@ -7,5 +7,5 @@ export function bilhetePedido(pedido) {
   </style></head><body><h1>DELÍCIAS DA LUCY</h1><h2>Pedido #${esc(pedido.id)}</h2>
   <section><p><b>Nome:</b> ${esc(pedido.cliente_nome || pedido.profiles?.nome || 'Cliente')}</p><p><b>Bairro:</b> ${esc(pedido.bairro)}</p><p><b>Rua:</b> ${esc(pedido.endereco)}</p><p><b>Número:</b> ${esc(pedido.numero_casa)}</p></section>
   <section><ul>${itens}</ul>${pedido.observacao_geral ? `<p><b>Observação:</b> ${esc(pedido.observacao_geral)}</p>` : ''}</section>
-  <section><p>Subtotal: ${esc(dinheiro(pedido.subtotal))}</p><p>Entrega: ${esc(dinheiro(pedido.taxa_entrega))}</p><p><b>Total: ${esc(dinheiro(pedido.valor))}</b></p><p>${pedido.pagamento_status === 'approved' ? `PAGO — ${String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Mercado Pago'}` : 'PAGAMENTO NÃO CONFIRMADO'}</p></section><footer>Obrigada pela preferência!</footer></body></html>`;
+  <section><p>Subtotal: ${esc(dinheiro(pedido.subtotal))}</p><p>Entrega: ${esc(dinheiro(pedido.taxa_entrega))}</p><p><b>Total: ${esc(dinheiro(pedido.valor))}</b></p><p>${pedido.pagamento_status === 'approved' ? `PAGO — ${String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Pagamento online'}` : 'PAGAMENTO NÃO CONFIRMADO'}</p></section><footer>Obrigada pela preferência!</footer></body></html>`;
 }

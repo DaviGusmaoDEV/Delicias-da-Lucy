@@ -60,7 +60,8 @@ rota('get', '/api/meu-perfil', autenticarCompra, async (req, res) => {
   const { data: perfil, error } = await supabase.from('profiles').select('nome,email,telefone,role').eq('id', req.user.id).single();
   if (error || !perfil) return res.status(404).json({ erro: 'Perfil não encontrado.' }); res.json({ perfil });
 });
-rota('get', '/api/taxa-entrega', limiteEntrega, async (req, res) => { try { res.json(await entrega(req.query.cep)); } catch (error) { res.status(400).json({ erro: error.message }); } });
+rota('get', '/api/taxa-entrega', limiteEntrega, async (req, res) => { try { res.json(await entrega(req.query.cep, req.query)); } catch (error) { res.status(400).json({ erro: error.message }); } });
+rota('get', '/api/endereco', limiteEntrega, async (req, res) => { try { if (typeof entrega.consultarEndereco !== 'function') throw new Error('Consulta de CEP indisponível.'); res.json(await entrega.consultarEndereco(req.query.cep)); } catch (error) { res.status(400).json({ erro: error.message }); } });
 
 rota('get', '/api/produtos', async (req, res) => { const { data, error } = await supabase.from('products').select('id,nome,preco,categoria,descricao,imagem_url,isEspecial').order('nome'); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.json(data); });
 rota('post', '/api/produtos', autenticar, soAdmin, salvarProduto);
@@ -107,7 +108,7 @@ rota('post', '/api/pedidos', limitePedidos, autenticarCompra, async (req, res) =
   const { data: existente, error: buscaErro } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('checkout_chave', checkout_chave), req.user).maybeSingle();
   if (buscaErro) return res.status(503).json({ erro: 'Não foi possível consultar seu pedido.' });
   if (existente) return responderCheckout(existente, res);
-  let taxa; try { taxa = (await entrega(cep)).taxa; } catch (error) { return res.status(400).json({ erro: error.message }); }
+  let taxa; try { taxa = (await entrega(cep, { endereco, bairro, numero_casa })).taxa; } catch (error) { return res.status(400).json({ erro: error.message }); }
   const ids = itens.map(item => item.produto_id); const { data: produtos, error: produtosErro } = await supabase.from('products').select('id,preco').in('id', ids);
   if (produtosErro || produtos?.length !== new Set(ids).size) return res.status(400).json({ erro: 'Um produto do carrinho não está mais disponível.' });
   const mapa = new Map(produtos.map(p => [String(p.id), p])); let subtotal = 0; let itensConfirmados;
@@ -194,7 +195,7 @@ entrada(['/login', '/login.html', '/admin/login'], 'login.html');
 entrada(['/login-cliente', '/login-cliente.html', encodeURI('/login cliente.html'), '/cliente/login'], 'login cliente.html');
 // O cadastro público cria somente clientes; administradores usam contas existentes.
 entrada(['/cadastro', '/cadastro-cliente', '/cliente/cadastro', '/cadastro.html', '/cadastro-cliente.html', encodeURI('/cadastro cliente.html')], 'cadastro cliente.html');
-rota('get', '/admin/principal', page('tela admin', 'principal.html')); rota('get', '/admin/produtos', page('tela admin', 'produtos.html')); rota('get', '/admin/fluxo-caixa', page('tela admin', 'fluxo de caixa.html')); rota('get', '/admin/meu-perfil', page('tela admin', 'meu perfil.html')); rota('get', '/cliente/principal', page('tela cliente', 'principal.html')); rota('get', '/cliente/produtos', page('tela cliente', 'Produtos.html')); rota('get', '/cliente/carrinho', page('tela cliente', 'carrino cliente.html')); rota('get', '/cliente/meu-perfil', page('tela cliente', 'meu perfil cliente.html'));
+rota('get', '/admin/principal', page('tela admin', 'principal.html')); rota('get', '/admin/dashboard', page('tela admin', 'Dashboard.html')); rota('get', '/admin/produtos', page('tela admin', 'produtos.html')); rota('get', '/admin/fluxo-caixa', page('tela admin', 'fluxo de caixa.html')); rota('get', '/admin/meu-perfil', page('tela admin', 'meu perfil.html')); rota('get', '/cliente/principal', page('tela cliente', 'principal.html')); rota('get', '/cliente/produtos', page('tela cliente', 'Produtos.html')); rota('get', '/cliente/carrinho', page('tela cliente', 'carrino cliente.html')); rota('get', '/cliente/meu-perfil', page('tela cliente', 'meu perfil cliente.html'));
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 app.use((erro, req, res, next) => {
   if (res.headersSent) return next(erro);

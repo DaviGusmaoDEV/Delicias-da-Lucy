@@ -22,7 +22,7 @@ function arquivos(dir) {
 }
 test('páginas não possuem links locais, scripts ou imports quebrados', () => {
   const raiz = path.resolve(__dirname, '../public');
-  const rotas = new Set(['/', '/login', '/login-cliente', '/cadastro', '/cadastro-cliente', '/admin/principal', '/admin/produtos', '/admin/fluxo-caixa', '/admin/meu-perfil', '/cliente/principal', '/cliente/produtos', '/cliente/carrinho', '/cliente/meu-perfil', '/vendor/sweetalert2.js', '/vendor/sweetalert2.esm.js']);
+  const rotas = new Set(['/', '/login', '/login-cliente', '/cadastro', '/cadastro-cliente', '/admin/principal', '/admin/dashboard', '/admin/produtos', '/admin/fluxo-caixa', '/admin/meu-perfil', '/cliente/principal', '/cliente/produtos', '/cliente/carrinho', '/cliente/meu-perfil', '/vendor/sweetalert2.js', '/vendor/sweetalert2.esm.js']);
   for (const arquivo of arquivos(raiz)) {
     if (!/\.(html|js)$/.test(arquivo)) continue;
     const conteudo = fs.readFileSync(arquivo, 'utf8');

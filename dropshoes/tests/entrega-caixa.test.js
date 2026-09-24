@@ -16,10 +16,11 @@ test('cotação valida cidade, usa trajeto e reutiliza consulta de CEP', async (
   let chamadas = 0;
   const entrega = criarEntrega({ origem: [-47.82, -21.13], precoKm: 2, consultar: async url => {
     chamadas++;
-    return { ok: true, json: async () => url.includes('brasilapi') ? { city: 'Ribeirão Preto', state: 'SP', street: 'Rua Teste', neighborhood: 'Bairro', location: { coordinates: { longitude: '-47.81', latitude: '-21.14' } } } : { code: 'Ok', routes: [{ distance: 3000 }] } };
+    return { ok: true, json: async () => url.includes('brasilapi') ? { city: 'Ribeirão Preto', state: 'SP', street: 'Rua Teste', neighborhood: 'Bairro' } : url.includes('nominatim') ? [{ lon: '-47.81', lat: '-21.14' }] : { code: 'Ok', routes: [{ distance: 3000 }] } };
   } });
   const resultado = await entrega('14060-040'); assert.equal(resultado.taxa, 2); assert.equal(resultado.distancia_km, 3); assert.equal(resultado.endereco, 'Rua Teste');
-  await entrega('14060040'); assert.equal(chamadas, 2);
+  await entrega('14060040'); assert.equal(chamadas, 3);
+  const endereco = await entrega.consultarEndereco('14060040'); assert.equal(endereco.bairro, 'Bairro'); assert.equal(chamadas, 3);
   await assert.rejects(entrega('123'), /8 números/);
   const fora = criarEntrega({ origem: [-47.82, -21.13], precoKm: 2, consultar: async () => ({ ok: true, json: async () => ({ city: 'São Paulo', state: 'SP' }) }) });
   await assert.rejects(fora('01001000'), /apenas em/);

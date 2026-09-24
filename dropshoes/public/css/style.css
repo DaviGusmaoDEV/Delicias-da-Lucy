@@ -822,6 +822,28 @@ a {
     margin-top: 6px;
 }
 
+.dashboard-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 20px; margin: 20px 0; }
+.dashboard-painel { background: var(--card-bg, #fff); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; }
+.dashboard-cabecalho { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.dashboard-cabecalho h2 { margin: 0; font-size: 18px; }
+.dashboard-ajuda { color: var(--text-muted, #64748b); font-size: 14px; }
+.dashboard-lista { list-style: none; margin: 0; padding: 0; }
+.dashboard-lista li { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--border-color); }
+.dashboard-lista span { color: var(--text-muted, #64748b); font-size: 14px; }
+.dashboard-acoes { display: flex; flex-wrap: wrap; gap: 12px; }
+.dashboard-filtro { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+.dashboard-filtro label { font-weight: 700; }
+.dashboard-filtro select { max-width: 220px; }
+.dashboard-quadro { background: var(--card-bg, #fff); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin: 20px 0; }
+.dashboard-tabela { margin-top: 16px; max-height: 520px; overflow: auto; }
+.dashboard-tabela table { min-width: 680px; }
+.dashboard-tabela tbody tr.movimento-entrada { background: #ecfdf3; color: #065f46; }
+.dashboard-tabela tbody tr.movimento-saida { background: #fff1f2; color: #9f1239; }
+.dashboard-tabela tbody tr.movimento-funcionario { background: #f5f3ff; color: #6b21a8; }
+.dashboard-tabela tbody tr.movimento-entrada:hover { background: #d1fae5; }
+.dashboard-tabela tbody tr.movimento-saida:hover { background: #ffe4e6; }
+.dashboard-tabela tbody tr.movimento-funcionario:hover { background: #ede9fe; }
+
 #total-faturamento { color: var(--success); }
 #total-despesa     { color: var(--danger); }
 #saldo-liquido     { color: var(--dark); }

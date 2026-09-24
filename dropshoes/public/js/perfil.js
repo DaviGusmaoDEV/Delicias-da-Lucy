@@ -7,7 +7,7 @@ const STATUS = {
   em_preparo: ['Pedido em preparo', 'Estamos preparando sua delícia com carinho.'],
   pronto_entrega: ['Pedido pronto / em entrega', 'Seu pedido está a caminho. Confirme quando receber.'],
   recebido: ['Pedido recebido', 'Obrigada pela preferência!'],
-  cancelado: ['Pedido cancelado', 'Consulte a loja em caso de dúvidas. Reembolsos são processados pelo Mercado Pago.']
+  cancelado: ['Pedido cancelado', 'Consulte a loja em caso de dúvidas sobre o pagamento.']
 };
 async function confirmarRecebimento(id) { try { await api(`/api/pedidos/${id}/confirmar-recebimento`, { method: 'POST' }); await carregarPedidos(); } catch (erro) { alert(erro.message); } }
 async function carregarPedidos() {

@@ -2,10 +2,6 @@
 import { realizarLogin } from './login.js';
 import { adicionarAoCarrinho } from './carrinho.js';
 
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("Sistema Delícias da Lucy inicializado via ES Modules.");
-});
-
 // As funções realizarLogin e adicionarAoCarrinho são importadas aqui
 // apenas para garantir que estejam disponíveis caso este arquivo
 // seja usado como ponto de entrada compartilhado pelas páginas.

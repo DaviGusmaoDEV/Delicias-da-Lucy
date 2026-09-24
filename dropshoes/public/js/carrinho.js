@@ -57,7 +57,9 @@ export async function calcularFrete() {
   valorFreteAtual = 0; atualizarResumo();
   try {
     if (!cep) throw new Error('Informe o CEP para calcular a entrega.');
-    const dados = await api(`/api/taxa-entrega?cep=${encodeURIComponent(cep)}`);
+    const entrega = camposEntrega();
+    const parametros = new URLSearchParams({ cep, endereco: entrega.endereco, bairro: entrega.bairro, numero_casa: entrega.numero_casa });
+    const dados = await api(`/api/taxa-entrega?${parametros}`);
     if (versao !== calculoAtual || cep !== document.getElementById('cep')?.value.trim()) return false;
     if (!Number.isFinite(Number(dados.taxa)) || Number(dados.taxa) < 0) throw new Error('Taxa de entrega inválida.');
     valorFreteAtual = Number(dados.taxa);
@@ -101,15 +103,31 @@ export async function finalizarCompra() {
   } catch (erro) { await Swal.fire({ icon: 'error', title: 'Não foi possível finalizar', text: erro.message }); }
   finally { finalizando = false; if (botao) botao.disabled = false; }
 }
-window.calcularFrete = calcularFrete; window.finalizarCompra = finalizarCompra;
+async function preencherEnderecoPeloCep() {
+  const cep = document.getElementById('cep')?.value.trim();
+  if (!cep || cep.replace(/\D/g, '').length !== 8) return false;
+  try {
+    const dados = await api(`/api/endereco?cep=${encodeURIComponent(cep)}`);
+    for (const [campo, id] of [['endereco', 'endereco'], ['bairro', 'bairro']]) {
+      const input = document.getElementById(id);
+      if (input && !input.value.trim()) input.value = dados[campo] || '';
+    }
+    return true;
+  } catch (erro) {
+    const aviso = document.getElementById('info-frete'); if (aviso) aviso.textContent = erro.message;
+    return false;
+  }
+}
+async function atualizarEntrega() { await preencherEnderecoPeloCep(); return calcularFrete(); }
+window.calcularFrete = atualizarEntrega; window.finalizarCompra = finalizarCompra;
 document.addEventListener('DOMContentLoaded', async () => {
   const perfil = await sessaoPronta;
   for (const [id, campo] of [['cliente-nome', 'nome'], ['cliente-telefone', 'telefone'], ['cep', 'cep']]) {
     const input = document.getElementById(id); if (input && perfil?.[campo]) input.value = perfil[campo];
   }
   renderizarCarrinho();
-  document.getElementById('btn-calcular-frete')?.addEventListener('click', calcularFrete);
+  document.getElementById('btn-calcular-frete')?.addEventListener('click', atualizarEntrega);
   document.getElementById('btn-finalizar-pedido')?.addEventListener('click', finalizarCompra);
-  document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) calcularFrete(); });
+  document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) atualizarEntrega(); });
   document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; valorFreteAtual = 0; atualizarResumo(); document.getElementById('info-frete').textContent = 'Calcule a entrega para o novo CEP.'; });
 });

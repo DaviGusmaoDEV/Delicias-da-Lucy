@@ -10,33 +10,54 @@ function coordenadas(lon, lat) {
   const longitude = Number(lon), latitude = Number(lat);
   return Number.isFinite(longitude) && Math.abs(longitude) <= 180 && Number.isFinite(latitude) && Math.abs(latitude) <= 90 ? [longitude, latitude] : null;
 }
-function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STORE_LONGITUDE, process.env.STORE_LATITUDE), precoKm = Number(process.env.DELIVERY_PRICE_PER_KM), modo = process.env.DELIVERY_CHARGE_MODE || 'excedente', roteador = process.env.OSRM_BASE_URL || 'https://router.project-osrm.org', cidade = 'Ribeirão Preto', uf = 'SP' } = {}) {
+function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STORE_LONGITUDE, process.env.STORE_LATITUDE), precoKm = Number(process.env.DELIVERY_PRICE_PER_KM), modo = process.env.DELIVERY_CHARGE_MODE || 'excedente', roteador = process.env.OSRM_BASE_URL || 'https://router.project-osrm.org', geocodificador = process.env.GEOCODER_BASE_URL || 'https://nominatim.openstreetmap.org', cidade = 'Ribeirão Preto', uf = 'SP' } = {}) {
   const cache = new Map();
-  async function json(url) {
+  const enderecos = new Map();
+  async function json(url, opcoes = {}) {
     try {
-      const resposta = await consultar(url, { signal: AbortSignal.timeout(8000) });
+      const resposta = await consultar(url, { signal: AbortSignal.timeout(8000), ...opcoes });
       if (!resposta.ok) throw new Error();
       return await resposta.json();
     } catch { throw new Error('Não foi possível calcular a entrega. Tente novamente.'); }
   }
-  return async cep => {
+  async function consultarEndereco(cep) {
     const numero = String(cep || '').replace(/\D/g, '');
     if (!/^\d{8}$/.test(numero)) throw new Error('Informe um CEP com 8 números.');
-    if (!origem || !coordenadas(...origem)) throw new Error('O ponto de saída da loja ainda não foi configurado.');
-    const salvo = cache.get(numero);
+    const salvo = enderecos.get(numero);
     if (salvo && salvo.ate > Date.now()) return salvo.dados;
     const endereco = await json(`https://brasilapi.com.br/api/cep/v2/${numero}`);
     if (endereco.errors || !endereco.city) throw new Error('CEP não encontrado. Confira os números.');
     if (endereco.city !== cidade || endereco.state !== uf) throw new Error(`No momento entregamos apenas em ${cidade} / ${uf}.`);
-    const destino = coordenadas(endereco.location?.coordinates?.longitude, endereco.location?.coordinates?.latitude);
-    if (!destino) throw new Error('Este CEP não possui localização para calcular a entrega. Consulte a loja.');
+    const dados = { cep: numero, cidade: endereco.city, uf: endereco.state, endereco: endereco.street || '', bairro: endereco.neighborhood || '' };
+    if (enderecos.size >= 500) enderecos.delete(enderecos.keys().next().value);
+    enderecos.set(numero, { dados, ate: Date.now() + 15 * 60 * 1000 });
+    return dados;
+  }
+  const cotar = async (cep, enderecoInformado = {}) => {
+    const numero = String(cep || '').replace(/\D/g, '');
+    if (!/^\d{8}$/.test(numero)) throw new Error('Informe um CEP com 8 números.');
+    if (!origem || !coordenadas(...origem)) throw new Error('O ponto de saída da loja ainda não foi configurado.');
+    const enderecoCliente = String(enderecoInformado.endereco || '').trim().slice(0, 250);
+    const bairroCliente = String(enderecoInformado.bairro || '').trim().slice(0, 250);
+    const numeroCasa = String(enderecoInformado.numero_casa || '').trim().slice(0, 30);
+    const chaveCache = `${numero}|${enderecoCliente.toLowerCase()}|${bairroCliente.toLowerCase()}|${numeroCasa.toLowerCase()}`;
+    const salvo = cache.get(chaveCache);
+    if (salvo && salvo.ate > Date.now()) return salvo.dados;
+    const endereco = await consultarEndereco(numero);
+    const consulta = [enderecoCliente || endereco.endereco, numeroCasa, bairroCliente || endereco.bairro, endereco.cidade, endereco.uf, numero, 'Brasil'].filter(Boolean).join(', ');
+    const lugares = await json(`${geocodificador.replace(/\/$/, '')}/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(consulta)}`, { headers: { 'User-Agent': 'DeliciasDaLucy/1.0 (+https://dropshoes.social.br)', 'Accept-Language': 'pt-BR' } });
+    const lugar = Array.isArray(lugares) ? lugares[0] : null;
+    const destino = coordenadas(lugar?.lon, lugar?.lat);
+    if (!destino) throw new Error('Não foi possível localizar este endereço. Confira rua, número, bairro e CEP.');
     const rota = await json(`${roteador.replace(/\/$/, '')}/route/v1/driving/${origem.join(',')};${destino.join(',')}?overview=false&steps=false`);
     if (rota.code !== 'Ok' || !rota.routes?.length) throw new Error('Não foi encontrado um trajeto para este CEP.');
     const metros = rota.routes[0].distance;
-    const dados = { cep: numero, taxa: calcularValorEntrega(metros, precoKm, modo), distancia_km: metros / 1000, gratis_ate_km: 2, cidade: endereco.city, uf: endereco.state, endereco: endereco.street || '', bairro: endereco.neighborhood || '', aproximado: true };
+    const dados = { cep: numero, taxa: calcularValorEntrega(metros, precoKm, modo), distancia_km: metros / 1000, gratis_ate_km: 2, cidade: endereco.cidade, uf: endereco.uf, endereco: endereco.endereco, bairro: endereco.bairro, aproximado: true };
     if (cache.size >= 500) cache.delete(cache.keys().next().value);
-    cache.set(numero, { dados, ate: Date.now() + 15 * 60 * 1000 });
+    cache.set(chaveCache, { dados, ate: Date.now() + 15 * 60 * 1000 });
     return dados;
   };
+  cotar.consultarEndereco = consultarEndereco;
+  return cotar;
 }
 module.exports = { criarEntrega, calcularValorEntrega };

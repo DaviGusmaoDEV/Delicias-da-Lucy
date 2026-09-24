@@ -23,7 +23,7 @@ function renderizar() {
     const clone = el('template-linha-transacao').content.cloneNode(true);
     clone.querySelector('.col-data').textContent = new Date(`${item.data.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
     clone.querySelector('.txt-descricao').textContent = item.descricao;
-    clone.querySelector('.badge-origem').textContent = item.pedido_id ? 'Mercado Pago · automático' : 'Lançamento manual';
+    clone.querySelector('.badge-origem').textContent = item.pedido_id ? (String(item.descricao || '').includes('InfinitePay') ? 'InfinitePay · automático' : 'Pagamento online · automático') : 'Lançamento manual';
     const badge = clone.querySelector('.badge-tipo'); badge.textContent = nomes[item.tipo] || item.tipo;
     const valor = clone.querySelector('.col-valor'); valor.textContent = dinheiro(item.valor);
     const classe = item.tipo === 'total-despesa-funcionario' ? 'status-despesa-funcionario' : `status-${item.tipo}`;

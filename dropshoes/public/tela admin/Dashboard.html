@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delícias da Lucy | Dashboard</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="../js/sessao.js" defer></script>
+    <script type="module" src="../js/dashboard-admin.js" defer></script>
+</head>
+<body data-acesso="admin">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header"><a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a><h2>Painel de Navegação</h2></div>
+        <nav class="sidebar-nav">
+            <a href="pedidos clientes.html" class="nav-item"><span class="material-symbols-outlined">receipt_long</span> Pedidos dos clientes</a>
+            <a href="principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
+            <a href="Dashboard.html" class="nav-item active" aria-current="page"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
+            <a href="fluxo de caixa.html" class="nav-item" data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
+            <a href="produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+            <a href="meu perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
+        </nav>
+        <div class="sidebar-footer"><a href="../tela de login/login.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a></div>
+    </aside>
+    <div class="main-wrapper"><main class="container">
+        <header class="hero"><h1>Dashboard</h1><p>Resumo das vendas, pagamentos e movimentações financeiras da loja.</p></header>
+        <section class="dashboard-filtro" aria-label="Filtro de período"><label for="dashboard-periodo">Movimentações</label><select id="dashboard-periodo" class="form-control"><option value="dia">Hoje</option><option value="semana">Últimos 7 dias</option><option value="mes">Mês atual</option><option value="personalizado">Data específica</option></select><input id="dashboard-data" type="date" class="form-control" aria-label="Data específica" hidden></section>
+        <section class="cards-resumo-mensal" aria-label="Resumo de hoje">
+            <div class="card-financeiro"><span>Pedidos da noite</span><h2 id="dashboard-pedidos">—</h2></div>
+            <div class="card-financeiro"><span>Pagamentos aprovados</span><h2 id="dashboard-pagos">—</h2></div>
+            <div class="card-financeiro"><span id="dashboard-rotulo-entradas">Entradas de hoje</span><h2 id="dashboard-entradas">—</h2></div>
+            <div class="card-financeiro"><span id="dashboard-rotulo-saldo">Saldo de hoje</span><h2 id="dashboard-saldo">—</h2></div>
+        </section>
+        <p id="dashboard-atualizacao" role="status"></p>
+        <section class="dashboard-grade" aria-label="Detalhes do painel">
+            <article class="dashboard-painel"><div class="dashboard-cabecalho"><h2>Pedidos da noite atual</h2><a href="pedidos clientes.html">Ver pedidos</a></div><p class="dashboard-ajuda">A lista troca automaticamente ao virar o dia.</p><ul id="dashboard-lista-pedidos" class="dashboard-lista"></ul></article>
+            <article class="dashboard-painel"><div class="dashboard-cabecalho"><h2 id="dashboard-titulo-caixa">Movimentações de hoje</h2><a href="fluxo de caixa.html">Abrir caixa</a></div><p class="dashboard-ajuda">Receitas são criadas após a confirmação de pagamento.</p><ul id="dashboard-lista-caixa" class="dashboard-lista"></ul></article>
+        </section>
+        <section class="dashboard-quadro" aria-label="Quadro completo de movimentações">
+            <div class="dashboard-cabecalho"><div><h2>Quadro de movimentações</h2><p class="dashboard-ajuda">Os lançamentos ficam salvos por data para consulta posterior.</p></div><strong id="dashboard-total-movimentos">0 lançamentos</strong></div>
+            <div class="table-responsive dashboard-tabela"><table class="modern-table"><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Pedido</th><th>Valor</th></tr></thead><tbody id="dashboard-movimentos"></tbody></table></div>
+        </section>
+        <div class="dashboard-acoes"><a class="btn btn-primary" href="pedidos clientes.html">Gerenciar pedidos</a><a class="btn btn-outline" href="fluxo de caixa.html">Ver fluxo de caixa</a></div>
+    </main></div>
+</body>
+</html>
