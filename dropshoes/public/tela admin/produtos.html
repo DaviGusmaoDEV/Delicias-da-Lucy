@@ -18,11 +18,12 @@
             <h2>Painel de Navegação</h2>
         </div>
 
-        <nav class="sidebar-nav">
-            <a href="../tela admin/principal.html" class="nav-item active"><span class="material-symbols-outlined">home</span> Início</a>
-            <a href="../tela admin/fluxo de caixa.html" class="nav-item" data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
-            <a href="../tela admin/produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
-            <a href="../tela admin/meu perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
+       <nav class="sidebar-nav">
+            <a href="../tela admin/pedidos clientes.html" class="nav-item"><span class="material-symbols-outlined">receipt_long</span> Pedidos dos clientes</a>
+            <a href="../tela admin/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
+            <a href="../tela admin/fluxo de caixa.html" class="nav-item " data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
+            <a href="../tela admin/produtos.html" class="nav-item active"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+            <a href="../tela admin/meu perfil.html" class="nav-item "><span class="material-symbols-outlined">person</span> Meu Perfil</a>
             <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
         </nav>
 
@@ -48,6 +49,7 @@
                         <option value="pasteis-doces">Pastéis Doces</option>
                         <option value="panquecas-salgadas">Panquecas Salgadas</option>
                         <option value="panquecas-doces">Panquecas Doces</option>
+                        <option value="outros">Outros</option>
                     </select>
                 </div>
 
@@ -58,6 +60,14 @@
                     <button class="produtos-especiais btn" id="abrirModalProdutoEspecial" style="background: var(--warning, #f39c12); color: white;">
                         + Promocional / Especial
                     </button>
+                </div>
+                <div class="form-group-inline">
+                    <label for="filtro-tipo">Tipo:</label>
+                    <select id="filtro-tipo" class="form-control">
+                        <option value="todos">Todos</option>
+                        <option value="normal">Produtos normais</option>
+                        <option value="promocional">Promocionais / Especiais</option>
+                    </select>
                 </div>
             </section>
 
@@ -88,12 +98,18 @@
                     <option value="pasteis-doces">Pastéis Doces</option>
                     <option value="panquecas-salgadas">Panquecas Salgadas</option>
                     <option value="panquecas-doces">Panquecas Doces</option>
+                        <option value="outros">Outros</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label for="prod-preco">Preço de Venda (R$):</label>
                 <input type="text" id="prod-preco" class="form-control" required placeholder="0,00">
+            </div>
+
+            <div class="form-group">
+                <label for="prod-descricao">Descrição:</label>
+                <textarea id="prod-descricao" class="form-control" rows="3" maxlength="2000" placeholder="Ingredientes e detalhes do produto"></textarea>
             </div>
 
             <div class="botoes-dialog">
@@ -121,12 +137,18 @@
                     <option value="pasteis-doces">Pastéis Doces</option>
                     <option value="panquecas-salgadas">Panquecas Salgadas</option>
                     <option value="panquecas-doces">Panquecas Doces</option>
+                        <option value="outros">Outros</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label for="prod-preco-especial">Preço de Venda Especial (R$):</label>
                 <input type="text" id="prod-preco-especial" class="form-control" required placeholder="0,00">
+            </div>
+
+            <div class="form-group">
+                <label for="prod-descricao-especial">Descrição:</label>
+                <textarea id="prod-descricao-especial" class="form-control" rows="3" maxlength="2000" placeholder="Ingredientes e detalhes do produto"></textarea>
             </div>
 
             <div class="botoes-dialog">
@@ -145,6 +167,7 @@
             </div>
             <div class="product-info">
                 <h3 class="titulo-vitrine"></h3>
+                <p class="descricao-vitrine"></p>
                 <p class="preco-vitrine"></p>
 
                 <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">

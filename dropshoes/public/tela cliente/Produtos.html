@@ -11,7 +11,7 @@
     <script type="module" src="../js/produtos.js" defer></script>
     <script type="module" src="../js/sessao.js" defer></script>
 </head>
-<body data-acesso="cliente">
+<body data-acesso="cliente" data-publica>
 
     <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -21,7 +21,7 @@
 
     <nav class="sidebar-nav">
         <a href="../tela cliente/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
-        <a href="../tela cliente/Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
+        <a href="../tela cliente/Produtos.html" class="nav-item active"><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
         <a href="../tela cliente/meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
         <a href="../tela cliente/carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
     </nav>
@@ -48,6 +48,15 @@
                         <option value="pasteis-doces">Pastéis Doces</option>
                         <option value="panquecas-salgadas">Panquecas Salgadas</option>
                         <option value="panquecas-doces">Panquecas Doces</option>
+                        <option value="outros">Outros</option>
+                    </select>
+                </div>
+                <div class="form-group-inline">
+                    <label for="filtro-tipo">Tipo:</label>
+                    <select id="filtro-tipo" class="form-control">
+                        <option value="todos">Todos</option>
+                        <option value="normal">Produtos normais</option>
+                        <option value="promocional">Promocionais / Especiais</option>
                     </select>
                 </div>
             </section>
@@ -57,76 +66,30 @@
             <p id="mensagem-produto" role="status" aria-live="polite" class="ajuda-campo"></p>
 
             <footer class="card-footer">
-                <p>© 2026 Delicias Da Lucy. Painel Administrativo Premium.</p>
+                <p>© 2026 Delicias Da Lucy. Cardápio.</p>
             </footer>
         </main>
     </div>
 
-    <dialog id="modal-produto">
-        <form id="form-produto" class="form-dialog">
-            <h2 id="modal-produto-titulo">Novo Produto</h2>
-            <input type="hidden" id="prod-id">
-
-            <div class="form-group">
-                <label for="prod-nome">Nome da Delícia</label>
-                <input type="text" id="prod-nome" class="form-control" required placeholder="Ex: Bolo de Pote Ninho com Morango">
-            </div>
-
-            <div class="form-group">
-                <label for="prod-preco">Preço de Venda (R$)</label>
-                <input type="number" id="prod-preco" step="0.01" class="form-control" required placeholder="0,00">
-            </div>
-
-            <div class="form-group">
-                <label>Foto do Produto</label>
-                <label class="file-wrapper" for="prod-imagem">
-                    <span class="material-symbols-outlined" style="font-size: 32px; color: var(--text-muted);">cloud_upload</span>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Clique para carregar a imagem</p>
-                    <input type="file" id="prod-imagem" accept="image/*">
-                </label>
-            </div>
-
-            <div class="botoes-dialog">
-                <button type="button" class="btn btn-cancelar" id="btn-fechar-modal">Cancelar</button>
-                <button type="submit" class="btn btn-success" id="btnSalvarProduto">Salvar Produto</button>
-            </div>
-        </form>
-    </dialog>
-
     <template id="template-card-produto">
         <div class="product-card">
             <div class="produto-imagem-wrapper">
+                <span class="badge-especial" hidden>PROMO / ESPECIAL</span>
                 <img src="" alt="" class="img-vitrine">
             </div>
             <div class="product-info">
                 <h3 class="titulo-vitrine"></h3>
+                <p class="descricao-vitrine"></p>
                 <p class="preco-vitrine"></p>
-
-                <div class="secao-tamanhos">
-                    <span class="rotulo-tamanhos">Tamanhos Disponíveis:</span>
-                    <div class="container-tamanhos-dinamicos tamanho-selector">
-                    </div>
-                </div>
 
                 <button type="button" class="btn btn-success btn-add-cart" style="width: 100%; gap: 8px; margin-bottom: 8px;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">shopping_cart</span> Adicionar ao Carrinho
-                </button>
-                <button type="button" class="btn btn-primary btn-editar" style="width: 100%; gap: 8px; margin-bottom: 8px;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">edit</span> Editar Produto
-                </button>
-                <button type="button" class="btn btn-danger btn-excluir" style="width: 100%; gap: 8px;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">delete</span> Excluir Produto
                 </button>
             </div>
         </div>
     </template>
 
-    <template id="template-radio-tamanho">
-        <label class="radio-tamanho-label">
-            <input type="radio" name="" value="">
-            <span></span>
-        </label>
-    </template>
+
 
 </body>
 </html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Delícias da Lucy | Pedidos dos clientes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="../css/pedidos.css">
+    <script type="module" src="../js/pedidos-admin.js"></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="../js/sessao.js" defer></script>
+</head>
+<body data-acesso="admin">
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="../tela admin/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
+            <h2>Painel de Navegação</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="../tela admin/pedidos clientes.html" class="nav-item active" aria-current="page"><span class="material-symbols-outlined">receipt_long</span> Pedidos dos clientes</a>
+            <a href="../tela admin/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
+            <a href="../tela admin/fluxo de caixa.html" class="nav-item" data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
+            <a href="../tela admin/produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+            <a href="../tela admin/meu perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
+            <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="../tela de login/login.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+
+        <main class="container">
+            <header class="hero"><h1>Pedidos dos clientes</h1><p>Pedidos da noite: das 18h à meia-noite, no horário de Ribeirão Preto.</p></header>
+            <form id="filtros-pedidos" class="filtros-pedidos">
+                <label>Data da noite<input id="data-pedidos" type="date" class="form-control" required></label>
+                <label>Status<select id="status-pedidos" class="form-control">
+                    <option value="">Todos</option><option value="pendente">Aguardando confirmação</option>
+                    <option value="aceito">Aceito</option><option value="em_preparo">Em preparo</option>
+                    <option value="pronto_entrega">Pronto / em entrega</option><option value="recebido">Recebido</option>
+                    <option value="cancelado">Cancelado</option>
+                </select></label>
+                <button class="btn btn-primary" type="submit">Atualizar pedidos</button>
+            </form>
+            <p id="atualizacao-pedidos" role="status">Carregando pedidos…</p>
+            <p id="erro-pedidos" role="alert"></p>
+            <section id="lista-pedidos" aria-label="Pedidos da noite"></section>
+            <nav class="paginacao-pedidos" aria-label="Páginas de pedidos">
+                <button id="pagina-anterior" class="btn" type="button" disabled>Anterior</button>
+                <span id="pagina-pedidos">Página 1</span>
+                <button id="pagina-proxima" class="btn" type="button" disabled>Próxima</button>
+            </nav>
+        </main>
+
+    </div>
+
+</body>
+</html>

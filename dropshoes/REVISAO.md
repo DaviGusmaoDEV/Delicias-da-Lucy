@@ -17,6 +17,6 @@ Configure a chave privada do Supabase e aplique os três scripts SQL na ordem in
 
 Não foi possível testar o banco ou pagamentos reais neste ambiente. Não havia navegador conectado para inspeção visual. Os testes HTTP usam dados fictícios e não chamam serviços de pagamento.
 
-A regra de entrega existente usa faixas de CEP e valores configurados em `DELIVERY_FEE_*`; a cobertura geográfica precisa ser confirmada com o restaurante. Não há confirmação automática de pagamento por webhook: criar um checkout não significa que o pedido foi pago.
+Atualização: a entrega agora usa trajeto rodoviário estimado pelo CEP, com 2 km gratuitos e R$ 1,50 por km excedente. O webhook assinado do Mercado Pago confirma o pagamento e lança receita atomicamente no banco. Consulte [PAGAMENTOS.md](database/PAGAMENTOS.md) para configuração, migração e limites da validação.
 
 O fluxo de caixa antigo guardava transações apenas no navegador. Elas não são apagadas nem importadas automaticamente; devem ser conferidas antes de uma importação para evitar duplicidade. A gravação de pedido e itens continua em duas operações, com tentativa de remover o pedido incompleto em caso de falha; uma transação de banco é recomendada para garantir atomicidade mesmo se houver indisponibilidade durante essa remoção.

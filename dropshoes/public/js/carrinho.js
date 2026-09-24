@@ -1,6 +1,6 @@
+import { sessaoPronta } from './sessao.js';
 import Swal from '/vendor/sweetalert2.esm.js';
 import { api, enviar } from './api.js';
-const WHATSAPP_LOJA = '5516996200385';
 let carrinho = [];
 try {
   const salvo = JSON.parse(localStorage.getItem('carrinho') || '[]');
@@ -14,7 +14,7 @@ const salvar = () => localStorage.setItem('carrinho', JSON.stringify(carrinho));
 export const obterCarrinho = () => carrinho.map(item => ({ ...item }));
 export function limparCarrinho() { carrinho = []; localStorage.removeItem('carrinho'); renderizarCarrinho(); }
 export function adicionarAoCarrinho(produto) {
-  if (localStorage.getItem('role') !== 'cliente') return;
+  if (['admin1', 'admin2'].includes(localStorage.getItem('role'))) return;
   if (!produto?.id || !produto.nome || !Number.isFinite(Number(produto.preco)) || Number(produto.preco) <= 0) return;
   const existente = carrinho.find(item => String(item.id) === String(produto.id));
   if (existente?.quantidade >= 50) return Swal.fire({ icon: 'info', text: 'O limite é de 50 unidades por produto.' });
@@ -61,7 +61,11 @@ export async function calcularFrete() {
     if (versao !== calculoAtual || cep !== document.getElementById('cep')?.value.trim()) return false;
     if (!Number.isFinite(Number(dados.taxa)) || Number(dados.taxa) < 0) throw new Error('Taxa de entrega inválida.');
     valorFreteAtual = Number(dados.taxa);
-    document.getElementById('info-frete').textContent = `Entrega em ${dados.cidade}: ${dinheiro(valorFreteAtual)}`;
+    for (const campo of ['endereco', 'bairro']) {
+      const input = document.getElementById(campo);
+      if (input && !input.value.trim()) input.value = dados[campo] || '';
+    }
+    document.getElementById('info-frete').textContent = `Trajeto aproximado pelo CEP: ${Number(dados.distancia_km).toFixed(2).replace('.', ',')} km. ${valorFreteAtual === 0 ? 'Entrega grátis até 2 km.' : `Entrega: ${dinheiro(valorFreteAtual)}`}`;
     atualizarResumo(); return true;
   } catch (erro) {
     const aviso = document.getElementById('info-frete'); if (aviso && versao === calculoAtual) aviso.textContent = erro.message;
@@ -71,26 +75,41 @@ export async function calcularFrete() {
 export async function finalizarCompra() {
   if (finalizando) return;
   if (!carrinho.length) return Swal.fire({ icon: 'info', title: 'Carrinho vazio', text: 'Escolha os produtos antes de continuar.' });
+  const perfil = await sessaoPronta;
+  if (!perfil) return Swal.fire({ icon: 'error', text: 'Não foi possível verificar sua sessão. Atualize a página e tente novamente.' });
+  const cliente_nome = document.getElementById('cliente-nome')?.value.trim() || '';
+  const cliente_telefone = document.getElementById('cliente-telefone')?.value.trim() || '';
+  if (cliente_nome.length < 2 || !/^(?:55)?\d{10,11}$/.test(cliente_telefone.replace(/[\s()+-]/g, ''))) return Swal.fire({ icon: 'info', text: 'Preencha nome e telefone com DDD.' });
   const entrega = camposEntrega();
   if (Object.values(entrega).some(valor => !valor)) return Swal.fire({ icon: 'info', title: 'Complete o endereço', text: 'Rua, número, bairro e CEP são necessários para a entrega.' });
   const botao = document.querySelector('.btn-finalizar'); finalizando = true; if (botao) botao.disabled = true;
   try {
     if (!(await calcularFrete())) return;
     if (JSON.stringify(entrega) !== JSON.stringify(camposEntrega())) throw new Error('O endereço mudou. Confira os dados e tente novamente.');
-    const pagamento = document.querySelector('input[name="pagamento"]:checked')?.value || 'a_combinar';
-    const dados = await enviar('/api/pedidos', 'POST', { ...entrega, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) });
-    const mensagem = `Olá! Quero confirmar o pedido #${dados.pedido.id}.\nNome: ${localStorage.getItem('nomeUsuario') || ''}\nEndereço: ${entrega.endereco}, nº ${entrega.numero_casa} - ${entrega.bairro}\nCEP: ${entrega.cep}\nTotal: ${dinheiro(dados.pedido.valor)}`;
-    limparCarrinho();
-    const online = pagamento === 'site' && dados.payment_url;
-    const result = await Swal.fire({ icon: 'success', title: `Pedido #${dados.pedido.id} recebido!`, text: online ? 'Continue para pagar pelo site.' : 'Combine o pagamento com o restaurante pelo WhatsApp.', showDenyButton: true, showCancelButton: true, confirmButtonText: online ? 'Pagar pelo site' : 'Abrir WhatsApp', denyButtonText: 'Acompanhar pedido', cancelButtonText: 'Voltar ao cardápio' });
-    if (result.isConfirmed && online) { window.location.assign(dados.payment_url); return; }
-    if (result.isConfirmed) window.open(`https://wa.me/${WHATSAPP_LOJA}?text=${encodeURIComponent(mensagem)}`, '_blank', 'noopener');
-    window.location.assign(result.isDismissed ? '../tela cliente/Produtos.html' : '../tela cliente/meu perfil cliente.html');
+    if (perfil?.role === 'visitante') await enviar('/api/cadastro-cliente', 'POST', { nome: cliente_nome, telefone: cliente_telefone, cep: entrega.cep });
+    const corpo = { ...entrega, cliente_nome, cliente_telefone, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento: 'site', itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
+    const resumo = new TextEncoder().encode(JSON.stringify(corpo));
+    const assinatura = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', resumo)), b => b.toString(16).padStart(2, '0')).join('');
+    let tentativa;
+    try { tentativa = JSON.parse(sessionStorage.getItem('checkoutAtual')); } catch {}
+    if (tentativa?.assinatura !== assinatura) tentativa = { assinatura, chave: crypto.randomUUID() };
+    sessionStorage.setItem('checkoutAtual', JSON.stringify(tentativa));
+    const dados = await enviar('/api/pedidos', 'POST', { ...corpo, checkout_chave: tentativa.chave });
+    if (!dados.payment_url || !dados.payment_url.startsWith('https://')) throw new Error('Não foi possível abrir o pagamento. Tente novamente.');
+    limparCarrinho(); sessionStorage.removeItem('checkoutAtual');
+    window.location.assign(dados.payment_url);
   } catch (erro) { await Swal.fire({ icon: 'error', title: 'Não foi possível finalizar', text: erro.message }); }
   finally { finalizando = false; if (botao) botao.disabled = false; }
 }
 window.calcularFrete = calcularFrete; window.finalizarCompra = finalizarCompra;
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const perfil = await sessaoPronta;
+  for (const [id, campo] of [['cliente-nome', 'nome'], ['cliente-telefone', 'telefone'], ['cep', 'cep']]) {
+    const input = document.getElementById(id); if (input && perfil?.[campo]) input.value = perfil[campo];
+  }
   renderizarCarrinho();
+  document.getElementById('btn-calcular-frete')?.addEventListener('click', calcularFrete);
+  document.getElementById('btn-finalizar-pedido')?.addEventListener('click', finalizarCompra);
+  document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) calcularFrete(); });
   document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; valorFreteAtual = 0; atualizarResumo(); document.getElementById('info-frete').textContent = 'Calcule a entrega para o novo CEP.'; });
 });

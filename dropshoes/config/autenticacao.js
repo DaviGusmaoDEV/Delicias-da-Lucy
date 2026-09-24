@@ -1,3 +1,4 @@
+const { opcoesCookie, lerCookie } = require('../middleware/seguranca');
 const { randomBytes, scrypt: scryptCallback, timingSafeEqual, createHash } = require('node:crypto');
 const { promisify } = require('node:util');
 const jwt = require('jsonwebtoken');
@@ -27,9 +28,14 @@ function criarAutenticacao({ db, secret }) {
   const indisponivel = res => res.status(503).json({ erro: 'Não foi possível acessar sua conta agora. Tente novamente em instantes.' });
   const invalido = res => res.status(401).json({ erro: 'E-mail ou senha inválidos.' });
   const pronto = () => db && secret;
+  const cadastroIndisponivel = (res, erro) => {
+    // Registra somente o código técnico, nunca dados de clientes ou credenciais.
+    if (erro?.code) console.error('[cadastro] Falha ao gravar perfil:', erro.code);
+    return res.status(503).json({ erro: 'Não foi possível criar seu perfil agora. Tente novamente em instantes.' });
+  };
 
   async function cadastro(req, res) {
-    if (!pronto()) return indisponivel(res);
+    if (!pronto()) return cadastroIndisponivel(res);
     const { nome, email, telefone = '', senha } = req.body || {};
     if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 100 ||
         typeof email !== 'string' || email.trim().length > 254 || !EMAIL.test(email.trim()) ||
@@ -40,7 +46,7 @@ function criarAutenticacao({ db, secret }) {
     try {
       const emailNormalizado = email.trim().toLowerCase();
       const { data: existente, error: consultaErro } = await db.from('profiles').select('id').eq('email', emailNormalizado).maybeSingle();
-      if (consultaErro) return indisponivel(res);
+      if (consultaErro) return cadastroIndisponivel(res, consultaErro);
       if (existente) return res.status(409).json({ erro: 'Este e-mail já está cadastrado. Faça login.' });
       // Lista explícita de campos: nenhum cargo ou metadado do cliente é aceito.
       const { data, error } = await db.from('profiles').insert([{
@@ -48,9 +54,9 @@ function criarAutenticacao({ db, secret }) {
         senha: await hashSenha(senha), role: 'cliente'
       }]).select('id,nome,email,role').single();
       if (error?.code === '23505') return res.status(409).json({ erro: 'Este e-mail já está cadastrado. Faça login.' });
-      if (error || !data) return indisponivel(res);
+      if (error || !data) return cadastroIndisponivel(res, error);
       return res.status(201).json({ mensagem: 'Cadastro realizado. Entre com seu e-mail e senha.', usuario: data });
-    } catch { return indisponivel(res); }
+    } catch (erro) { return cadastroIndisponivel(res, erro); }
   }
 
   async function login(req, res) {
@@ -72,6 +78,10 @@ function criarAutenticacao({ db, secret }) {
         if (migracaoErro || !atualizada) return indisponivel(res);
       }
       const token = jwt.sign({ id: usuario.id, role: usuario.role }, secret, { algorithm: 'HS256', expiresIn: '8h' });
+      if (req.headers?.['x-session-mode'] === 'cookie') {
+        res.cookie('lucy_sessao', token, { ...opcoesCookie(), maxAge: 8 * 60 * 60 * 1000 });
+        return res.json({ role: usuario.role, nome: usuario.nome });
+      }
       return res.json({ token, role: usuario.role, nome: usuario.nome });
     } catch { return indisponivel(res); }
   }
@@ -81,8 +91,8 @@ function criarAutenticacao({ db, secret }) {
     let payload;
     try {
       const match = /^Bearer (\S+)$/.exec(req.headers.authorization || '');
-      payload = jwt.verify(match?.[1] || '', secret, { algorithms: ['HS256'] });
-      if (!payload.id) throw new Error('Sessão inválida');
+      payload = jwt.verify(match?.[1] || lerCookie(req, 'lucy_sessao') || '', secret, { algorithms: ['HS256'] });
+      if (payload.aud || !payload.id) throw new Error('Sessão inválida');
     } catch { return res.status(401).json({ erro: 'Sua sessão terminou. Entre novamente.' }); }
     try {
       const { data, error } = await db.from('profiles').select('id,role').eq('id', payload.id).maybeSingle();

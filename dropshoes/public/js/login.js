@@ -18,10 +18,10 @@ export async function realizarLogin(identificador, senha) {
         const dados = await enviarFormulario(form, '/api/login', {
             identificador, senha, acesso: form?.dataset.acesso || 'cliente'
         });
-        if (!dados.token || !['cliente', 'admin1', 'admin2'].includes(dados.role)) {
+        if (!['cliente', 'admin1', 'admin2'].includes(dados.role)) {
             throw new Error('Resposta de autenticação inválida. Tente novamente.');
         }
-        localStorage.setItem('token', dados.token);
+        localStorage.removeItem('token');
         localStorage.setItem('role', dados.role);
         localStorage.setItem('nomeUsuario', dados.nome);
         window.location.assign(dados.role === 'cliente' ? '../tela cliente/principal.html' : '../tela admin/principal.html');

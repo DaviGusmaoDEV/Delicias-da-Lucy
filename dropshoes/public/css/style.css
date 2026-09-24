@@ -87,7 +87,6 @@ button, .btn, .nav-item { min-height: 44px; }
 .pedido-card.status-pronto_entrega { border-left-color: #a78bfa; }
 .pedido-card.status-recebido { border-left-color: #22c55e; }
 .btn-recebido { background: #15803d; color: #fff; margin-top: 10px; }
-.btn-whatsapp { background: #25d366; color: #062b14; }
 @media (max-width: 680px) { .grid-entrega { grid-template-columns: 1fr; } .frete-container-inline { flex-direction: column; } }
 
 /* Suporte de alinhamento global para fontes de ícones do Google */
@@ -661,6 +660,12 @@ a {
     margin-bottom: 6px;
 }
 
+.descricao-vitrine {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    margin-bottom: 12px;
+}
+
 .preco-vitrine {
     font-size: 16px;
     font-weight: 700;
@@ -820,6 +825,7 @@ a {
 #total-faturamento { color: var(--success); }
 #total-despesa     { color: var(--danger); }
 #saldo-liquido     { color: var(--dark); }
+#total-despesa-funcionario{ color: var(--produtos-especiais) }
 
 /* ==========================================================================
    🎯 9. DIALOGS, MODAIS & BACKDROPS

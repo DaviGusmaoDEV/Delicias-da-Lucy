@@ -1,5 +1,9 @@
+import { bilhetePedido } from './bilhete.js';
 import { api, enviar } from './api.js';
 import { sessaoPronta } from './sessao.js';
+let pagina = 0;
+let carregando = false;
+let alterando = false;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 const STATUS = {
   pendente: { texto: 'Aguardando confirmação', detalhe: 'O restaurante está visualizando este pedido.', proximo: 'aceito', acao: 'Aceitar pedido' },
@@ -16,23 +20,55 @@ function mostrarErro(erro) {
   aviso.textContent = erro.message;
 }
 async function atualizarStatus(id, status) {
+  if (alterando) return;
+  if (status === 'cancelado' && !window.confirm('Cancelar este pedido? Se já estiver pago, o reembolso precisa ser feito no Mercado Pago.')) return;
+  alterando = true;
+  document.querySelectorAll('.pedido-acoes button').forEach(botao => { botao.disabled = true; });
   try { await enviar(`/api/pedidos/${encodeURIComponent(id)}/status`, 'PATCH', { status }); await carregar(); }
   catch (erro) { mostrarErro(erro); }
+  finally { alterando = false; document.querySelectorAll('.pedido-acoes button').forEach(botao => { botao.disabled = false; }); }
 }
 async function carregar() {
-  const pedidos = await api('/api/pedidos');
+  if (carregando) return;
+  carregando = true;
+  const parametros = new URLSearchParams({ data: document.getElementById('data-pedidos').value, status: document.getElementById('status-pedidos').value, pagina: String(pagina) });
+  try {
+  const { pedidos, temMais } = await api(`/api/pedidos?${parametros}`);
   const aviso = document.getElementById('erro-pedidos'); if (aviso) aviso.textContent = '';
-  const area = document.getElementById('lista-pedidos'); area.innerHTML = pedidos.length ? '' : '<p>Nenhum pedido novo.</p>';
+  const area = document.getElementById('lista-pedidos'); area.innerHTML = pedidos.length ? '' : '<p>Nenhum pedido encontrado entre 18h e meia-noite para os filtros selecionados.</p>';
   pedidos.forEach(pedido => {
     const situacao = STATUS[pedido.status] || STATUS.pendente; const itens = (pedido.itens_pedido || []).map(item => `${item.quantidade}x ${item.products?.nome || 'Item'}`).join(', '); const card = document.createElement('article');
     card.className = `pedido-card status-${pedido.status}`;
-    card.innerHTML = `<div class="pedido-cabecalho"><h2>Pedido N${esc(pedido.id)}</h2><span class="status-pedido status-${esc(pedido.status)}">${situacao.texto}</span></div><p class="status-detalhe">${situacao.detalhe}</p><p><strong>Cliente:</strong> ${esc(pedido.profiles?.nome || 'Cliente')}</p><p><strong>Entrega:</strong> ${esc(pedido.endereco)}, nº ${esc(pedido.numero_casa)} — ${esc(pedido.bairro)}, CEP ${esc(pedido.cep)}</p><p><strong>Itens:</strong> ${esc(itens)}</p><p><strong>Total:</strong> ${dinheiro(pedido.valor)}</p><div class="pedido-acoes"></div>`;
+    card.innerHTML = `<div class="pedido-cabecalho"><h2>Pedido N${esc(pedido.id)}</h2><span class="status-pedido status-${esc(pedido.status)}">${situacao.texto}</span></div><p class="status-detalhe">${situacao.detalhe}</p><p><strong>Cliente:</strong> ${esc(pedido.cliente_nome || pedido.profiles?.nome || 'Cliente')}</p><p><strong>Telefone:</strong> ${esc(pedido.cliente_telefone || pedido.profiles?.telefone || 'Não informado')}</p><p><strong>Horário:</strong> ${esc(new Date(pedido.data_criacao).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }))}</p><p><strong>Entrega:</strong> ${esc(pedido.endereco)}, nº ${esc(pedido.numero_casa)} — ${esc(pedido.bairro)}, CEP ${esc(pedido.cep)}</p><p><strong>Itens:</strong> ${esc(itens)}</p><p><strong>Total:</strong> ${dinheiro(pedido.valor)}</p><div class="pedido-acoes"></div>`;
+    if (pedido.observacao_geral) { const obs = document.createElement('p'); obs.textContent = `Observação: ${pedido.observacao_geral}`; card.append(obs); }
+    const provedor = String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Mercado Pago';
+    const pagamento = document.createElement('p'); pagamento.textContent = pedido.pagamento === 'site' ? (pedido.pagamento_status === 'approved' ? `Pagamento aprovado — ${provedor}` : `Pagamento: ${pedido.pagamento_status || 'pendente'} — ${provedor}`) : 'Pedido anterior à integração'; card.append(pagamento);
     const acoes = card.querySelector('.pedido-acoes');
-    if (situacao.proximo) { const botao = document.createElement('button'); botao.className = 'btn btn-primary'; botao.textContent = situacao.acao; botao.onclick = () => atualizarStatus(pedido.id, situacao.proximo); acoes.append(botao); }
+    if (situacao.proximo && (pedido.pagamento !== 'site' || pedido.pagamento_status === 'approved')) { const botao = document.createElement('button'); botao.className = 'btn btn-primary'; botao.textContent = situacao.acao; botao.onclick = () => atualizarStatus(pedido.id, situacao.proximo); acoes.append(botao); }
     if (['pendente', 'aceito', 'em_preparo'].includes(pedido.status)) { const cancelar = document.createElement('button'); cancelar.className = 'btn btn-cancelar'; cancelar.textContent = 'Cancelar pedido'; cancelar.onclick = () => atualizarStatus(pedido.id, 'cancelado'); acoes.append(cancelar); }
-    if (pedido.status === 'pronto_entrega' && pedido.profiles?.telefone) { const lembrete = document.createElement('a'); lembrete.className = 'btn btn-whatsapp'; const numero = String(pedido.profiles.telefone).replace(/\D/g, ''); lembrete.href = `https://wa.me/${numero.startsWith('55') ? numero : `55${numero}`}?text=${encodeURIComponent(`Olá, ${pedido.profiles.nome}! O pedido N${pedido.id} já foi entregue? Por favor, confirme o recebimento no site.`)}`; lembrete.target = '_blank'; lembrete.rel = 'noopener'; lembrete.textContent = 'Enviar lembrete no WhatsApp'; acoes.append(lembrete); }
     const imprimir = document.createElement('button'); imprimir.className = 'btn imprimir'; imprimir.textContent = 'Imprimir bilhete'; imprimir.onclick = () => imprimirBilhete(pedido, itens); acoes.append(imprimir); area.append(card);
   });
+  document.getElementById('pagina-anterior').disabled = pagina === 0;
+  document.getElementById('pagina-proxima').disabled = !temMais;
+  document.getElementById('pagina-pedidos').textContent = `Página ${pagina + 1}`;
+  document.getElementById('atualizacao-pedidos').textContent = `${pedidos.length} pedido(s) nesta página. Atualizado às ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })}. Atualização automática a cada 15 segundos.`;
+  } finally { carregando = false; }
 }
-function imprimirBilhete(pedido, itens) { const janela = window.open('', '_blank', 'width=360,height=600'); if (!janela) return mostrarErro(new Error('Permita a abertura da janela para imprimir o bilhete.')); janela.document.write(`<!doctype html><title>Pedido N${esc(pedido.id)}</title><style>body{font:16px monospace;padding:16px}h1{font-size:22px;border-bottom:1px dashed}p{margin:8px 0}</style><h1>DELÍCIAS DA LUCY<br>Pedido N${esc(pedido.id)}</h1><p><b>Nome:</b> ${esc(pedido.profiles?.nome || 'Cliente')}</p><p><b>Endereço:</b> ${esc(pedido.endereco)}</p><p><b>Número da casa:</b> ${esc(pedido.numero_casa)}</p><p><b>Bairro:</b> ${esc(pedido.bairro)}</p><p><b>CEP:</b> ${esc(pedido.cep)}</p><p><b>Itens:</b> ${esc(itens)}</p><p><b>Total:</b> ${dinheiro(pedido.valor)}</p>`); janela.document.close(); janela.print(); }
-document.addEventListener('DOMContentLoaded', async () => { if (!(await sessaoPronta)) return; const atualizar = () => carregar().catch(mostrarErro); await atualizar(); window.setInterval(atualizar, 30000); });
+function imprimirBilhete(pedido) {
+  const janela = window.open('', '_blank', 'width=360,height=600');
+  if (!janela) return mostrarErro(new Error('Permita a abertura da janela para imprimir o bilhete.'));
+  janela.document.write(bilhetePedido(pedido)); janela.document.close();
+  janela.focus(); janela.print();
+}
+document.addEventListener('DOMContentLoaded', async () => {
+  const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const valor = tipo => partes.find(p => p.type === tipo).value;
+  document.getElementById('data-pedidos').value = `${valor('year')}-${valor('month')}-${valor('day')}`;
+  if (!(await sessaoPronta)) return;
+  const atualizar = () => carregar().catch(mostrarErro);
+  document.getElementById('filtros-pedidos').addEventListener('submit', event => { event.preventDefault(); if (carregando || alterando) return; pagina = 0; atualizar(); });
+  document.getElementById('pagina-anterior').addEventListener('click', () => { if (carregando || alterando) return; pagina = Math.max(0, pagina - 1); atualizar(); });
+  document.getElementById('pagina-proxima').addEventListener('click', () => { if (carregando || alterando) return; pagina++; atualizar(); });
+  await atualizar();
+  window.setInterval(() => { if (!document.hidden && !alterando) atualizar(); }, 15000);
+});

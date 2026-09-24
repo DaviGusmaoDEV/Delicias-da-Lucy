@@ -1,0 +1,24 @@
+Melhorias de segurança:
+Teste de penetraçao explorando a owasp top 10
+faz uma lista de falhas detectadas e arrume todas elas
+Faça um teste no supabase para melhorar a segruança tbm do supabase 
+arrumar a parte do carrinho, nao exigir login/cadastro de cliente, na hora do carrinho, se o caso for login já cadastrado ele deixa faz o pedido. Já que estiver sem login, só pede o Nome, Numero, CEP somente isso se o usuario nao for cadastrado. na hora do cadastro de cliente, somente o campo de Nome, telefone e CEP.
+
+Andamento — 24/09/2026
+[x] Revisão de código e testes locais orientados à OWASP Top 10; relatório em SEGURANCA.md.
+[x] Cookies HttpOnly, CSP, proteção de origem, limites e isolamento de pedidos por comprador.
+[x] Compra sem conta e cadastro com nome, telefone e CEP, sem SMS.
+[x] Checkout exige também número da casa; rua/bairro são preenchidos pelo CEP quando disponíveis.
+[x] Auditoria remota somente de leitura no Supabase, sem expor dados pessoais ou segredos.
+[x] Migração de permissões e visitantes testada em PostgreSQL temporário.
+[ ] Executar database/schema-seguranca-visitantes.sql no Supabase real, após migrações anteriores.
+[ ] Validar checkout no ambiente de homologação com Mercado Pago configurado.
+[ ] Configurar hospedagem HTTPS e DNS, depois definir origem pública e ambiente de produção.
+
+Sem confirmação do telefone, o cadastro simplificado não serve para recuperar contas.
+O visitante consulta apenas os pedidos da sessão assinada no próprio navegador.
+A revisão não substitui um pentest completo da hospedagem publicada.
+
+[x] Gravação transacional de pedido/itens e teste de falha/concorrência em PostgreSQL.
+[x] Validação de configurações de produção e registro de rotas nas recusas.
+[x] Tela admin/pedidos clientes.html: pedidos das 18h à meia-noite, data, status e atualização automática.

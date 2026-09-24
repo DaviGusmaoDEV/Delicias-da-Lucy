@@ -20,8 +20,9 @@
         </div>
 
         <nav class="sidebar-nav">
-            <a href="../tela admin/principal.html" class="nav-item active"><span class="material-symbols-outlined">home</span> Início</a>
-            <a href="../tela admin/fluxo de caixa.html" class="nav-item" data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
+            <a href="../tela admin/pedidos clientes.html" class="nav-item"><span class="material-symbols-outlined">receipt_long</span> Pedidos dos clientes</a>
+            <a href="../tela admin/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
+            <a href="../tela admin/fluxo de caixa.html" class="nav-item active" data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
             <a href="../tela admin/produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
             <a href="../tela admin/meu perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
             <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
@@ -142,6 +143,14 @@
                 </div>
 
                 <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="tipo-filtro">Tipo de movimentação:</label>
+                    <select id="tipo-filtro" class="form-control">
+                        <option value="todos">Todas</option>
+                        <option value="receita">Ganhos / Entradas</option>
+                        <option value="custos">Todos os custos</option>
+                        <option value="despesa">Saídas / Despesas</option>
+                        <option value="total-despesa-funcionario">Despesas de funcionários</option>
+                    </select>
                     <label for="funcionario-filtro" style="font-size: 0.9rem;">Pesquisar por Descrição:</label>
                     <input class="form-control" type="text" id="funcionario-filtro" placeholder="Ex: Funcionário, fornecedor...">
                 </div>

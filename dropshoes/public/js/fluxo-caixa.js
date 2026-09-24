@@ -1,3 +1,4 @@
+import { filtrarTransacoes } from './caixa-filtros.js';
 import Swal from '/vendor/sweetalert2.esm.js';
 import { api, enviar } from './api.js';
 import { sessaoPronta } from './sessao.js';
@@ -5,7 +6,7 @@ const el = id => document.getElementById(id);
 const dinheiro = valor => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 let transacoes = [];
 let idEmEdicao = null;
-let filtros = { inicio: '', fim: '', busca: '' };
+let filtros = { inicio: '', fim: '', busca: '', tipo: 'todos' };
 const erro = causa => Swal.fire({ icon: 'error', title: 'Fluxo de caixa', text: causa.message });
 
 async function carregar() {
@@ -13,7 +14,7 @@ async function carregar() {
   renderizar();
 }
 function renderizar() {
-  const visiveis = transacoes.filter(item => (!filtros.inicio || item.data >= filtros.inicio) && (!filtros.fim || item.data <= filtros.fim) && (!filtros.busca || item.descricao.toLowerCase().includes(filtros.busca)));
+  const visiveis = filtrarTransacoes(transacoes, filtros);
   const corpo = el('corpo-tabela-fluxo-caixa'); corpo.replaceChildren();
   if (!visiveis.length) corpo.innerHTML = '<tr><td colspan="5">Nenhuma transação encontrada.</td></tr>';
   const totais = { receita: 0, despesa: 0, 'total-despesa-funcionario': 0 };
@@ -22,6 +23,7 @@ function renderizar() {
     const clone = el('template-linha-transacao').content.cloneNode(true);
     clone.querySelector('.col-data').textContent = new Date(`${item.data.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
     clone.querySelector('.txt-descricao').textContent = item.descricao;
+    clone.querySelector('.badge-origem').textContent = item.pedido_id ? 'Mercado Pago · automático' : 'Lançamento manual';
     const badge = clone.querySelector('.badge-tipo'); badge.textContent = nomes[item.tipo] || item.tipo;
     const valor = clone.querySelector('.col-valor'); valor.textContent = dinheiro(item.valor);
     const classe = item.tipo === 'total-despesa-funcionario' ? 'status-despesa-funcionario' : `status-${item.tipo}`;
@@ -37,6 +39,7 @@ function renderizar() {
       try { await api(`/api/fluxo-caixa/${encodeURIComponent(item.id)}`, { method: 'DELETE' }); transacoes = transacoes.filter(t => t.id !== item.id); renderizar(); }
       catch (causa) { erro(causa); }
     };
+    if (item.pedido_id) { clone.querySelector('.btn-edicao').remove(); clone.querySelector('.btn-exclusao').remove(); }
     corpo.append(clone); if (item.tipo in totais) totais[item.tipo] += Math.round(item.valor * 100);
   });
   el('total-faturamento').textContent = dinheiro(totais.receita / 100);
@@ -68,11 +71,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   el('btnAplicarFiltro').onclick = () => {
     const inicio = el('data-inicial').value; const fim = el('data-final').value;
     if (inicio && fim && inicio > fim) return erro(new Error('A data inicial deve ser anterior à data final.'));
-    filtros = { inicio, fim, busca: el('funcionario-filtro').value.trim().toLowerCase() }; renderizar(); el('modalFiltro').close();
+    filtros = { inicio, fim, tipo: el('tipo-filtro').value, busca: el('funcionario-filtro').value.trim().toLowerCase() }; renderizar(); el('modalFiltro').close();
   };
   el('btnLimparFiltro').onclick = () => {
     ['data-inicial', 'data-final', 'funcionario-filtro'].forEach(id => { el(id).value = ''; });
-    filtros = { inicio: '', fim: '', busca: '' }; renderizar(); el('modalFiltro').close();
+    el('tipo-filtro').value = 'todos';
+    filtros = { inicio: '', fim: '', busca: '', tipo: 'todos' }; renderizar(); el('modalFiltro').close();
   };
   try { await carregar(); } catch (causa) { erro(causa); }
+  setInterval(() => { if (!document.hidden && !document.querySelector('dialog[open]')) carregar().catch(erro); }, 15000);
 });

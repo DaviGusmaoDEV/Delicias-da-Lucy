@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="../js/sessao.js" defer></script>
 </head>
-<body data-acesso="cliente">
+<body data-acesso="cliente" data-publica>
 
     <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -17,12 +17,11 @@
         <h2>Painel de Navegação</h2>
     </div>
 
-    <nav class="sidebar-nav">
+     <nav class="sidebar-nav">
         <a href="../tela cliente/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
-        <a href="../tela cliente/Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+        <a href="../tela cliente/Produtos.html" class="nav-item "><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
         <a href="../tela cliente/meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
-        <a href="../tela cliente/carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
-        <a href="../tela de login/login cliente.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
+        <a href="../tela cliente/carrino cliente.html" class="nav-item active"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
     </nav>
 
     <div class="sidebar-footer">
@@ -41,12 +40,20 @@
 
                 <div class="observacao-pedido-container">
                     <label for="observacao-geral" class="frete-label">Observação do pedido</label>
-                    <textarea id="observacao-geral" class="form-control" placeholder="Ex: sem cebola, troco para R$ 50, ponto de referência..." rows="3"></textarea>
+                    <textarea id="observacao-geral" class="form-control" placeholder="Ex: sem cebola, ponto de referência..." rows="3"></textarea>
                 </div>
 
                 <fieldset class="frete-calculo-container">
+                    <legend>Quem vai receber?</legend>
+                    <label for="cliente-nome">Nome</label>
+                    <input id="cliente-nome" class="form-control" autocomplete="name" minlength="2" maxlength="100" required>
+                    <label for="cliente-telefone">Telefone com DDD</label>
+                    <input id="cliente-telefone" class="form-control" type="tel" autocomplete="tel" maxlength="20" required>
+                    <p>Não precisa criar uma conta. Já tem uma? <a href="../tela de login/login cliente.html">Entrar</a></p>
+                </fieldset>
+                <fieldset class="frete-calculo-container">
                     <legend class="frete-label">Endereço de entrega</legend>
-                    <p class="ajuda-campo">Preencha para calcular a taxa em Ribeirão Preto.</p>
+                    <p class="ajuda-campo">Entrega grátis até 2 km da loja. Digite o CEP para estimar o trajeto e a taxa; confira rua e bairro e informe o número.</p>
                     <label for="endereco">Rua / Avenida</label>
                     <input type="text" id="endereco" class="form-control" autocomplete="street-address" required>
                     <div class="grid-entrega">
@@ -55,16 +62,15 @@
                     </div>
                     <div class="frete-container-inline">
                         <input type="text" id="cep" class="form-control" autocomplete="postal-code" inputmode="numeric" maxlength="9" placeholder="CEP (ex.: 14000-000)" required>
-                        <button type="button" onclick="calcularFrete()" class="btn-calcular">Calcular taxa</button>
+                        <button type="button" id="btn-calcular-frete" class="btn-calcular">Calcular taxa</button>
                     </div>
-                    <div id="info-frete" class="info-frete-dinamico"></div>
+                    <div id="info-frete" class="info-frete-dinamico" role="status" aria-live="polite"></div>
+                    <small>Localização por BrasilAPI; rotas OSRM / © OpenStreetMap contributors.</small>
                 </fieldset>
 
                 <fieldset class="pagamento-container">
-                    <legend class="frete-label">Como deseja pagar?</legend>
-                    <label><input type="radio" name="pagamento" value="site" checked> Pelo site</label>
-                    <label><input type="radio" name="pagamento" value="whatsapp"> Pelo WhatsApp</label>
-                    <p class="ajuda-campo">Ao concluir, você também poderá falar com o restaurante pelo WhatsApp.</p>
+                    <legend class="frete-label">Pagamento online</legend>
+                    <p class="ajuda-campo">Você será encaminhado ao checkout seguro configurado pela loja. O pedido será liberado após a confirmação do pagamento.</p>
                 </fieldset>
 
                 <div class="resumo-carrinho">
@@ -83,7 +89,7 @@
                         <span>Total:</span>
                         <strong id="cart-total">R$ 0,00</strong>
                     </div>
-                    <button class="btn-finalizar" type="button" onclick="finalizarCompra()">Finalizar pedido e escolher pagamento</button>
+                    <button class="btn-finalizar" type="button" id="btn-finalizar-pedido">Continuar para pagamento</button>
                 </div>
             </section>
 

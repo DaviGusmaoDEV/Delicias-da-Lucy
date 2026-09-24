@@ -22,7 +22,7 @@ export async function enviarFormulario(form, url, valores) {
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
         const resposta = await fetch(url, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Session-Mode': 'cookie' },
             body: JSON.stringify(valores), signal: controller.signal
         });
         const dados = await resposta.json().catch(() => ({}));

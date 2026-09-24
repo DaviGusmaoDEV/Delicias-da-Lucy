@@ -1,4 +1,6 @@
-export function encerrarSessao() {
+export async function encerrarSessao() {
+  await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+  sessionStorage.removeItem('checkoutAtual');
   for (const chave of ['token', 'role', 'nomeUsuario', 'carrinho']) localStorage.removeItem(chave);
 }
 
@@ -7,14 +9,15 @@ export async function api(url, opcoes = {}) {
   const timer = setTimeout(() => controller.abort(), 20000);
   try {
     const resposta = await fetch(url, {
-      ...opcoes, signal: controller.signal,
-      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}`, ...(opcoes.headers || {}) }
+      ...opcoes, credentials: 'same-origin', signal: controller.signal,
+      headers: { ...(opcoes.headers || {}) }
     });
     const dados = resposta.status === 204 ? null : await resposta.json().catch(() => null);
     if (!resposta.ok) {
-      if (resposta.status === 401) {
-        const destino = ['admin1', 'admin2'].includes(localStorage.getItem('role')) ? '../tela de login/login.html' : '../tela de login/login cliente.html';
-        encerrarSessao(); window.location.assign(destino);
+      // Somente a administração exige login para abrir a página.
+      if (resposta.status === 401 && document.body.dataset.acesso === 'admin') {
+        await encerrarSessao();
+        window.location.assign('../tela de login/login.html');
       }
       const erro = new Error(dados?.erro || 'Não foi possível concluir a operação. Tente novamente.');
       erro.status = resposta.status;
