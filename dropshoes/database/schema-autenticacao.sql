@@ -3,8 +3,10 @@
 begin;
 
 alter table public.profiles add column if not exists telefone varchar(30);
+alter table public.profiles add column if not exists cep varchar(8);
 alter table public.profiles alter column senha type text;
 alter table public.profiles alter column role set default 'cliente';
+alter table public.profiles alter column email drop not null;
 
 -- Interrompe a migração sem excluir contas se já existirem e-mails duplicados.
 do $$
@@ -20,6 +22,20 @@ end $$;
 update public.profiles set email = lower(btrim(email)) where email is not null;
 create unique index if not exists profiles_email_normalizado_unique
   on public.profiles (lower(btrim(email)));
+
+do $$
+begin
+  if exists (
+    select regexp_replace(telefone, '\\D', '', 'g') from public.profiles
+    where telefone is not null and btrim(telefone) <> ''
+    group by regexp_replace(telefone, '\\D', '', 'g') having count(*) > 1
+  ) then
+    raise exception 'Existem telefones duplicados em profiles. Resolva as duplicidades antes de executar novamente.';
+  end if;
+end $$;
+create unique index if not exists profiles_telefone_normalizado_unique
+  on public.profiles (regexp_replace(telefone, '\\D', '', 'g'))
+  where telefone is not null and btrim(telefone) <> '';
 
 -- Toda leitura e gravação de credenciais passa pelo servidor Express.
 -- A chave pública não pode ler senhas nem inserir/alterar cargos diretamente.

@@ -3,14 +3,14 @@ import { mensagem, enviarFormulario } from './formularios.js';
 const form = document.getElementById('form-login');
 const emailCadastrado = sessionStorage.getItem('cadastroRealizado');
 if (form && emailCadastrado && form.dataset.acesso !== 'admin') {
-    form.querySelector('#email').value = emailCadastrado;
-    mensagem(form, 'Cadastro realizado! Entre com seu e-mail e senha.', true);
+    form.querySelector('#identificador').value = emailCadastrado;
+    mensagem(form, 'Cadastro realizado! Entre com seu e-mail ou telefone e senha.', true);
     sessionStorage.removeItem('cadastroRealizado');
 }
 form?.addEventListener('submit', async event => {
     event.preventDefault();
     if (!form.reportValidity() || form.dataset.enviando) return;
-    await realizarLogin(form.querySelector('#email').value.trim(), form.querySelector('#senha').value);
+    await realizarLogin(form.querySelector('#identificador').value.trim(), form.querySelector('#senha').value);
 });
 
 export async function realizarLogin(identificador, senha) {

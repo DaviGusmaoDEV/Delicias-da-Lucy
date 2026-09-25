@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const perfil = await sessaoPronta;
   for (const [id, campo] of [['cliente-nome', 'nome'], ['cliente-telefone', 'telefone'], ['cep', 'cep']]) {
     const input = document.getElementById(id); if (input && perfil?.[campo]) input.value = perfil[campo];
+    if (input && perfil?.role === 'cliente' && ['cliente-nome', 'cliente-telefone'].includes(id)) input.readOnly = true;
   }
   renderizarCarrinho();
   document.getElementById('btn-calcular-frete')?.addEventListener('click', atualizarEntrega);

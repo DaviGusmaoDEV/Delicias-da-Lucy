@@ -11,13 +11,14 @@
     <main class="login-container">
         <form id="form-cadastro-cliente" class="card-login">
             <a href="../tela cliente/Produtos.html" class="logo">Delícias<span> da Lucy</span></a>
-            <h1>Seus dados para comprar</h1>
-            <p>Sem senha e sem SMS. Seus pedidos ficam disponíveis neste navegador. Usar o mesmo telefone em outro dispositivo não recupera pedidos anteriores.</p>
+            <h1>Crie sua conta de cliente</h1>
+            <p>Cadastre um e-mail ou telefone e uma senha para acompanhar seus pedidos em qualquer dispositivo.</p>
             <div class="form-group"><label for="nome">Nome</label><input id="nome" name="nome" class="form-control" autocomplete="name" minlength="2" maxlength="100" required></div>
-            <div class="form-group"><label for="telefone">Telefone com DDD</label><input id="telefone" name="telefone" type="tel" class="form-control" autocomplete="tel" maxlength="20" required></div>
-            <div class="form-group"><label for="cep">CEP</label><input id="cep" name="cep" class="form-control" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}-?[0-9]{3}" maxlength="9" required></div>
-            <button type="submit" class="btn btn-primary">Salvar e ir para o carrinho</button>
-            <p><a href="../tela de login/login cliente.html">Já tenho conta com e-mail e senha</a></p>
+            <div class="form-group"><label for="identificador">E-mail ou telefone com DDD</label><input id="identificador" name="identificador" class="form-control" autocomplete="username" maxlength="254" required></div>
+            <div class="form-group"><label for="senha">Senha</label><input id="senha" name="senha" type="password" class="form-control" autocomplete="new-password" minlength="8" maxlength="128" required></div>
+            <div class="form-group"><label for="cep">CEP (opcional)</label><input id="cep" name="cep" class="form-control" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}-?[0-9]{3}" maxlength="9"></div>
+            <button type="submit" class="btn btn-primary">Salvar e conhecer nossos produtos</button>
+            <p><a href="../tela de login/login cliente.html">Já tenho conta? Entrar</a></p>
             <p><a href="../tela cliente/Produtos.html">Ver cardápio</a></p>
         </form>
     </main>

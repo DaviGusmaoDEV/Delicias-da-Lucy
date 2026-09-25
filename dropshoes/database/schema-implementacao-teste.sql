@@ -25,6 +25,7 @@ update public.pedidos set status = 'recebido' where status = 'entregue';
 
 -- Produto e perfil usados pelas telas atuais.
 alter table public.profiles add column if not exists telefone varchar(30);
+alter table public.profiles add column if not exists cep varchar(8);
 alter table public.profiles alter column role set default 'cliente';
 alter table public.products add column if not exists categoria varchar(80);
 alter table public.products add column if not exists descricao text;

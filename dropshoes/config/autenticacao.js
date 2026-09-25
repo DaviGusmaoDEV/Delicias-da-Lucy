@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const scrypt = promisify(scryptCallback);
 const ROLES = ['cliente', 'admin1', 'admin2'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const telefoneNormalizado = valor => typeof valor === 'string' && /^(?:55)?\d{10,11}$/.test(valor.replace(/[\s()+-]/g, '')) ? valor.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '') : null;
 
 async function hashSenha(senha) {
   const salt = randomBytes(16).toString('hex');
@@ -36,24 +37,32 @@ function criarAutenticacao({ db, secret }) {
 
   async function cadastro(req, res) {
     if (!pronto()) return cadastroIndisponivel(res);
-    const { nome, email, telefone = '', senha } = req.body || {};
+    const { nome, email: emailRecebido, telefone: telefoneRecebido, identificador, senha, cep = '' } = req.body || {};
+    const contato = typeof identificador === 'string' && identificador.trim() ? identificador.trim() : '';
+    const email = (typeof emailRecebido === 'string' && emailRecebido.trim() ? emailRecebido.trim() : (EMAIL.test(contato) ? contato : '')).toLowerCase();
+    const telefone = telefoneNormalizado(typeof telefoneRecebido === 'string' && telefoneRecebido.trim() ? telefoneRecebido : (!EMAIL.test(contato) ? contato : ''));
     if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 100 ||
-        typeof email !== 'string' || email.trim().length > 254 || !EMAIL.test(email.trim()) ||
-        typeof senha !== 'string' || senha.length < 8 || senha.length > 128 ||
-        typeof telefone !== 'string' || (telefone && !/^[\d\s()+-]{10,30}$/.test(telefone))) {
-      return res.status(400).json({ erro: 'Informe nome, e-mail válido, telefone válido (se preenchido) e senha de 8 a 128 caracteres.' });
+        (!email && !telefone) || (email && (email.length > 254 || !EMAIL.test(email))) ||
+        (typeof senha !== 'string' || senha.length < 8 || senha.length > 128) ||
+        (cep && (typeof cep !== 'string' || !/^\d{5}-?\d{3}$/.test(cep.trim())))) {
+      return res.status(400).json({ erro: 'Informe nome, e-mail ou telefone, senha de 8 a 128 caracteres e CEP válido (se preenchido).' });
     }
     try {
-      const emailNormalizado = email.trim().toLowerCase();
-      const { data: existente, error: consultaErro } = await db.from('profiles').select('id').eq('email', emailNormalizado).maybeSingle();
+      const emailNormalizado = email || null;
+      const telefoneNormalizadoAtual = telefone || null;
+      const porEmail = emailNormalizado ? await db.from('profiles').select('id').eq('email', emailNormalizado).maybeSingle() : { data: null, error: null };
+      const porTelefone = telefoneNormalizadoAtual ? await db.from('profiles').select('id').eq('telefone', telefoneNormalizadoAtual).maybeSingle() : { data: null, error: null };
+      const existente = porEmail.data || porTelefone.data;
+      const consultaErro = porEmail.error || porTelefone.error;
       if (consultaErro) return cadastroIndisponivel(res, consultaErro);
-      if (existente) return res.status(409).json({ erro: 'Este e-mail já está cadastrado. Faça login.' });
+      if (existente) return res.status(409).json({ erro: 'Este e-mail ou telefone já está cadastrado. Faça login.' });
       // Lista explícita de campos: nenhum cargo ou metadado do cliente é aceito.
       const { data, error } = await db.from('profiles').insert([{
-        nome: nome.trim(), email: emailNormalizado, telefone: telefone.trim() || null,
+        nome: nome.trim(), email: emailNormalizado, telefone: telefoneNormalizadoAtual,
+        cep: cep ? cep.replace(/\D/g, '') : null,
         senha: await hashSenha(senha), role: 'cliente'
       }]).select('id,nome,email,role').single();
-      if (error?.code === '23505') return res.status(409).json({ erro: 'Este e-mail já está cadastrado. Faça login.' });
+      if (error?.code === '23505') return res.status(409).json({ erro: 'Este e-mail ou telefone já está cadastrado. Faça login.' });
       if (error || !data) return cadastroIndisponivel(res, error);
       return res.status(201).json({ mensagem: 'Cadastro realizado. Entre com seu e-mail e senha.', usuario: data });
     } catch (erro) { return cadastroIndisponivel(res, erro); }
@@ -62,12 +71,13 @@ function criarAutenticacao({ db, secret }) {
   async function login(req, res) {
     if (!pronto()) return indisponivel(res);
     const { identificador, senha, acesso = 'cliente' } = req.body || {};
-    if (typeof identificador !== 'string' || identificador.length > 254 || !EMAIL.test(identificador.trim()) ||
-        typeof senha !== 'string' || !senha || senha.length > 128 || !['cliente', 'admin'].includes(acesso)) {
-      return res.status(400).json({ erro: 'Informe e-mail e senha válidos.' });
+    const loginEmail = typeof identificador === 'string' && EMAIL.test(identificador.trim()) ? identificador.trim().toLowerCase() : null;
+    const loginTelefone = loginEmail ? null : telefoneNormalizado(identificador);
+    if ((!loginEmail && !loginTelefone) || typeof senha !== 'string' || !senha || senha.length > 128 || !['cliente', 'admin'].includes(acesso)) {
+      return res.status(400).json({ erro: 'Informe e-mail ou telefone e senha válidos.' });
     }
     try {
-      const { data: usuario, error } = await db.from('profiles').select('id,nome,email,senha,role').eq('email', identificador.trim().toLowerCase()).maybeSingle();
+      const { data: usuario, error } = await db.from('profiles').select('id,nome,email,telefone,senha,role').eq(loginEmail ? 'email' : 'telefone', loginEmail || loginTelefone).maybeSingle();
       if (error) return indisponivel(res);
       if (!usuario || !ROLES.includes(usuario.role) || !(await verificarSenha(senha, usuario.senha))) return invalido(res);
       if ((acesso === 'admin') !== ['admin1', 'admin2'].includes(usuario.role)) {

@@ -70,7 +70,7 @@ test('contas administrativas antigas preservam ID e cargo e migram senha', async
 
 test('validação, duplicidades e erros de banco não criam contas nem expõem detalhes', async () => {
   const db = banco(); const auth = criarAutenticacao({ db, secret });
-  for (const alteracao of [{ nome: {} }, { email: 'invalido' }, { senha: 'curta' }, { senha: [] }, { telefone: {} }]) {
+  for (const alteracao of [{ nome: {} }, { email: 'invalido', telefone: null }, { senha: 'curta' }, { senha: [] }, { email: null, telefone: {} }]) {
     assert.equal((await chamar(auth.cadastro, { ...cliente, ...alteracao })).statusCode, 400);
   }
   assert.equal(db.contas.length, 0);
