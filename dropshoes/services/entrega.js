@@ -10,6 +10,7 @@ function coordenadas(lon, lat) {
   const longitude = Number(lon), latitude = Number(lat);
   return Number.isFinite(longitude) && Math.abs(longitude) <= 180 && Number.isFinite(latitude) && Math.abs(latitude) <= 90 ? [longitude, latitude] : null;
 }
+function textoSeguro(valor, limite = 120) { return String(valor || '').trim().replace(/\s+/g, ' ').slice(0, limite); }
 function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STORE_LONGITUDE, process.env.STORE_LATITUDE) || [-47.8211875, -21.1391875], precoKm = Number(process.env.DELIVERY_PRICE_PER_KM || 1.5), modo = process.env.DELIVERY_CHARGE_MODE || 'excedente', roteador = process.env.OSRM_BASE_URL || 'https://router.project-osrm.org', geocodificador = process.env.GEOCODER_BASE_URL || 'https://nominatim.openstreetmap.org', cidade = 'Ribeirão Preto', uf = 'SP' } = {}) {
   const cache = new Map();
   const enderecos = new Map();
@@ -44,11 +45,35 @@ function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STOR
     const salvo = cache.get(chaveCache);
     if (salvo && salvo.ate > Date.now()) return salvo.dados;
     const endereco = await consultarEndereco(numero);
-    const consulta = [enderecoCliente || endereco.endereco, numeroCasa, bairroCliente || endereco.bairro, endereco.cidade, endereco.uf, numero, 'Brasil'].filter(Boolean).join(', ');
-    const lugares = await json(`${geocodificador.replace(/\/$/, '')}/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(consulta)}`, { headers: { 'User-Agent': 'DeliciasDaLucy/1.0 (+https://dropshoes.social.br)', 'Accept-Language': 'pt-BR' } });
-    const lugar = Array.isArray(lugares) ? lugares[0] : null;
-    const destino = coordenadas(lugar?.lon, lugar?.lat);
-    if (!destino) throw new Error('Não foi possível localizar este endereço. Confira rua, número, bairro e CEP.');
+    const rua = textoSeguro(enderecoCliente || endereco.endereco);
+    const bairro = textoSeguro(bairroCliente || endereco.bairro);
+    const localidade = textoSeguro(endereco.cidade || cidade);
+    const estado = textoSeguro(endereco.uf || uf, 2);
+    const estrategias = [
+      { nome: 'rua_numero_bairro', partes: [rua, numeroCasa, bairro, localidade, estado, 'Brasil'] },
+      { nome: 'rua_bairro', partes: [rua, bairro, localidade, estado, 'Brasil'] },
+      { nome: 'cep_localidade', partes: [numero, localidade, estado, 'Brasil'] }
+    ];
+    let destino;
+    let estrategiaUsada;
+    for (const estrategia of estrategias) {
+      const consulta = estrategia.partes.filter(Boolean).join(', ');
+      try {
+        const parametros = new URLSearchParams({ format: 'jsonv2', limit: '1', countrycodes: 'br', addressdetails: '1', 'accept-language': 'pt-BR', q: consulta });
+        const lugares = await json(`${geocodificador.replace(/\/$/, '')}/search?${parametros}`, { headers: { 'User-Agent': 'DeliciasDaLucy/1.0 (+https://dropshoes.social.br)', 'Accept-Language': 'pt-BR' } });
+        const lugar = Array.isArray(lugares) ? lugares[0] : null;
+        const coordenadasDestino = coordenadas(lugar?.lon, lugar?.lat);
+        if (coordenadasDestino) { destino = coordenadasDestino; estrategiaUsada = estrategia.nome; break; }
+        console.info(JSON.stringify({ evento: 'geocodificacao', resultado: 'sem_coordenadas', estrategia: estrategia.nome }));
+      } catch (erro) {
+        console.info(JSON.stringify({ evento: 'geocodificacao', resultado: 'falha_consulta', estrategia: estrategia.nome, codigo: String(erro.message || 'erro').slice(0, 40) }));
+      }
+    }
+    if (!destino) {
+      console.info(JSON.stringify({ evento: 'geocodificacao', resultado: 'falha_final', estrategias: estrategias.length }));
+      throw new Error('Não foi possível localizar este endereço. Confira rua, número, bairro e CEP.');
+    }
+    console.info(JSON.stringify({ evento: 'geocodificacao', resultado: 'sucesso', estrategia: estrategiaUsada }));
     const rota = await json(`${roteador.replace(/\/$/, '')}/route/v1/driving/${origem.join(',')};${destino.join(',')}?overview=false&steps=false`);
     if (rota.code !== 'Ok' || !rota.routes?.length) throw new Error('Não foi encontrado um trajeto para este CEP.');
     const metros = rota.routes[0].distance;

@@ -9,6 +9,10 @@ try {
 let valorFreteAtual = 0;
 let finalizando = false;
 let calculoAtual = 0;
+let cotacaoAnterior = null;
+let consultaCepAnterior = '';
+let consultaCepEmAndamento = null;
+let cotacaoEmAndamento = null;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 const salvar = () => localStorage.setItem('carrinho', JSON.stringify(carrinho));
 export const obterCarrinho = () => carrinho.map(item => ({ ...item }));
@@ -53,12 +57,15 @@ function camposEntrega() {
 }
 export async function calcularFrete() {
   const versao = ++calculoAtual;
-  const cep = document.getElementById('cep')?.value.trim();
+  const entregaAtual = camposEntrega();
+  const chave = JSON.stringify(entregaAtual);
+  if (cotacaoAnterior?.chave === chave) { valorFreteAtual = cotacaoAnterior.dados.taxa; atualizarResumo(); return true; }
+  if (cotacaoEmAndamento?.chave === chave) return cotacaoEmAndamento.promise;
+  const cep = entregaAtual.cep;
   valorFreteAtual = 0; atualizarResumo();
-  try {
+  const promessa = (async () => { try {
     if (!cep) throw new Error('Informe o CEP para calcular a entrega.');
-    const entrega = camposEntrega();
-    const parametros = new URLSearchParams({ cep, endereco: entrega.endereco, bairro: entrega.bairro, numero_casa: entrega.numero_casa });
+    const parametros = new URLSearchParams({ cep, endereco: entregaAtual.endereco, bairro: entregaAtual.bairro, numero_casa: entregaAtual.numero_casa });
     const dados = await api(`/api/taxa-entrega?${parametros}`);
     if (versao !== calculoAtual || cep !== document.getElementById('cep')?.value.trim()) return false;
     if (!Number.isFinite(Number(dados.taxa)) || Number(dados.taxa) < 0) throw new Error('Taxa de entrega inválida.');
@@ -67,12 +74,15 @@ export async function calcularFrete() {
       const input = document.getElementById(campo);
       if (input && !input.value.trim()) input.value = dados[campo] || '';
     }
+    cotacaoAnterior = { chave: JSON.stringify(camposEntrega()), dados };
     document.getElementById('info-frete').textContent = `Trajeto aproximado pelo CEP: ${Number(dados.distancia_km).toFixed(2).replace('.', ',')} km. ${valorFreteAtual === 0 ? 'Entrega grátis até 2 km.' : `Entrega: ${dinheiro(valorFreteAtual)}`}`;
     atualizarResumo(); return true;
   } catch (erro) {
     const aviso = document.getElementById('info-frete'); if (aviso && versao === calculoAtual) aviso.textContent = erro.message;
     return false;
-  }
+  } })();
+  cotacaoEmAndamento = { chave, promise: promessa };
+  try { return await promessa; } finally { if (cotacaoEmAndamento?.promise === promessa) cotacaoEmAndamento = null; }
 }
 export async function finalizarCompra() {
   if (finalizando) return;
@@ -86,7 +96,7 @@ export async function finalizarCompra() {
   if (Object.values(entrega).some(valor => !valor)) return Swal.fire({ icon: 'info', title: 'Complete o endereço', text: 'Rua, número, bairro e CEP são necessários para a entrega.' });
   const botao = document.querySelector('.btn-finalizar'); finalizando = true; if (botao) botao.disabled = true;
   try {
-    if (!(await calcularFrete())) return;
+    if (!(await atualizarEntrega())) return;
     if (JSON.stringify(entrega) !== JSON.stringify(camposEntrega())) throw new Error('O endereço mudou. Confira os dados e tente novamente.');
     if (perfil?.role === 'visitante') await enviar('/api/cadastro-cliente', 'POST', { nome: cliente_nome, telefone: cliente_telefone, cep: entrega.cep });
     const corpo = { ...entrega, cliente_nome, cliente_telefone, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento: 'site', itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
@@ -106,17 +116,24 @@ export async function finalizarCompra() {
 async function preencherEnderecoPeloCep() {
   const cep = document.getElementById('cep')?.value.trim();
   if (!cep || cep.replace(/\D/g, '').length !== 8) return false;
+  const cepNormalizado = cep.replace(/\D/g, '');
+  if (consultaCepAnterior === cepNormalizado) return true;
+  if (consultaCepEmAndamento) return consultaCepEmAndamento;
+  consultaCepEmAndamento = (async () => {
   try {
     const dados = await api(`/api/endereco?cep=${encodeURIComponent(cep)}`);
     for (const [campo, id] of [['endereco', 'endereco'], ['bairro', 'bairro']]) {
       const input = document.getElementById(id);
       if (input && !input.value.trim()) input.value = dados[campo] || '';
     }
+    consultaCepAnterior = cepNormalizado;
     return true;
   } catch (erro) {
     const aviso = document.getElementById('info-frete'); if (aviso) aviso.textContent = erro.message;
     return false;
-  }
+  } finally { consultaCepEmAndamento = null; }
+  })();
+  return consultaCepEmAndamento;
 }
 async function atualizarEntrega() { await preencherEnderecoPeloCep(); return calcularFrete(); }
 window.calcularFrete = atualizarEntrega; window.finalizarCompra = finalizarCompra;
@@ -130,5 +147,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-calcular-frete')?.addEventListener('click', atualizarEntrega);
   document.getElementById('btn-finalizar-pedido')?.addEventListener('click', finalizarCompra);
   document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) atualizarEntrega(); });
-  document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; valorFreteAtual = 0; atualizarResumo(); document.getElementById('info-frete').textContent = 'Calcule a entrega para o novo CEP.'; });
+  document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; cotacaoAnterior = null; cotacaoEmAndamento = null; consultaCepAnterior = ''; valorFreteAtual = 0; atualizarResumo(); document.getElementById('info-frete').textContent = 'Calcule a entrega para o novo CEP.'; });
 });

@@ -27,6 +27,22 @@ test('cotação valida cidade, usa trajeto e reutiliza consulta de CEP', async (
   const falha = criarEntrega({ origem: [-47.82, -21.13], precoKm: 2, consultar: async () => { throw new Error('rede'); } });
   await assert.rejects(falha('14060040'), /Não foi possível/);
 });
+test('geocodificação usa fallbacks quando o número exato não existe', async () => {
+  const consultas = [];
+  const entrega = criarEntrega({ origem: [-47.82, -21.13], precoKm: 1.5, consultar: async url => {
+    if (url.includes('brasilapi')) return { ok: true, json: async () => ({ city: 'Ribeirão Preto', state: 'SP', street: 'Rua Orlando Gherardi', neighborhood: 'Jardim Cristo Redentor' }) };
+    if (url.includes('nominatim')) {
+      const consulta = new URL(url).searchParams.get('q'); consultas.push(consulta);
+      return { ok: true, json: async () => consultas.length === 1 ? [] : [{ lon: '-47.80', lat: '-21.12' }] };
+    }
+    return { ok: true, json: async () => ({ code: 'Ok', routes: [{ distance: 3000 }] }) };
+  } });
+  const resultado = await entrega('14063109', { endereco: 'Rua Orlando Gherardi', bairro: 'Jardim Cristo Redentor', numero_casa: '335' });
+  assert.equal(resultado.taxa, 1.5);
+  assert.equal(consultas.length, 2);
+  assert.match(consultas[0], /Ribeir/);
+  assert.match(consultas[1], /Jardim Cristo Redentor/);
+});
 test('filtros separam ganhos, custos, funcionários e saída por período', async () => {
   const { filtrarTransacoes } = await modulo('caixa-filtros.js');
   const itens = [{ tipo: 'receita', data: '2026-09-23', descricao: 'Pedido', valor: 20 }, { tipo: 'despesa', data: '2026-09-23', descricao: 'Fornecedor', valor: 5 }, { tipo: 'total-despesa-funcionario', data: '2026-09-22', descricao: 'Maria', valor: 10 }];
