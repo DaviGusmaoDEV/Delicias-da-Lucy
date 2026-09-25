@@ -19,7 +19,7 @@ const JWT_SECRET = secret;
 const supabase = db || criarClienteSupabase();
 const { cadastro, login, autenticar } = criarAutenticacao({ db: supabase, secret: JWT_SECRET });
 const { registrar: registrarVisitante, autenticarCompra } = criarVisitantes({ db: supabase, secret: JWT_SECRET, autenticar });
-if (!supabase) console.warn('Configure SUPABASE_SECRET_KEY ou SUPABASE_SERVICE_ROLE_KEY para habilitar login e cadastro seguros.');
+if (!supabase) console.warn('Configure SUPABASE_SECRET_KEY (ou SUPABASE_SERVICE_ROLE_KEY) para habilitar login e cadastro seguros.');
 const ADMIN_ROLES = ['admin1', 'admin2'];
 const ORDER_STATUSES = ['pendente', 'aceito', 'em_preparo', 'pronto_entrega', 'recebido', 'cancelado'];
 const mercadoPago = pagamentoCliente || (process.env.MERCADOPAGO_ACCESS_TOKEN ? new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN }) : null);
