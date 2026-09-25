@@ -1,24 +1,33 @@
-Melhorias de segurança:
-Teste de penetraçao explorando a owasp top 10
-faz uma lista de falhas detectadas e arrume todas elas
-Faça um teste no supabase para melhorar a segruança tbm do supabase 
-arrumar a parte do carrinho, nao exigir login/cadastro de cliente, na hora do carrinho, se o caso for login já cadastrado ele deixa faz o pedido. Já que estiver sem login, só pede o Nome, Numero, CEP somente isso se o usuario nao for cadastrado. na hora do cadastro de cliente, somente o campo de Nome, telefone e CEP.
 
-Andamento — 24/09/2026
-[x] Revisão de código e testes locais orientados à OWASP Top 10; relatório em SEGURANCA.md.
-[x] Cookies HttpOnly, CSP, proteção de origem, limites e isolamento de pedidos por comprador.
-[x] Compra sem conta e cadastro com nome, telefone e CEP, sem SMS.
-[x] Checkout exige também número da casa; rua/bairro são preenchidos pelo CEP quando disponíveis.
-[x] Auditoria remota somente de leitura no Supabase, sem expor dados pessoais ou segredos.
-[x] Migração de permissões e visitantes testada em PostgreSQL temporário.
-[ ] Executar database/schema-seguranca-visitantes.sql no Supabase real, após migrações anteriores.
-[ ] Validar checkout no ambiente de homologação com Mercado Pago configurado.
-[ ] Configurar hospedagem HTTPS e DNS, depois definir origem pública e ambiente de produção.
+Melhorias de segurança e tarefas do projeto
 
-Sem confirmação do telefone, o cadastro simplificado não serve para recuperar contas.
-O visitante consulta apenas os pedidos da sessão assinada no próprio navegador.
-A revisão não substitui um pentest completo da hospedagem publicada.
+## Concluído
 
-[x] Gravação transacional de pedido/itens e teste de falha/concorrência em PostgreSQL.
-[x] Validação de configurações de produção e registro de rotas nas recusas.
-[x] Tela admin/pedidos clientes.html: pedidos das 18h à meia-noite, data, status e atualização automática.
+- [x] Revisão orientada à OWASP Top 10 documentada em `SEGURANCA.md`.
+- [x] Cookies HttpOnly/SameSite, CSP, proteção de origem, limites de requisição e isolamento de pedidos.
+- [x] Compra sem conta, com sessão de visitante assinada e sem exigir login.
+- [x] Cadastro simplificado de cliente sem SMS.
+- [x] CEP com preenchimento de endereço e cálculo de entrega por distância excedente.
+- [x] Preços e frete recalculados no servidor antes de criar o pedido.
+- [x] Pedido e itens gravados por RPC transacional com proteção contra duplicidade.
+- [x] Fluxo de caixa recebe automaticamente pagamentos aprovados.
+- [x] Dashboard e tela de pedidos noturnos (18h–24h) implementados.
+- [x] InfinitePay configurado como provedor de pagamento do site.
+- [x] Auditoria remota de leitura do Supabase realizada sem expor dados.
+- [x] SQL de segurança de visitantes/permissões executado no Supabase, conforme confirmação do responsável.
+- [x] Entrada Express da Vercel corrigida para exportar a aplicação diretamente.
+- [x] Testes locais: 29 aprovados, 1 teste PostgreSQL real ignorado.
+
+## Pendências externas
+
+- [ ] Confirmar domínio `dropshoes.social.br` como válido na Vercel e HTTPS ativo.
+- [ ] Fazer um pedido real de baixo valor no ambiente de produção para validar checkout e webhook InfinitePay.
+- [ ] Confirmar no painel InfinitePay o recebimento do webhook `/api/webhooks/infinitepay`.
+- [ ] Configurar backups e alertas do Supabase e da hospedagem.
+- [ ] Executar auditoria de dependências com acesso à rede (`npm audit --omit=dev`).
+
+## Observações
+
+- O servidor local continua sendo iniciado por `npm start`/`node server.js`.
+- A Vercel usa `index.js` e também encontra um export Express válido em `server.js`.
+- Nenhum pentest externo destrutivo foi executado.
