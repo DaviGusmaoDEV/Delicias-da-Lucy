@@ -92,14 +92,15 @@ export async function finalizarCompra() {
   const cliente_nome = document.getElementById('cliente-nome')?.value.trim() || '';
   const cliente_telefone = document.getElementById('cliente-telefone')?.value.trim() || '';
   if (cliente_nome.length < 2 || !/^(?:55)?\d{10,11}$/.test(cliente_telefone.replace(/[\s()+-]/g, ''))) return Swal.fire({ icon: 'info', text: 'Preencha nome e telefone com DDD.' });
-  const entrega = camposEntrega();
-  if (Object.values(entrega).some(valor => !valor)) return Swal.fire({ icon: 'info', title: 'Complete o endereço', text: 'Rua, número, bairro e CEP são necessários para a entrega.' });
+  const enderecoInicial = camposEntrega();
+  if (!enderecoInicial.numero_casa || !enderecoInicial.cep) return Swal.fire({ icon: 'info', title: 'Complete o endereço', text: 'Informe o número da casa e o CEP para calcular a entrega.' });
   const botao = document.querySelector('.btn-finalizar'); finalizando = true; if (botao) botao.disabled = true;
   try {
     if (!(await atualizarEntrega())) return;
-    if (JSON.stringify(entrega) !== JSON.stringify(camposEntrega())) throw new Error('O endereço mudou. Confira os dados e tente novamente.');
+    const entrega = camposEntrega();
+    if (Object.values(entrega).some(valor => !valor)) throw new Error('Confira rua, número, bairro e CEP para calcular a entrega.');
     if (perfil?.role === 'visitante') await enviar('/api/cadastro-cliente', 'POST', { nome: cliente_nome, telefone: cliente_telefone, cep: entrega.cep });
-    const corpo = { ...entrega, cliente_nome, cliente_telefone, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento: 'site', itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
+    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, cliente_nome, cliente_telefone, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento: 'site', itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
     const resumo = new TextEncoder().encode(JSON.stringify(corpo));
     const assinatura = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', resumo)), b => b.toString(16).padStart(2, '0')).join('');
     let tentativa;
@@ -107,6 +108,7 @@ export async function finalizarCompra() {
     if (tentativa?.assinatura !== assinatura) tentativa = { assinatura, chave: crypto.randomUUID() };
     sessionStorage.setItem('checkoutAtual', JSON.stringify(tentativa));
     const dados = await enviar('/api/pedidos', 'POST', { ...corpo, checkout_chave: tentativa.chave });
+    if (dados.pedido?.taxa_entrega != null) { valorFreteAtual = Number(dados.pedido.taxa_entrega); atualizarResumo(); }
     if (!dados.payment_url || !dados.payment_url.startsWith('https://')) throw new Error('Não foi possível abrir o pagamento. Tente novamente.');
     limparCarrinho(); sessionStorage.removeItem('checkoutAtual');
     window.location.assign(dados.payment_url);
