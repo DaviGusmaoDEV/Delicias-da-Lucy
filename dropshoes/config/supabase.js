@@ -9,9 +9,17 @@ function criarClienteSupabase() {
     process.env.SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url || !chave) return null;
-  return createClient(url, chave, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
+  const urlNormalizada = typeof url === 'string' ? url.trim() : '';
+  const chaveNormalizada = typeof chave === 'string' ? chave.trim() : '';
+  if (!urlNormalizada || !chaveNormalizada) return null;
+  try {
+    return createClient(urlNormalizada, chaveNormalizada, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+  } catch (erro) {
+    // Uma variável vazia ou inválida não pode derrubar a Function inteira.
+    console.error('[supabase] Configuração inválida:', erro?.message || 'cliente indisponível');
+    return null;
+  }
 }
 module.exports = { criarClienteSupabase };
