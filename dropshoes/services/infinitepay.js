@@ -1,10 +1,12 @@
-const URL_API = 'https://api.infinitepay.io/invoices/public/checkout';
-const HOST_CHECKOUT = 'checkout.infinitepay.com.br';
+// Host atual da documentação; o domínio .com.br continua aceito para links
+// legados já emitidos pela InfinitePay.
+const URL_API = process.env.INFINITEPAY_API_BASE_URL || 'https://api.checkout.infinitepay.io';
+const HOST_CHECKOUTS = new Set(['checkout.infinitepay.io', 'checkout.infinitepay.com.br']);
 
 function urlCheckoutValida(valor) {
   try {
     const url = new URL(valor);
-    return url.protocol === 'https:' && !url.username && !url.password && url.hostname === HOST_CHECKOUT;
+    return url.protocol === 'https:' && !url.username && !url.password && HOST_CHECKOUTS.has(url.hostname);
   } catch { return false; }
 }
 
@@ -31,8 +33,13 @@ function criarInfinitePay({ db, handle = process.env.INFINITEPAY_HANDLE, urlPubl
       })
     });
     const dados = await resposta.json().catch(() => null);
-    if (!resposta.ok || !urlCheckoutValida(dados?.url)) throw new Error('Checkout InfinitePay indisponível.');
-    return dados.url;
+    const paymentUrl = dados?.url || dados?.checkout_url || dados?.link;
+    if (!resposta.ok || !urlCheckoutValida(paymentUrl)) {
+      console.error(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'falha', status: resposta.status, motivo: String(dados?.message || 'resposta_invalida').slice(0, 80) }));
+      throw new Error('Checkout InfinitePay indisponível.');
+    }
+    console.info(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'criado' }));
+    return paymentUrl;
   }
 
   async function notificar(req, res) {

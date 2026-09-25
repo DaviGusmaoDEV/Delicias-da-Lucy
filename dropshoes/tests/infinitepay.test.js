@@ -13,6 +13,7 @@ function banco() {
 
 test('InfinitePay valida checkout, cria link em centavos e confirma pelo payment_check', async () => {
   assert.equal(urlCheckoutValida('https://checkout.infinitepay.com.br/abc'), true);
+  assert.equal(urlCheckoutValida('https://checkout.infinitepay.io/abc'), true);
   assert.equal(urlCheckoutValida('https://invasor.example/abc'), false);
   const chamadas = [];
   const consultar = async (url, opcoes) => {
