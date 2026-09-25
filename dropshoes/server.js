@@ -217,4 +217,12 @@ if (require.main === module) {
     process.exitCode = 1;
   });
 }
-module.exports = { criarApp };
+
+// Quando importado pela Vercel, exporta a instância Express diretamente.
+// A fábrica continua disponível para os testes e para o servidor local.
+if (require.main !== module) {
+  module.exports = criarApp();
+  module.exports.criarApp = criarApp;
+} else {
+  module.exports = { criarApp };
+}
