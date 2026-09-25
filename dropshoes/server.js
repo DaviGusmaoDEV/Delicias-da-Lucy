@@ -47,8 +47,10 @@ const soAdmin1 = (req, res, next) => req.user.role === 'admin1' ? next() : res.s
 const entrega = entregaTeste || criarEntrega();
 const pagamentos = pagamentosTeste || criarPagamentos({ cliente: mercadoPago, db: supabase });
 const infinitePay = pagamentosTeste ? null : criarInfinitePay({ db: supabase });
-const pagamentosAtivos = pagamentosTeste || (process.env.PAYMENT_PROVIDER === 'infinitepay' ? infinitePay : pagamentos);
-rota('post', '/api/webhooks/mercadopago', pagamentos.notificar);
+// Em produção, somente o InfinitePay fica ativo. O Mercado Pago permanece
+// disponível apenas nos testes automatizados enquanto a integração é mantida.
+const pagamentosAtivos = pagamentosTeste || infinitePay;
+if (pagamentosTeste) rota('post', '/api/webhooks/mercadopago', pagamentos.notificar);
 if (infinitePay) rota('post', '/api/webhooks/infinitepay', infinitePay.notificar);
 
 rota('post', '/api/cadastro-cliente', limiteAuth, registrarVisitante);
@@ -57,7 +59,7 @@ rota('post', '/api/login', limiteAuth, login);
 rota('post', '/api/logout', (req, res) => { res.clearCookie('lucy_sessao', opcoesCookie()); res.clearCookie('lucy_visitante', opcoesCookie()); res.sendStatus(204); });
 rota('get', '/api/meu-perfil', autenticarCompra, async (req, res) => {
   if (req.visitante) return res.json({ perfil: { nome: req.visitante.nome, telefone: req.visitante.telefone, cep: req.visitante.cep, role: 'visitante' } });
-  const { data: perfil, error } = await supabase.from('profiles').select('nome,email,telefone,cep,role').eq('id', req.user.id).single();
+  const { data: perfil, error } = await supabase.from('profiles').select('nome,email,telefone,role').eq('id', req.user.id).single();
   if (error || !perfil) return res.status(404).json({ erro: 'Perfil não encontrado.' }); res.json({ perfil });
 });
 rota('get', '/api/taxa-entrega', limiteEntrega, async (req, res) => { try { res.json(await entrega(req.query.cep, req.query)); } catch (error) { res.status(400).json({ erro: error.message }); } });

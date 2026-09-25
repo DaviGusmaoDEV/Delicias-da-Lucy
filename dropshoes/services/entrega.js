@@ -10,7 +10,7 @@ function coordenadas(lon, lat) {
   const longitude = Number(lon), latitude = Number(lat);
   return Number.isFinite(longitude) && Math.abs(longitude) <= 180 && Number.isFinite(latitude) && Math.abs(latitude) <= 90 ? [longitude, latitude] : null;
 }
-function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STORE_LONGITUDE, process.env.STORE_LATITUDE), precoKm = Number(process.env.DELIVERY_PRICE_PER_KM), modo = process.env.DELIVERY_CHARGE_MODE || 'excedente', roteador = process.env.OSRM_BASE_URL || 'https://router.project-osrm.org', geocodificador = process.env.GEOCODER_BASE_URL || 'https://nominatim.openstreetmap.org', cidade = 'Ribeirão Preto', uf = 'SP' } = {}) {
+function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STORE_LONGITUDE, process.env.STORE_LATITUDE) || [-47.8211875, -21.1391875], precoKm = Number(process.env.DELIVERY_PRICE_PER_KM || 1.5), modo = process.env.DELIVERY_CHARGE_MODE || 'excedente', roteador = process.env.OSRM_BASE_URL || 'https://router.project-osrm.org', geocodificador = process.env.GEOCODER_BASE_URL || 'https://nominatim.openstreetmap.org', cidade = 'Ribeirão Preto', uf = 'SP' } = {}) {
   const cache = new Map();
   const enderecos = new Map();
   async function json(url, opcoes = {}) {

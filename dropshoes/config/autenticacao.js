@@ -59,7 +59,6 @@ function criarAutenticacao({ db, secret }) {
       // Lista explícita de campos: nenhum cargo ou metadado do cliente é aceito.
       const { data, error } = await db.from('profiles').insert([{
         nome: nome.trim(), email: emailNormalizado, telefone: telefoneNormalizadoAtual,
-        cep: cep ? cep.replace(/\D/g, '') : null,
         senha: await hashSenha(senha), role: 'cliente'
       }]).select('id,nome,email,role').single();
       if (error?.code === '23505') return res.status(409).json({ erro: 'Este e-mail ou telefone já está cadastrado. Faça login.' });
