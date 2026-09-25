@@ -3,7 +3,8 @@ const path = require('node:path');
 require('dotenv').config({ path: path.join(__dirname,'../.env') });
 const { createClient } = require('@supabase/supabase-js');
 (async () => {
-  const url = process.env.SUPABASE_URL, chave = process.env.SUPABASE_ANON_KEY;
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const chave = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !chave) throw new Error('Configure SUPABASE_URL e SUPABASE_ANON_KEY para o teste público.');
   const db = createClient(url,chave,{auth:{persistSession:false,autoRefreshToken:false}});
   for(const tabela of ['profiles','products','pedidos','itens_pedido','fluxo_caixa','clientes_visitantes']) {
