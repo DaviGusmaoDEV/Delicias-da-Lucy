@@ -17,25 +17,47 @@ function origemValida(valor) {
   } catch { return null; }
 }
 
+function diagnosticoResposta(dados) {
+  if (!dados || typeof dados !== 'object' || Array.isArray(dados)) return { tipo: dados == null ? 'vazio' : typeof dados };
+  const resultado = { campos: Object.keys(dados).slice(0, 20) };
+  for (const campo of ['message', 'error', 'code', 'success']) {
+    if (dados[campo] !== undefined && (typeof dados[campo] === 'string' || typeof dados[campo] === 'number' || typeof dados[campo] === 'boolean')) resultado[campo] = String(dados[campo]).slice(0, 120);
+  }
+  for (const campo of ['url', 'checkout_url', 'link']) {
+    if (typeof dados[campo] === 'string') {
+      try { resultado[`${campo}_host`] = new URL(dados[campo]).hostname; } catch { resultado[`${campo}_presente`] = true; }
+    }
+  }
+  return resultado;
+}
+
 function criarInfinitePay({ db, handle = process.env.INFINITEPAY_HANDLE, urlPublica = process.env.PUBLIC_BASE_URL, consultar = fetch } = {}) {
   const origem = origemValida(urlPublica);
   const disponivel = Boolean(db && handle && /^[A-Za-z0-9._-]{2,80}$/.test(handle) && origem);
 
   async function checkout(pedido) {
     if (!disponivel) throw new Error('InfinitePay ainda não foi configurada.');
-    const resposta = await consultar(`${URL_API}/links`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        handle, order_nsu: String(pedido.id),
-        redirect_url: new URL('/tela cliente/meu perfil cliente.html', origem).href,
-        webhook_url: new URL('/api/webhooks/infinitepay', origem).href,
-        items: [{ quantity: 1, price: Math.round(Number(pedido.valor) * 100), description: `Pedido Delícias da Lucy #${pedido.id}` }]
-      })
-    });
-    const dados = await resposta.json().catch(() => null);
+    const payload = {
+      handle, order_nsu: String(pedido.id),
+      redirect_url: new URL('/tela cliente/meu perfil cliente.html', origem).href,
+      webhook_url: new URL('/api/webhooks/infinitepay', origem).href,
+      items: [{ quantity: 1, price: Math.round(Number(pedido.valor) * 100), description: `Pedido Delícias da Lucy #${pedido.id}` }]
+    };
+    let resposta;
+    try {
+      resposta = await consultar(`${URL_API}/links`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload)
+      });
+    } catch (error) {
+      console.error(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'excecao_requisicao', erro: String(error?.name || 'Error'), mensagem: String(error?.message || '').slice(0, 120) }));
+      throw new Error('Checkout InfinitePay indisponível.');
+    }
+    const dados = typeof resposta.text === 'function'
+      ? await resposta.text().then(corpo => { try { return JSON.parse(corpo); } catch { return null; } }).catch(() => null)
+      : await resposta.json().catch(() => null);
     const paymentUrl = dados?.url || dados?.checkout_url || dados?.link;
     if (!resposta.ok || !urlCheckoutValida(paymentUrl)) {
-      console.error(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'falha', status: resposta.status, motivo: String(dados?.message || 'resposta_invalida').slice(0, 80) }));
+      console.error(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'falha', endpoint: '/links', metodo: 'POST', status: resposta.status, resposta: diagnosticoResposta(dados), url_checkout_valida: urlCheckoutValida(paymentUrl) }));
       throw new Error('Checkout InfinitePay indisponível.');
     }
     console.info(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'criado' }));
