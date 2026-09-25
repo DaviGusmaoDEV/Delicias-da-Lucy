@@ -2,7 +2,7 @@
   "name": "dropshoes",
   "version": "1.0.0",
   "description": "Delícias da Lucy: pedidos, clientes e administração com Supabase",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
     "start": "node server.js",
     "test": "node --test tests/*.test.js"
