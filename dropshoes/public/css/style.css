@@ -410,10 +410,17 @@ a {
     box-shadow: 0 6px 14px rgba(98, 0, 255, 0.2);
 }
 
+.acoes-card-produto { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .btn-card-action {
-    width: 100%;
+    flex: 1 1 120px;
+    min-width: 0;
     gap: 8px;
-    margin-bottom: 8px;
+    min-height: 42px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .btn-card-action.btn-excluir {
     margin-bottom: 0;
@@ -826,6 +833,8 @@ a {
 .dashboard-painel { background: var(--card-bg, #fff); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; }
 .dashboard-cabecalho { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .dashboard-cabecalho h2 { margin: 0; font-size: 18px; }
+.dashboard-link { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: #f1f5f9; color: var(--dark); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.dashboard-link:hover, .dashboard-link:focus-visible { background: #e2e8f0; color: var(--primary-hover); }
 .dashboard-ajuda { color: var(--text-muted, #64748b); font-size: 14px; }
 .dashboard-lista { list-style: none; margin: 0; padding: 0; }
 .dashboard-lista li { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--border-color); }

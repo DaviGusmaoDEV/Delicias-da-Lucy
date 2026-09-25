@@ -2,9 +2,11 @@
   display: flex; flex-wrap: wrap; align-items: end; gap: 16px;
 }
 .filtros-pedidos label { display: grid; gap: 8px; min-width: 180px; }
+.filtros-pedidos > .btn { min-width: 170px; align-self: end; }
 .paginacao-pedidos { display: flex; justify-content: center; align-items: center; gap: 16px; }
 .pedido-card { overflow-wrap: anywhere; }
 .pedido-acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+.pedido-acoes > .btn { flex: 1 1 170px; min-width: 170px; }
 #erro-pedidos { color: #a32020; }
 button:disabled { opacity: .55; cursor: not-allowed; }
 @media (max-width: 992px) {
