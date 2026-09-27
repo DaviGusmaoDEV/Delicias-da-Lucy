@@ -29,6 +29,19 @@ function diagnosticoResposta(dados) {
   return resultado;
 }
 
+function registrarFalhaCheckout({ pedido, resposta, dados, codigo, mensagem, resultado = 'falha' }) {
+  const registro = {
+    evento: 'infinitepay_checkout', resultado,
+    status_http: resposta?.status ?? null,
+    codigo: String(codigo || 'resposta_invalida').slice(0, 80),
+    mensagem: String(mensagem || 'Resposta inválida da InfinitePay').slice(0, 160),
+    order_nsu: String(pedido.id)
+  };
+  if (resultado === 'falha' && resposta && !resposta.ok) registro.corpo = diagnosticoResposta(dados);
+  if (resultado === 'resposta_sem_url') registro.propriedades = dados && typeof dados === 'object' && !Array.isArray(dados) ? Object.keys(dados).slice(0, 30) : [];
+  console.error(JSON.stringify(registro));
+}
+
 function criarInfinitePay({ db, handle = process.env.INFINITEPAY_HANDLE, urlPublica = process.env.PUBLIC_BASE_URL, consultar = fetch } = {}) {
   const origem = origemValida(urlPublica);
   const disponivel = Boolean(db && handle && /^[A-Za-z0-9._-]{2,80}$/.test(handle) && origem);
@@ -47,7 +60,7 @@ function criarInfinitePay({ db, handle = process.env.INFINITEPAY_HANDLE, urlPubl
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload)
       });
     } catch (error) {
-      console.error(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'excecao_requisicao', erro: String(error?.name || 'Error'), mensagem: String(error?.message || '').slice(0, 120) }));
+      registrarFalhaCheckout({ pedido, codigo: error?.name || 'erro_rede', mensagem: error?.message || 'Falha de comunicação com a InfinitePay' });
       throw new Error('Checkout InfinitePay indisponível.');
     }
     const dados = typeof resposta.text === 'function'
@@ -55,8 +68,16 @@ function criarInfinitePay({ db, handle = process.env.INFINITEPAY_HANDLE, urlPubl
       : await resposta.json().catch(() => null);
     // A API documentada retorna exclusivamente a URL em `url`.
     const paymentUrl = dados?.url;
-    if (!resposta.ok || !urlCheckoutValida(paymentUrl)) {
-      console.error(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'falha', endpoint: '/links', metodo: 'POST', status: resposta.status, order_nsu: String(pedido.id), resposta: diagnosticoResposta(dados), url_checkout_valida: urlCheckoutValida(paymentUrl) }));
+    if (!resposta.ok) {
+      registrarFalhaCheckout({ pedido, resposta, dados, codigo: dados?.code || dados?.error || 'http_error', mensagem: dados?.message || dados?.error || `HTTP ${resposta.status}` });
+      throw new Error('Checkout InfinitePay indisponível.');
+    }
+    if (!paymentUrl) {
+      registrarFalhaCheckout({ pedido, resposta, dados, codigo: 'url_ausente', mensagem: 'A resposta 2xx não contém url', resultado: 'resposta_sem_url' });
+      throw new Error('Checkout InfinitePay indisponível.');
+    }
+    if (!urlCheckoutValida(paymentUrl)) {
+      registrarFalhaCheckout({ pedido, resposta, dados, codigo: 'url_invalida', mensagem: 'A URL retornada não pertence ao checkout permitido' });
       throw new Error('Checkout InfinitePay indisponível.');
     }
     console.info(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'criado', order_nsu: String(pedido.id) }));

@@ -49,9 +49,30 @@ test('InfinitePay usa a resposta oficial url e envia o payload documentado', asy
 });
 
 test('InfinitePay rejeita resposta sem url oficial', async () => {
+  const registros = [];
+  const anterior = console.error;
+  console.error = mensagem => registros.push(JSON.parse(mensagem));
   const consultar = async () => ({ ok: true, status: 200, json: async () => ({ checkout_url: 'https://checkout.infinitepay.com.br/nao-documentado' }) });
   const pagamentos = criarInfinitePay({ db: banco(), handle: 'lucy', urlPublica: 'https://dropshoes.social.br', consultar });
-  await assert.rejects(() => pagamentos.checkout({ id: 'pedido-3', valor: 10 }), /indisponível/);
+  try { await assert.rejects(() => pagamentos.checkout({ id: 'pedido-3', valor: 10 }), /indisponível/); }
+  finally { console.error = anterior; }
+  assert.equal(registros[0].resultado, 'resposta_sem_url');
+  assert.deepEqual(registros[0].propriedades, ['checkout_url']);
+});
+
+test('InfinitePay registra erro HTTP sem expor corpo sensível', async () => {
+  const registros = [];
+  const anterior = console.error;
+  console.error = mensagem => registros.push(JSON.parse(mensagem));
+  const consultar = async () => ({ ok: false, status: 422, json: async () => ({ code: 'invalid_items', message: 'Itens inválidos', token: 'não deve aparecer' }) });
+  const pagamentos = criarInfinitePay({ db: banco(), handle: 'lucy', urlPublica: 'https://dropshoes.social.br', consultar });
+  try { await assert.rejects(() => pagamentos.checkout({ id: 'pedido-4', valor: 10 }), /indisponível/); }
+  finally { console.error = anterior; }
+  assert.equal(registros[0].resultado, 'falha');
+  assert.equal(registros[0].status_http, 422);
+  assert.equal(registros[0].codigo, 'invalid_items');
+  assert.equal(registros[0].mensagem, 'Itens inválidos');
+  assert.equal(registros[0].corpo.token, undefined);
 });
 
 test('InfinitePay não confirma valor diferente ou notificação incompleta', async () => {

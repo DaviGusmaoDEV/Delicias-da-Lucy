@@ -6,7 +6,8 @@ const { bancoSimulado } = require('./banco-simulado');
 
 test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros', async t => {
   const db = bancoSimulado();
-  const server = criarApp({ db, secret: 'segredo-de-integracao', entrega: async () => ({ taxa: 6 }), pagamentos: { disponivel: true, checkout: async () => 'https://www.mercadopago.com.br/checkout/teste', notificar: (_req, res) => res.sendStatus(200) } }).listen(0, '127.0.0.1');
+  let chamadasCheckout = 0;
+  const server = criarApp({ db, secret: 'segredo-de-integracao', entrega: async () => ({ taxa: 6 }), pagamentos: { disponivel: true, checkout: async () => { chamadasCheckout++; return 'https://checkout.infinitepay.io/checkout/teste'; }, notificar: (_req, res) => res.sendStatus(200) } }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => new Promise(resolve => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -70,7 +71,9 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal(criado.body.pedido.valor, 43.05);
   const id = criado.body.pedido.id;
   assert.match(criado.body.payment_url, /^https:/);
+  assert.equal(criado.body.payment_url, 'https://checkout.infinitepay.io/checkout/teste');
   assert.equal((await req('/api/pedidos', 'POST', pedido, token)).body.pedido.id, id);
+  assert.equal(chamadasCheckout, 1);
   assert.equal(db.tabelas.pedidos.length, 1);
   assert.equal((await req('/api/pedidos', 'POST', { ...pedido, pagamento: 'whatsapp' }, token)).status, 400);
   assert.equal((await req(`/api/pedidos/${id}/status`, 'PATCH', { status: 'aceito' }, admin1)).status, 409);

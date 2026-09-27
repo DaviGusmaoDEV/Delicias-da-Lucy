@@ -2,7 +2,7 @@ const { createHmac, timingSafeEqual } = require('node:crypto');
 const { Preference, Payment } = require('mercadopago');
 
 function urlCheckoutValida(valor) {
-  try { const url = new URL(valor); return url.protocol === 'https:' && !url.username && !url.password && ['www.mercadopago.com.br', 'www.mercadopago.com', 'checkout.infinitepay.com.br'].includes(url.hostname); } catch { return false; }
+  try { const url = new URL(valor); return url.protocol === 'https:' && !url.username && !url.password && ['www.mercadopago.com.br', 'www.mercadopago.com', 'checkout.infinitepay.io', 'checkout.infinitepay.com.br'].includes(url.hostname); } catch { return false; }
 }
 function assinaturaValida(req, segredo) {
   const id = req.query['data.id'];
