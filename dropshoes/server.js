@@ -47,9 +47,8 @@ const soAdmin1 = (req, res, next) => req.user.role === 'admin1' ? next() : res.s
 const entrega = entregaTeste || criarEntrega();
 const pagamentos = pagamentosTeste || criarPagamentos({ cliente: mercadoPago, db: supabase });
 const infinitePay = pagamentosTeste ? null : criarInfinitePay({ db: supabase });
-// Em produção, somente o InfinitePay fica ativo. O Mercado Pago permanece
-// disponível apenas nos testes automatizados enquanto a integração é mantida.
-const pagamentosAtivos = pagamentosTeste || infinitePay;
+const provedorPagamento = String(process.env.PAYMENT_PROVIDER || 'infinitepay').trim().toLowerCase();
+const pagamentosAtivos = pagamentosTeste || (provedorPagamento === 'infinitepay' ? infinitePay : null);
 if (pagamentosTeste) rota('post', '/api/webhooks/mercadopago', pagamentos.notificar);
 if (infinitePay) rota('post', '/api/webhooks/infinitepay', infinitePay.notificar);
 
@@ -125,15 +124,26 @@ async function responderCheckout(pedido, res) {
   // Não cria checkout para uma gravação incompleta ou ainda em andamento.
   const { data: itens, error: erroItens } = await supabase.from('itens_pedido').select('pedido_id').eq('pedido_id', pedido.id);
   if (erroItens || !itens?.length) return res.status(503).json({ erro: 'Seu pedido está sendo preparado para pagamento. Tente novamente.' });
-  try {
-    const payment_url = pedido.payment_url || await pagamentosAtivos.checkout(pedido);
-    if (!urlCheckoutValida(payment_url)) throw new Error('URL de pagamento inválida');
-    if (!pedido.payment_url) {
-      const { error } = await supabase.from('pedidos').update({ payment_url }).eq('id', pedido.id);
-      if (error) throw new Error('persistência');
+  let payment_url = pedido.payment_url;
+  if (payment_url && !urlCheckoutValida(payment_url)) {
+    console.error(JSON.stringify({ evento: 'pedido_checkout', resultado: 'falha', etapa: 'validar_url_persistida', pedido_id: String(pedido.id), erro: 'URL inválida', mensagem: 'payment_url persistida não pertence ao checkout permitido' }));
+    return res.status(503).json({ erro: 'Não foi possível abrir o pagamento. Tente novamente; seu pedido será reutilizado.' });
+  }
+  if (!payment_url) {
+    try {
+      payment_url = await pagamentosAtivos.checkout(pedido);
+      if (!urlCheckoutValida(payment_url)) throw new Error('URL de pagamento inválida');
+    } catch (error) {
+      console.error(JSON.stringify({ evento: 'pedido_checkout', resultado: 'falha', etapa: 'criar_checkout', pedido_id: String(pedido.id), erro: String(error?.name || 'Error').slice(0, 60), mensagem: String(error?.message || 'erro').slice(0, 160) }));
+      return res.status(503).json({ erro: 'Não foi possível abrir o pagamento. Tente novamente; seu pedido será reutilizado.' });
     }
-    return res.status(201).json({ mensagem: 'Aguardando pagamento.', pedido, payment_url });
-  } catch { return res.status(503).json({ erro: 'Não foi possível abrir o pagamento. Tente novamente; seu pedido será reutilizado.' }); }
+    const { error } = await supabase.from('pedidos').update({ payment_url }).eq('id', pedido.id);
+    if (error) {
+      console.error(JSON.stringify({ evento: 'pedido_checkout', resultado: 'falha', etapa: 'persistir_url', pedido_id: String(pedido.id), erro: String(error.code || error.name || 'Error').slice(0, 60), mensagem: String(error.message || 'erro').slice(0, 160) }));
+      return res.status(503).json({ erro: 'Não foi possível abrir o pagamento. Tente novamente; seu pedido será reutilizado.' });
+    }
+  }
+  return res.status(201).json({ mensagem: 'Aguardando pagamento.', pedido, payment_url });
 }
 rota('post', '/api/pedidos/:id/pagar', limitePedidos, autenticarCompra, async (req, res) => {
   const { data: pedido, error } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('id', req.params.id), req.user).maybeSingle();

@@ -23,10 +23,8 @@ function diagnosticoResposta(dados) {
   for (const campo of ['message', 'error', 'code', 'success']) {
     if (dados[campo] !== undefined && (typeof dados[campo] === 'string' || typeof dados[campo] === 'number' || typeof dados[campo] === 'boolean')) resultado[campo] = String(dados[campo]).slice(0, 120);
   }
-  for (const campo of ['url', 'checkout_url', 'link']) {
-    if (typeof dados[campo] === 'string') {
-      try { resultado[`${campo}_host`] = new URL(dados[campo]).hostname; } catch { resultado[`${campo}_presente`] = true; }
-    }
+  if (typeof dados.url === 'string') {
+    try { resultado.url_host = new URL(dados.url).hostname; } catch { resultado.url_presente = true; }
   }
   return resultado;
 }
@@ -55,12 +53,13 @@ function criarInfinitePay({ db, handle = process.env.INFINITEPAY_HANDLE, urlPubl
     const dados = typeof resposta.text === 'function'
       ? await resposta.text().then(corpo => { try { return JSON.parse(corpo); } catch { return null; } }).catch(() => null)
       : await resposta.json().catch(() => null);
-    const paymentUrl = dados?.url || dados?.checkout_url || dados?.link;
+    // A API documentada retorna exclusivamente a URL em `url`.
+    const paymentUrl = dados?.url;
     if (!resposta.ok || !urlCheckoutValida(paymentUrl)) {
-      console.error(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'falha', endpoint: '/links', metodo: 'POST', status: resposta.status, resposta: diagnosticoResposta(dados), url_checkout_valida: urlCheckoutValida(paymentUrl) }));
+      console.error(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'falha', endpoint: '/links', metodo: 'POST', status: resposta.status, order_nsu: String(pedido.id), resposta: diagnosticoResposta(dados), url_checkout_valida: urlCheckoutValida(paymentUrl) }));
       throw new Error('Checkout InfinitePay indisponível.');
     }
-    console.info(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'criado' }));
+    console.info(JSON.stringify({ evento: 'infinitepay_checkout', resultado: 'criado', order_nsu: String(pedido.id) }));
     return paymentUrl;
   }
 
