@@ -14,6 +14,14 @@ let consultaCepAnterior = '';
 let consultaCepEmAndamento = null;
 let cotacaoEmAndamento = null;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
+function informarFrete(mensagem, erro = false) {
+  const aviso = document.getElementById('info-frete');
+  if (!aviso) return;
+  aviso.textContent = mensagem;
+  aviso.classList.toggle('info-frete-erro', erro);
+  aviso.setAttribute('role', erro ? 'alert' : 'status');
+}
+const cepComFormatoValido = cep => /^\d{8}$/.test(String(cep || '').replace(/\D/g, ''));
 const salvar = () => localStorage.setItem('carrinho', JSON.stringify(carrinho));
 export const obterCarrinho = () => carrinho.map(item => ({ ...item }));
 export function limparCarrinho() { carrinho = []; localStorage.removeItem('carrinho'); renderizarCarrinho(); }
@@ -65,6 +73,7 @@ export async function calcularFrete() {
   valorFreteAtual = 0; atualizarResumo();
   const promessa = (async () => { try {
     if (!cep) throw new Error('Informe o CEP para calcular a entrega.');
+    if (!cepComFormatoValido(cep)) throw new Error('CEP inválido. Informe os 8 números para calcular a entrega.');
     const parametros = new URLSearchParams({ cep, endereco: entregaAtual.endereco, bairro: entregaAtual.bairro, numero_casa: entregaAtual.numero_casa });
     const dados = await api(`/api/taxa-entrega?${parametros}`);
     if (versao !== calculoAtual || cep !== document.getElementById('cep')?.value.trim()) return false;
@@ -75,10 +84,10 @@ export async function calcularFrete() {
       if (input && !input.value.trim()) input.value = dados[campo] || '';
     }
     cotacaoAnterior = { chave: JSON.stringify(camposEntrega()), dados };
-    document.getElementById('info-frete').textContent = `Trajeto aproximado pelo CEP: ${Number(dados.distancia_km).toFixed(2).replace('.', ',')} km. ${valorFreteAtual === 0 ? 'Entrega grátis até 2 km.' : `Entrega: ${dinheiro(valorFreteAtual)}`}`;
+    informarFrete(`Trajeto aproximado pelo CEP: ${Number(dados.distancia_km).toFixed(2).replace('.', ',')} km. ${valorFreteAtual === 0 ? 'Entrega grátis até 2 km.' : `Entrega: ${dinheiro(valorFreteAtual)}`}`);
     atualizarResumo(); return true;
   } catch (erro) {
-    const aviso = document.getElementById('info-frete'); if (aviso && versao === calculoAtual) aviso.textContent = erro.message;
+    if (versao === calculoAtual) informarFrete(erro.message, true);
     return false;
   } })();
   cotacaoEmAndamento = { chave, promise: promessa };
@@ -139,13 +148,21 @@ async function preencherEnderecoPeloCep() {
     consultaCepAnterior = cepNormalizado;
     return true;
   } catch (erro) {
-    const aviso = document.getElementById('info-frete'); if (aviso) aviso.textContent = erro.message;
+    informarFrete(erro.message, true);
     return false;
   } finally { consultaCepEmAndamento = null; }
   })();
   return consultaCepEmAndamento;
 }
-async function atualizarEntrega() { await preencherEnderecoPeloCep(); return calcularFrete(); }
+async function atualizarEntrega() {
+  const cep = document.getElementById('cep')?.value.trim() || '';
+  if (!cepComFormatoValido(cep)) {
+    informarFrete(cep ? 'CEP inválido. Informe os 8 números para calcular a entrega.' : 'Informe o CEP para calcular a entrega.', true);
+    return false;
+  }
+  if (!(await preencherEnderecoPeloCep())) return false;
+  return calcularFrete();
+}
 window.calcularFrete = atualizarEntrega; window.finalizarCompra = finalizarCompra;
 document.addEventListener('DOMContentLoaded', async () => {
   const perfil = await sessaoPronta;
@@ -164,5 +181,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('input[name="provedor-pagamento"]').forEach(opcao => opcao.addEventListener('change', atualizarTextoPagamento));
   atualizarTextoPagamento();
   document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) atualizarEntrega(); });
-  document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; cotacaoAnterior = null; cotacaoEmAndamento = null; consultaCepAnterior = ''; valorFreteAtual = 0; atualizarResumo(); document.getElementById('info-frete').textContent = 'Calcule a entrega para o novo CEP.'; });
+  document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; cotacaoAnterior = null; cotacaoEmAndamento = null; consultaCepAnterior = ''; valorFreteAtual = 0; atualizarResumo(); informarFrete('Calcule a entrega para o novo CEP.'); });
 });

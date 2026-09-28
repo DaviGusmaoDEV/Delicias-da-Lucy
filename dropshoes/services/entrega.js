@@ -18,11 +18,18 @@ function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STOR
     try {
       const resposta = await consultar(url, { signal: AbortSignal.timeout(8000), ...opcoes });
       if (!resposta.ok) {
-        if (url.includes('brasilapi.com.br/api/cep/') && resposta.status === 404) throw new Error('CEP inválido ou não encontrado. Confira os números.');
+        if (url.includes('brasilapi.com.br/api/cep/') && resposta.status === 404) {
+          const erro = new Error('CEP inválido ou não encontrado. Confira os números.');
+          erro.codigo = 'cep_nao_encontrado';
+          throw erro;
+        }
         throw new Error();
       }
       return await resposta.json();
-    } catch { throw new Error('Não foi possível calcular a entrega. Tente novamente.'); }
+    } catch (erro) {
+      if (erro?.codigo === 'cep_nao_encontrado') throw erro;
+      throw new Error('Não foi possível calcular a entrega. Tente novamente.');
+    }
   }
   async function consultarEndereco(cep) {
     const numero = String(cep || '').replace(/\D/g, '');

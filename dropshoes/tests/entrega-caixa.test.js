@@ -24,6 +24,8 @@ test('cotação valida cidade, usa trajeto e reutiliza consulta de CEP', async (
   await assert.rejects(entrega('123'), /CEP inválido.*8 números/);
   const cepNaoEncontrado = criarEntrega({ origem: [-47.82, -21.13], consultar: async () => ({ ok: true, json: async () => ({ errors: true }) }) });
   await assert.rejects(cepNaoEncontrado('99999999'), /CEP inválido ou não encontrado/);
+  const cep404 = criarEntrega({ origem: [-47.82, -21.13], consultar: async () => ({ ok: false, status: 404, json: async () => ({}) }) });
+  await assert.rejects(cep404('99999999'), /CEP inválido ou não encontrado/);
   const fora = criarEntrega({ origem: [-47.82, -21.13], precoKm: 2, consultar: async () => ({ ok: true, json: async () => ({ city: 'São Paulo', state: 'SP' }) }) });
   await assert.rejects(fora('01001000'), /apenas em/);
   const falha = criarEntrega({ origem: [-47.82, -21.13], precoKm: 2, consultar: async () => { throw new Error('rede'); } });

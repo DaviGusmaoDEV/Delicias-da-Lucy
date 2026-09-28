@@ -61,7 +61,7 @@
                         <div><label for="bairro">Bairro</label><input type="text" id="bairro" class="form-control" required></div>
                     </div>
                     <div class="frete-container-inline">
-                        <input type="text" id="cep" class="form-control" autocomplete="postal-code" inputmode="numeric" maxlength="9" placeholder="CEP (ex.: 14000-000)" required>
+                        <input type="text" id="cep" class="form-control" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}-?[0-9]{3}" maxlength="9" placeholder="CEP (ex.: 14000-000)" aria-describedby="info-frete" required>
                         <button type="button" id="btn-calcular-frete" class="btn-calcular">Calcular taxa</button>
                     </div>
                     <div id="info-frete" class="info-frete-dinamico" role="status" aria-live="polite"></div>

@@ -1212,6 +1212,7 @@ dialog .form-control {
 .pagina-carrinho .opcao-pagamento-pix:has(input:checked) { border-color: #ca8a04; background: #fef3c7; }
 .pagina-carrinho .opcao-pagamento-inf:has(input:checked) { border-color: #f97316; background: #ffedd5; }
 .pagina-carrinho .opcao-pagamento-retirada:has(input:checked) { border-color: #a855f7; background: #f3e8ff; }
+.pagina-carrinho .info-frete-erro { color: #b42318; font-weight: 700; }
 .pagina-carrinho .resumo-carrinho { padding-top: 4px; }
 .pagina-carrinho .resumo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 5px 0; }
 .pagina-carrinho .resumo-linha strong { white-space: nowrap; }
