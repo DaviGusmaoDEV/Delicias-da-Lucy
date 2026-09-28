@@ -23,6 +23,7 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal(login.headers.get('cache-control'), 'no-store');
   const token = login.body.token;
   assert.equal((await req('/api/meu-perfil', 'GET', undefined, token)).body.perfil.email, cliente.email);
+  assert.deepEqual((await req('/api/meus-pedidos', 'GET', undefined, token)).body, []);
   assert.equal((await req('/api/produtos')).status, 200);
   assert.equal((await req('/api/produtos', 'POST', {}, token)).status, 403);
   assert.equal((await req('/api/pedidos', 'GET', undefined, token)).status, 403);

@@ -60,7 +60,7 @@
             </section>
 
             <section id="painel-cliente-pedidos" class="card-painel panel-oculto">
-                <h2 class="card-title">🛍️ Meu Histórico de Pedidos</h2>
+                <h2 class="card-title">📦 Pedido atual e acompanhamento</h2>
                 <div class="table-responsive">
                     <table class="modern-table">
                         <thead>
@@ -70,6 +70,15 @@
                                 <th>Status</th>
                                 <th class="text-right">Total</th>
                             </tr>
+                        </thead>
+                        <tbody id="pedidos-em-andamento"></tbody>
+                    </table>
+                </div>
+                <h2 class="card-title">🛍️ Histórico de pedidos</h2>
+                <div class="table-responsive">
+                    <table class="modern-table">
+                        <thead>
+                            <tr><th>Pedido</th><th>Data</th><th>Status</th><th class="text-right">Total</th></tr>
                         </thead>
                         <tbody id="meus-pedidos"></tbody>
                     </table>
