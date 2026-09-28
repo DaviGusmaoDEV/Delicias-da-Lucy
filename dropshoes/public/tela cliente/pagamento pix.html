@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pagamento via Pix | Delicias Da Lucy</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/pagamento-pix.css">
+  <script type="module" src="../js/pagamento-pix.js" defer></script>
+</head>
+<body data-acesso="cliente">
+  <main class="pix-pagina">
+    <section class="pix-cartao" aria-labelledby="pix-titulo">
+      <a class="pix-voltar" href="meu perfil cliente.html">← Acompanhar meus pedidos</a>
+      <p class="pix-kicker">Pagamento online</p>
+      <h1 id="pix-titulo">Pagamento via Pix</h1>
+      <p>Pedido <strong id="pix-pedido">—</strong></p>
+      <p class="pix-total-label">Total</p>
+      <strong id="pix-total" class="pix-total">R$ 0,00</strong>
+      <div id="pix-pendente" class="pix-pendente" role="status" aria-live="polite">Aguardando pagamento...</div>
+      <div id="pix-conteudo" hidden>
+        <img id="pix-qr" class="pix-qr" alt="QR Code para pagamento Pix">
+        <p>Escaneie o QR Code com o aplicativo do seu banco.</p>
+        <button id="pix-copiar" class="btn-finalizar" type="button">Copiar código Pix</button>
+        <p id="pix-feedback" class="pix-feedback" aria-live="polite"></p>
+        <p id="pix-expira" class="pix-expira"></p>
+      </div>
+      <div id="pix-finalizado" class="pix-finalizado" hidden>
+        <span aria-hidden="true">✓</span>
+        <h2 id="pix-finalizado-titulo">Pagamento aprovado!</h2>
+        <p id="pix-finalizado-texto">Seu pedido foi recebido e já foi enviado para a loja.</p>
+        <a class="btn-finalizar pix-link" href="meu perfil cliente.html">Acompanhar meu pedido</a>
+      </div>
+      <button id="pix-novo" class="btn-calcular" type="button" hidden>Gerar novo Pix</button>
+      <p id="pix-erro" class="pix-erro" role="alert" hidden></p>
+    </section>
+  </main>
+</body>
+</html>

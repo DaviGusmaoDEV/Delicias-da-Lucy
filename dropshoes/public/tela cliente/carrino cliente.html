@@ -47,6 +47,8 @@
                     <legend>Quem vai receber?</legend>
                     <label for="cliente-nome">Nome</label>
                     <input id="cliente-nome" class="form-control" autocomplete="name" minlength="2" maxlength="100" required>
+                    <label for="cliente-email">E-mail para acompanhar o pagamento</label>
+                    <input id="cliente-email" class="form-control" type="email" autocomplete="email" maxlength="160">
                     <label for="cliente-telefone">Telefone com DDD</label>
                     <input id="cliente-telefone" class="form-control" type="tel" autocomplete="tel" maxlength="20" required>
                     <p>Não precisa criar uma conta. Já tem uma? <a href="../tela de login/login cliente.html">Entrar</a></p>
@@ -70,7 +72,9 @@
 
                 <fieldset class="pagamento-container">
                     <legend class="frete-label">Pagamento online</legend>
-                    <p class="ajuda-campo">Você será encaminhado ao checkout seguro configurado pela loja. O pedido será liberado após a confirmação do pagamento.</p>
+                    <p class="ajuda-campo">Escolha como deseja pagar. O pedido será liberado após a confirmação do pagamento.</p>
+                    <label class="opcao-pagamento"><input type="radio" name="provedor-pagamento" value="infinitepay" checked> <strong>InfinitePay</strong><small>Cartão ou Pix no ambiente seguro da InfinitePay.</small></label>
+                    <label class="opcao-pagamento"><input type="radio" name="provedor-pagamento" value="mercadopago_pix"> <strong>Pix</strong><small>QR Code e Pix Copia e Cola sem sair do site.</small></label>
                 </fieldset>
 
                 <div class="resumo-carrinho">

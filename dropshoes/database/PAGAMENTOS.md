@@ -2,40 +2,40 @@
 
 ## Ativação
 
-1. No SQL Editor do Supabase, aplique `schema-pagamentos-caixa.sql`, depois da
-   estrutura existente de pedidos e caixa (`schema-revisao.sql`). O script adiciona
-   colunas sem excluir pedidos antigos. A função de confirmação só pode ser
-   executada pelo servidor com a chave privada `service_role`.
+1. No SQL Editor do Supabase, aplique `schema-pagamentos-caixa.sql` e, em uma
+   instalação já existente, `migration-mercadopago-orders.sql`. As migrações são
+   aditivas e não excluem pedidos antigos. A confirmação só pode ser executada
+   pelo servidor com a chave privada `service_role`.
 2. Em `dropshoes/.env`, configure:
 
    ```dotenv
    MERCADOPAGO_ACCESS_TOKEN=token_privado_da_aplicacao
    MERCADOPAGO_WEBHOOK_SECRET=segredo_de_assinatura_das_notificacoes
    PUBLIC_BASE_URL=https://dominio-publico-do-site
-   MERCADOPAGO_SANDBOX=false
    ```
 
    Esses valores são privados, exceto a URL pública. Não os coloque no frontend
    nem no Git. O token do Mercado Pago é diferente da chave do Supabase.
 3. Em **Suas integrações** no Mercado Pago, configure notificações Webhooks para
-   **Pagamentos / payment**, com a URL:
+   **Orders / orders**, com a URL:
    `https://dominio-publico-do-site/api/webhooks/mercadopago`.
    Copie o segredo de assinatura para `MERCADOPAGO_WEBHOOK_SECRET`.
-4. Para testes, use as credenciais/contas de teste do Mercado Pago e defina
-   `MERCADOPAGO_SANDBOX=true`. O servidor precisa de HTTPS público alcançável pelo
+4. Para testes, use as credenciais/contas de teste do Mercado Pago. O servidor precisa de HTTPS público alcançável pelo
    Mercado Pago, inclusive em desenvolvimento (localhost sozinho não recebe webhook).
 5. Reinicie o servidor. Faça uma compra de teste e confirme no painel que o webhook
    recebeu HTTP 200, o pedido está aprovado e existe apenas uma entrada no caixa.
 
-Referências: [Webhooks do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/additional-content/your-integrations/notifications/webhooks)
-e [notificações do Checkout Pro](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-preferences/payment-notifications).
+Referências: [Pix via Orders API](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/payment-integration/pix),
+[Orders API](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview),
+[Webhooks do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/links-and-debts/additional-content/your-integrations/notifications/webhooks)
+e [idempotência e erros](https://www.mercadopago.com.br/developers/en/docs/checkout-api/payment-management/integration-errors).
 
 ## Regra financeira
 
 - Pedido de R$ 20 pago: entrada bruta de R$ 20. Inclui entrega, se cobrada.
 - A volta do navegador para o site não confirma pagamento. O servidor verifica a
-  assinatura e consulta o pagamento diretamente no Mercado Pago, conferindo pedido,
-  valor e moeda BRL.
+  assinatura e consulta a Order diretamente em `/v1/orders/{id}`, conferindo pedido
+  e valor em BRL.
 - Pedidos pendentes, rejeitados ou apenas criados não geram receita. O preparo só
   é liberado após aprovação. O status de entrega é independente do status financeiro.
 - A função SQL bloqueia a linha do pedido e confirma pagamento e receita na mesma

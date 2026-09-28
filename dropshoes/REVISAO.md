@@ -2,7 +2,7 @@
 
 Foram corrigidos cadastro/login, permissões consultadas no Supabase, encerramento de sessão, links e módulos do navegador, perfil administrativo, persistência do fluxo de caixa, validação dos produtos/pedidos, cálculo monetário em centavos e tratamento de falhas assíncronas da API.
 
-As bibliotecas não utilizadas Google APIs, Stripe, Multer e a dependência direta MongoDB foram removidas. O código legado Mongoose foi mantido e sua dependência atualizada. O SDK Mercado Pago foi atualizado; a interface `MercadoPagoConfig`/`Preference.create` usada pelo servidor foi verificada localmente. SweetAlert2 agora é servido pelo próprio servidor na versão do arquivo de dependências.
+As bibliotecas não utilizadas Google APIs, Stripe, Multer e a dependência direta MongoDB foram removidas. O código legado Mongoose foi mantido e sua dependência atualizada. O Mercado Pago usa a Orders API por HTTP no backend; o SDK permanece apenas como dependência compatível do projeto. SweetAlert2 agora é servido pelo próprio servidor na versão do arquivo de dependências.
 
 ## Validação
 

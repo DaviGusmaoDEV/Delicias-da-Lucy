@@ -6,7 +6,6 @@ const { limitarAutenticacao } = require('./middleware/limite-autenticacao');
 const { protecoes, opcoesCookie, validarProducao } = require('./middleware/seguranca');
 const { criarAutenticacao } = require('./config/autenticacao');
 
-const { MercadoPagoConfig } = require('mercadopago');
 const { criarPagamentos, urlCheckoutValida } = require('./services/pagamentos');
 const { criarInfinitePay } = require('./services/infinitepay');
 const { criarVisitantes, pedidosDoComprador, telefoneValido } = require('./services/visitantes');
@@ -22,7 +21,6 @@ const { registrar: registrarVisitante, autenticarCompra } = criarVisitantes({ db
 if (!supabase) console.warn('Configure SUPABASE_SECRET_KEY (ou SUPABASE_SERVICE_ROLE_KEY) para habilitar login e cadastro seguros.');
 const ADMIN_ROLES = ['admin1', 'admin2'];
 const ORDER_STATUSES = ['pendente', 'aceito', 'em_preparo', 'pronto_entrega', 'recebido', 'cancelado'];
-const mercadoPago = pagamentoCliente || (process.env.MERCADOPAGO_ACCESS_TOKEN ? new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN }) : null);
 protecoes(app);
 app.use(express.json({ limit: '100kb' }));
 // Configure somente a quantidade real de proxies controlados da hospedagem.
@@ -45,11 +43,12 @@ const rota = (metodo, url, ...handlers) => app[metodo](url, ...handlers.map(hand
 const soAdmin = (req, res, next) => ADMIN_ROLES.includes(req.user.role) ? next() : res.status(403).json({ erro: 'Acesso exclusivo da administração.' });
 const soAdmin1 = (req, res, next) => req.user.role === 'admin1' ? next() : res.status(403).json({ erro: 'O fluxo de caixa é acessível somente pelo Admin 1 (dono geral).' });
 const entrega = entregaTeste || criarEntrega();
-const pagamentos = pagamentosTeste || criarPagamentos({ cliente: mercadoPago, db: supabase });
+const pagamentos = pagamentosTeste || criarPagamentos({ db: supabase });
 const infinitePay = pagamentosTeste ? null : criarInfinitePay({ db: supabase });
-const provedorPagamento = String(process.env.PAYMENT_PROVIDER || 'infinitepay').trim().toLowerCase();
-const pagamentosAtivos = pagamentosTeste || (provedorPagamento === 'infinitepay' ? infinitePay : null);
-if (pagamentosTeste) rota('post', '/api/webhooks/mercadopago', pagamentos.notificar);
+const provedorPagamentoPadrao = String(process.env.PAYMENT_PROVIDER || 'infinitepay').trim().toLowerCase();
+const provedores = pagamentosTeste ? { infinitepay: pagamentosTeste, mercadopago_pix: pagamentosTeste } : { infinitepay: infinitePay, mercadopago_pix: pagamentos };
+const normalizarProvedor = valor => ({ mercadopago: 'mercadopago_pix', mercado_pago: 'mercadopago_pix', pix: 'mercadopago_pix', mercadopago_pix: 'mercadopago_pix', infinitepay: 'infinitepay' }[String(valor || '').trim().toLowerCase()] || null);
+rota('post', '/api/webhooks/mercadopago', pagamentos.notificar);
 if (infinitePay) rota('post', '/api/webhooks/infinitepay', infinitePay.notificar);
 
 rota('post', '/api/cadastro-cliente', limiteAuth, registrarVisitante);
@@ -99,56 +98,83 @@ rota('delete', '/api/fluxo-caixa/:id', autenticar, soAdmin1, async (req, res) =>
 
 rota('post', '/api/pedidos', limitePedidos, autenticarCompra, async (req, res) => {
   if (!['cliente', 'visitante'].includes(req.user.role)) return res.status(403).json({ erro: 'Pedidos devem ser feitos pela conta de cliente.' });
-  const { itens, observacao_geral, endereco, numero_casa, bairro, cep, pagamento, checkout_chave, cliente_nome, cliente_telefone } = req.body;
+  const { itens, observacao_geral, endereco, numero_casa, bairro, cep, pagamento, checkout_chave, cliente_nome, cliente_telefone, cliente_email } = req.body;
+  const provedorSolicitado = normalizarProvedor(req.body.provedor_pagamento || req.body.payment_provider) || normalizarProvedor(provedorPagamentoPadrao) || 'infinitepay';
+  const pagamentosAtivos = provedores[provedorSolicitado];
   if (typeof cliente_nome !== 'string' || cliente_nome.trim().length < 2 || cliente_nome.trim().length > 100 || !telefoneValido(cliente_telefone)) return res.status(400).json({ erro: 'Informe seu nome e telefone com DDD.' });
   if (!Array.isArray(itens) || !itens.length || itens.length > 100 || itens.some(item => !item || !['string', 'number'].includes(typeof item.produto_id)) || new Set(itens.map(item => String(item.produto_id))).size !== itens.length) return res.status(400).json({ erro: 'Adicione ao menos um item ao carrinho.' });
   if ([endereco, numero_casa, bairro, cep].some(campo => typeof campo !== 'string' || !campo.trim() || campo.length > 250) || (observacao_geral != null && typeof observacao_geral !== 'string')) return res.status(400).json({ erro: 'Preencha rua, número, bairro e CEP para a entrega.' });
   if (pagamento !== 'site') return res.status(400).json({ erro: 'Forma de pagamento inválida.' });
   if (!pagamentosAtivos?.disponivel) return res.status(503).json({ erro: 'Pagamento online indisponível. Tente novamente mais tarde.' });
+  if (provedorSolicitado === 'mercadopago_pix' && (typeof cliente_email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente_email.trim()))) return res.status(400).json({ erro: 'Informe um e-mail válido para gerar o Pix.' });
   if (typeof checkout_chave !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkout_chave)) return res.status(400).json({ erro: 'Atualize o carrinho e tente novamente.' });
   const { data: existente, error: buscaErro } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('checkout_chave', checkout_chave), req.user).maybeSingle();
   if (buscaErro) return res.status(503).json({ erro: 'Não foi possível consultar seu pedido.' });
-  if (existente) return responderCheckout(existente, res);
+  if (existente) return responderCheckout(existente, res, provedorSolicitado, pagamentosAtivos);
   let taxa; try { taxa = (await entrega(cep, { endereco, bairro, numero_casa })).taxa; } catch (error) { return res.status(400).json({ erro: error.message }); }
   const ids = itens.map(item => item.produto_id); const { data: produtos, error: produtosErro } = await supabase.from('products').select('id,preco').in('id', ids);
   if (produtosErro || produtos?.length !== new Set(ids).size) return res.status(400).json({ erro: 'Um produto do carrinho não está mais disponível.' });
   const mapa = new Map(produtos.map(p => [String(p.id), p])); let subtotal = 0; let itensConfirmados;
   try { itensConfirmados = itens.map(item => { const produto = mapa.get(String(item.produto_id)); const quantidade = item.quantidade; if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 50) throw new Error('Quantidade inválida.'); const preco = Number(produto?.preco); if (!Number.isFinite(preco) || preco <= 0) throw new Error('Preço de produto inválido.'); subtotal += Math.round(preco * 100) * quantidade; return { produto_id: produto.id, quantidade, preco_unitario: Number(produto.preco), observacao_item: String(item.observacao_item || '').slice(0, 300) }; }); } catch (error) { return res.status(400).json({ erro: error.message }); }
   subtotal /= 100;
-  const { data: pedido, error } = await supabase.rpc('criar_pedido_com_itens', { p_pedido: { usuario_id: req.user.role === 'cliente' ? req.user.id : null, visitante_id: req.user.role === 'visitante' ? req.user.id : null, cliente_nome: cliente_nome.trim(), cliente_telefone: cliente_telefone.replace(/\D/g, ''), valor: Math.round((subtotal + taxa) * 100) / 100, subtotal, taxa_entrega: taxa, status: 'pendente', observacao_geral: observacao_geral?.slice(0, 500) || null, endereco: endereco.trim(), numero_casa: numero_casa.trim(), bairro: bairro.trim(), cep: String(cep).replace(/\D/g, ''), pagamento: 'site', checkout_chave, pagamento_status: 'pending' }, p_itens: itensConfirmados });
+  const { data: pedido, error } = await supabase.rpc('criar_pedido_com_itens', { p_pedido: { usuario_id: req.user.role === 'cliente' ? req.user.id : null, visitante_id: req.user.role === 'visitante' ? req.user.id : null, cliente_nome: cliente_nome.trim(), cliente_email: typeof cliente_email === 'string' ? cliente_email.trim().toLowerCase() : null, cliente_telefone: cliente_telefone.replace(/\D/g, ''), valor: Math.round((subtotal + taxa) * 100) / 100, subtotal, taxa_entrega: taxa, status: 'pendente', observacao_geral: observacao_geral?.slice(0, 500) || null, endereco: endereco.trim(), numero_casa: numero_casa.trim(), bairro: bairro.trim(), cep: String(cep).replace(/\D/g, ''), pagamento: 'site', checkout_chave, pagamento_status: 'pending' }, p_itens: itensConfirmados });
   if (error || !pedido) return res.status(503).json({ erro: 'Não foi possível salvar o pedido. Tente novamente.' });
-  return responderCheckout(pedido, res);
+  if (provedorSolicitado === 'mercadopago_pix') {
+    const { error: erroProvedor } = await supabase.from('pedidos').update({ pagamento_provedor: provedorSolicitado, cliente_email: typeof cliente_email === 'string' ? cliente_email.trim().toLowerCase() : null }).eq('id', pedido.id);
+    if (erroProvedor) return res.status(503).json({ erro: 'Não foi possível preparar o pagamento. A migração de pagamentos ainda precisa ser aplicada.' });
+  }
+  pedido.pagamento_provedor = provedorSolicitado;
+  pedido.cliente_email = typeof cliente_email === 'string' ? cliente_email.trim().toLowerCase() : null;
+  return responderCheckout(pedido, res, provedorSolicitado, pagamentosAtivos);
 });
-async function responderCheckout(pedido, res) {
+async function responderCheckout(pedido, res, provedorSolicitado, pagamentosAtivos) {
   if (pedido.pago_em || pedido.status === 'cancelado') return res.status(409).json({ erro: 'Este pedido já foi pago ou cancelado. Confira seus pedidos.' });
   // Não cria checkout para uma gravação incompleta ou ainda em andamento.
   const { data: itens, error: erroItens } = await supabase.from('itens_pedido').select('pedido_id').eq('pedido_id', pedido.id);
   if (erroItens || !itens?.length) return res.status(503).json({ erro: 'Seu pedido está sendo preparado para pagamento. Tente novamente.' });
+  const provedor = normalizarProvedor(pedido.pagamento_provedor) || provedorSolicitado || 'infinitepay';
+  const pagamento = provedores[provedor] || pagamentosAtivos;
+  if (!pagamento?.disponivel) return res.status(503).json({ erro: 'Pagamento online indisponível. Tente novamente mais tarde.' });
   let payment_url = pedido.payment_url;
+  let dadosPagamento;
   if (payment_url && !urlCheckoutValida(payment_url)) {
     console.error(JSON.stringify({ evento: 'pedido_checkout', resultado: 'falha', etapa: 'validar_url_persistida', pedido_id: String(pedido.id), erro: 'URL inválida', mensagem: 'payment_url persistida não pertence ao checkout permitido' }));
     return res.status(503).json({ erro: 'Não foi possível abrir o pagamento. Tente novamente; seu pedido será reutilizado.' });
   }
   if (!payment_url) {
     try {
-      payment_url = await pagamentosAtivos.checkout(pedido);
-      if (!urlCheckoutValida(payment_url)) throw new Error('URL de pagamento inválida');
+      dadosPagamento = await pagamento.checkout(pedido);
+      if (typeof dadosPagamento === 'string') payment_url = dadosPagamento;
+      else payment_url = dadosPagamento?.payment_url || null;
+      if (provedor === 'infinitepay' && !urlCheckoutValida(payment_url)) throw new Error('URL de pagamento inválida');
+      if (provedor === 'mercadopago_pix' && (!dadosPagamento?.qr_code || !dadosPagamento?.qr_code_base64)) throw new Error('Dados Pix inválidos');
     } catch (error) {
       console.error(JSON.stringify({ evento: 'pedido_checkout', resultado: 'falha', etapa: 'criar_checkout', pedido_id: String(pedido.id), erro: String(error?.name || 'Error').slice(0, 60), mensagem: String(error?.message || 'erro').slice(0, 160) }));
       return res.status(503).json({ erro: 'Não foi possível abrir o pagamento. Tente novamente; seu pedido será reutilizado.' });
     }
-    const { error } = await supabase.from('pedidos').update({ payment_url }).eq('id', pedido.id);
+    const { error } = await supabase.from('pedidos').update({ ...(payment_url ? { payment_url } : {}), pagamento_provedor: provedor }).eq('id', pedido.id);
     if (error) {
       console.error(JSON.stringify({ evento: 'pedido_checkout', resultado: 'falha', etapa: 'persistir_url', pedido_id: String(pedido.id), erro: String(error.code || error.name || 'Error').slice(0, 60), mensagem: String(error.message || 'erro').slice(0, 160) }));
       return res.status(503).json({ erro: 'Não foi possível abrir o pagamento. Tente novamente; seu pedido será reutilizado.' });
     }
   }
-  return res.status(201).json({ mensagem: 'Aguardando pagamento.', pedido, payment_url });
+  if (!dadosPagamento && provedor === 'mercadopago_pix') dadosPagamento = { provider: 'mercadopago_pix', payment_url: pedido.payment_url || null, qr_code: pedido.pagamento_qr_code, qr_code_base64: pedido.pagamento_qr_code_base64, payment_id: String(pedido.pagamento_id || '').replace(/^mercadopago:/, ''), status: pedido.pagamento_status || 'pending', expires_at: pedido.pagamento_expira_em };
+  return res.status(201).json({ mensagem: 'Aguardando pagamento.', pedido, payment_url, ...(dadosPagamento ? { pagamento: dadosPagamento } : {}) });
 }
 rota('post', '/api/pedidos/:id/pagar', limitePedidos, autenticarCompra, async (req, res) => {
   const { data: pedido, error } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('id', req.params.id), req.user).maybeSingle();
   if (error || !pedido || !['cliente', 'visitante'].includes(req.user.role) || pedido.pagamento !== 'site') return res.status(404).json({ erro: 'Pedido não encontrado.' });
-  return responderCheckout(pedido, res);
+  return responderCheckout(pedido, res, normalizarProvedor(pedido.pagamento_provedor) || 'infinitepay', provedores[normalizarProvedor(pedido.pagamento_provedor) || 'infinitepay']);
+});
+rota('get', '/api/pedidos/:id/pagamento', autenticarCompra, async (req, res) => {
+  const { data: pedido, error } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('id', req.params.id), req.user).maybeSingle();
+  if (error || !pedido || pedido.pagamento !== 'site' || normalizarProvedor(pedido.pagamento_provedor) !== 'mercadopago_pix') return res.status(404).json({ erro: 'Pagamento não encontrado.' });
+  res.json({ pedido_id: pedido.id, valor: pedido.valor, pagamento: { provider: 'mercadopago_pix', payment_url: pedido.payment_url || null, qr_code: pedido.pagamento_qr_code, qr_code_base64: pedido.pagamento_qr_code_base64, payment_id: String(pedido.pagamento_id || '').replace(/^mercadopago:/, ''), status: pedido.pagamento_status || 'pending', expires_at: pedido.pagamento_expira_em } });
+});
+rota('get', '/api/pedidos/:id/pagamento-status', autenticarCompra, async (req, res) => {
+  const { data: pedido, error } = await pedidosDoComprador(supabase.from('pedidos').select('id,valor,pagamento,pagamento_provedor,pagamento_status,status,pagamento_expira_em'), req.user).maybeSingle();
+  if (error || !pedido || pedido.pagamento !== 'site') return res.status(404).json({ erro: 'Pedido não encontrado.' });
+  res.json({ pedido_id: pedido.id, valor: pedido.valor, provider: normalizarProvedor(pedido.pagamento_provedor), payment_status: pedido.pagamento_status || 'pending', order_status: pedido.status, expires_at: pedido.pagamento_expira_em });
 });
 rota('get', '/api/meus-pedidos', autenticarCompra, async (req, res) => { const { data, error } = await pedidosDoComprador(supabase.from('pedidos').select('*, itens_pedido(*, products(nome))'), req.user).order('data_criacao', { ascending: false }); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.json(data); });
 rota('get', '/api/pedidos', autenticar, soAdmin, async (req, res) => {

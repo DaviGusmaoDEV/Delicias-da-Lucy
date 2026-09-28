@@ -11,6 +11,7 @@ alter table public.pedidos alter column usuario_id drop not null;
 alter table public.pedidos add column if not exists visitante_id uuid references public.clientes_visitantes(id);
 alter table public.pedidos add column if not exists cliente_nome varchar(100);
 alter table public.pedidos add column if not exists cliente_telefone varchar(13);
+alter table public.pedidos add column if not exists cliente_email text;
 create index if not exists pedidos_visitante_idx on public.pedidos(visitante_id);
 do $$ begin
   if not exists(select 1 from pg_constraint where conname='pedidos_um_comprador' and conrelid='public.pedidos'::regclass) then
@@ -70,11 +71,11 @@ begin
        or i.preco_unitario is null or i.preco_unitario <= 0
   ) then raise exception 'Item inválido'; end if;
   insert into public.pedidos (
-    usuario_id, visitante_id, cliente_nome, cliente_telefone, valor, subtotal,
+    usuario_id, visitante_id, cliente_nome, cliente_telefone, cliente_email, valor, subtotal,
     taxa_entrega, status, observacao_geral, endereco, numero_casa, bairro, cep,
     pagamento, checkout_chave, pagamento_status
   ) values (
-    entrada.usuario_id, entrada.visitante_id, entrada.cliente_nome, entrada.cliente_telefone,
+    entrada.usuario_id, entrada.visitante_id, entrada.cliente_nome, entrada.cliente_telefone, entrada.cliente_email,
     entrada.valor, entrada.subtotal, entrada.taxa_entrega, 'pendente',
     entrada.observacao_geral, entrada.endereco, entrada.numero_casa, entrada.bairro,
     entrada.cep, 'site', entrada.checkout_chave, 'pending'

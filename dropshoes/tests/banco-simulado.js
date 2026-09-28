@@ -5,7 +5,7 @@ function bancoSimulado() {
       { id: 'admin2', nome: 'Equipe', email: 'equipe@example.test', senha: 'senha-admin', role: 'admin2' }
     ],
     products: [{ id: 'p1', nome: 'Produto teste', preco: 12.35, categoria: 'outros', imagem_url: 'https://example.test/foto.jpg', descricao: 'Descrição existente' }],
-    clientes_visitantes: [], pedidos: [], itens_pedido: [], fluxo_caixa: []
+    clientes_visitantes: [], pedidos: [], itens_pedido: [], fluxo_caixa: [], pagamento_eventos: []
   };
   let contador = 0;
   const db = {
@@ -42,6 +42,7 @@ function bancoSimulado() {
             let linhas = tabelas[tabela].filter(row => filtros.every(f => f(row)));
             if (operacao === 'insert') {
               if (tabela === 'profiles' && tabelas.profiles.some(p => p.email === valores[0].email)) return { data: null, error: { code: '23505' } };
+              if (tabela === 'pagamento_eventos' && tabelas.pagamento_eventos.some(p => p.provedor === valores[0].provedor && (p.evento_id === valores[0].evento_id || (p.pagamento_id === valores[0].pagamento_id && p.status === valores[0].status)))) return { data: null, error: { code: '23505' } };
               linhas = valores.map(v => ({ id: `novo-${++contador}`, ...v })); tabelas[tabela].push(...linhas);
             }
             if (operacao === 'update') {
