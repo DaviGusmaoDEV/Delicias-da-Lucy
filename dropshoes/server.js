@@ -107,25 +107,31 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
     if (erroPerfilEmail) return res.status(503).json({ erro: 'Não foi possível recuperar os dados do seu perfil.' });
     emailPedido = String(perfilEmail?.email || '').trim().toLowerCase();
   }
-  const provedorSolicitado = normalizarProvedor(req.body.provedor_pagamento || req.body.payment_provider) || normalizarProvedor(provedorPagamentoPadrao) || 'infinitepay';
-  const pagamentosAtivos = provedores[provedorSolicitado];
+  const pagamentoOnline = pagamento === 'site';
+  const provedorSolicitado = pagamentoOnline ? (normalizarProvedor(req.body.provedor_pagamento || req.body.payment_provider) || normalizarProvedor(provedorPagamentoPadrao) || 'infinitepay') : null;
+  const pagamentosAtivos = pagamentoOnline ? provedores[provedorSolicitado] : null;
   if (typeof cliente_nome !== 'string' || cliente_nome.trim().length < 2 || cliente_nome.trim().length > 100 || !telefoneValido(cliente_telefone)) return res.status(400).json({ erro: 'Informe seu nome e telefone com DDD.' });
   if (!Array.isArray(itens) || !itens.length || itens.length > 100 || itens.some(item => !item || !['string', 'number'].includes(typeof item.produto_id)) || new Set(itens.map(item => String(item.produto_id))).size !== itens.length) return res.status(400).json({ erro: 'Adicione ao menos um item ao carrinho.' });
   if ([endereco, numero_casa, bairro, cep].some(campo => typeof campo !== 'string' || !campo.trim() || campo.length > 250) || (observacao_geral != null && typeof observacao_geral !== 'string')) return res.status(400).json({ erro: 'Preencha rua, número, bairro e CEP para a entrega.' });
-  if (pagamento !== 'site') return res.status(400).json({ erro: 'Forma de pagamento inválida.' });
-  if (!pagamentosAtivos?.disponivel) return res.status(503).json({ erro: 'Pagamento online indisponível. Tente novamente mais tarde.' });
+  if (!['site', 'entrega'].includes(pagamento)) return res.status(400).json({ erro: 'Forma de pagamento inválida.' });
+  if (pagamentoOnline && !pagamentosAtivos?.disponivel) return res.status(503).json({ erro: 'Pagamento online indisponível. Tente novamente mais tarde.' });
   if (typeof checkout_chave !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkout_chave)) return res.status(400).json({ erro: 'Atualize o carrinho e tente novamente.' });
   const { data: existente, error: buscaErro } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('checkout_chave', checkout_chave), req.user).maybeSingle();
   if (buscaErro) return res.status(503).json({ erro: 'Não foi possível consultar seu pedido.' });
-  if (existente) return responderCheckout(existente, res, provedorSolicitado, pagamentosAtivos);
+  // A escolha "entrega" não pode cair no checkout online mesmo se uma versão
+  // anterior da RPC do banco tiver persistido o campo pagamento como "site".
+  if (existente) return pagamento === 'entrega' || existente.pagamento === 'entrega'
+    ? confirmarPedidoEntrega(existente, res)
+    : responderCheckout(existente, res, provedorSolicitado, pagamentosAtivos);
   let taxa; try { taxa = (await entrega(cep, { endereco, bairro, numero_casa })).taxa; } catch (error) { return res.status(400).json({ erro: error.message }); }
   const ids = itens.map(item => item.produto_id); const { data: produtos, error: produtosErro } = await supabase.from('products').select('id,preco').in('id', ids);
   if (produtosErro || produtos?.length !== new Set(ids).size) return res.status(400).json({ erro: 'Um produto do carrinho não está mais disponível.' });
   const mapa = new Map(produtos.map(p => [String(p.id), p])); let subtotal = 0; let itensConfirmados;
   try { itensConfirmados = itens.map(item => { const produto = mapa.get(String(item.produto_id)); const quantidade = item.quantidade; if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 50) throw new Error('Quantidade inválida.'); const preco = Number(produto?.preco); if (!Number.isFinite(preco) || preco <= 0) throw new Error('Preço de produto inválido.'); subtotal += Math.round(preco * 100) * quantidade; return { produto_id: produto.id, quantidade, preco_unitario: Number(produto.preco), observacao_item: String(item.observacao_item || '').slice(0, 300) }; }); } catch (error) { return res.status(400).json({ erro: error.message }); }
   subtotal /= 100;
-  const { data: pedido, error } = await supabase.rpc('criar_pedido_com_itens', { p_pedido: { usuario_id: req.user.role === 'cliente' ? req.user.id : null, visitante_id: req.user.role === 'visitante' ? req.user.id : null, cliente_nome: cliente_nome.trim(), cliente_email: emailPedido || null, cliente_telefone: cliente_telefone.replace(/\D/g, ''), valor: Math.round((subtotal + taxa) * 100) / 100, subtotal, taxa_entrega: taxa, status: 'pendente', observacao_geral: observacao_geral?.slice(0, 500) || null, endereco: endereco.trim(), numero_casa: numero_casa.trim(), bairro: bairro.trim(), cep: String(cep).replace(/\D/g, ''), pagamento: 'site', checkout_chave, pagamento_status: 'pending' }, p_itens: itensConfirmados });
+  const { data: pedido, error } = await supabase.rpc('criar_pedido_com_itens', { p_pedido: { usuario_id: req.user.role === 'cliente' ? req.user.id : null, visitante_id: req.user.role === 'visitante' ? req.user.id : null, cliente_nome: cliente_nome.trim(), cliente_email: emailPedido || null, cliente_telefone: cliente_telefone.replace(/\D/g, ''), valor: Math.round((subtotal + taxa) * 100) / 100, subtotal, taxa_entrega: taxa, status: 'pendente', observacao_geral: observacao_geral?.slice(0, 500) || null, endereco: endereco.trim(), numero_casa: numero_casa.trim(), bairro: bairro.trim(), cep: String(cep).replace(/\D/g, ''), pagamento, checkout_chave, pagamento_status: 'pending' }, p_itens: itensConfirmados });
   if (error || !pedido) return res.status(503).json({ erro: 'Não foi possível salvar o pedido. Tente novamente.' });
+  if (pagamento === 'entrega') return confirmarPedidoEntrega(pedido, res);
   if (provedorSolicitado === 'mercadopago_pix') {
     const { error: erroProvedor } = await supabase.from('pedidos').update({ pagamento_provedor: provedorSolicitado, cliente_email: emailPedido || null }).eq('id', pedido.id);
     if (erroProvedor) return res.status(503).json({ erro: 'Não foi possível preparar o pagamento. A migração de pagamentos ainda precisa ser aplicada.' });
@@ -134,6 +140,23 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
   pedido.cliente_email = emailPedido || null;
   return responderCheckout(pedido, res, provedorSolicitado, pagamentosAtivos);
 });
+async function confirmarPedidoEntrega(pedido, res) {
+  // A migração atual da RPC já grava "entrega". Esta atualização protege os
+  // pedidos criados enquanto uma versão anterior da função ainda estava ativa.
+  if (pedido.pagamento !== 'entrega') {
+    const { data: atualizado, error } = await supabase.from('pedidos')
+      .update({ pagamento: 'entrega' }).eq('id', pedido.id).select().single();
+    if (error || !atualizado) {
+      console.error(JSON.stringify({ evento: 'pedido_entrega', resultado: 'falha', etapa: 'persistir_pagamento', pedido_id: String(pedido.id), erro: String(error?.code || error?.name || 'Error').slice(0, 60), mensagem: String(error?.message || 'registro não atualizado').slice(0, 160) }));
+      return res.status(503).json({ erro: 'Não foi possível registrar a forma de pagamento. Tente novamente.' });
+    }
+    pedido = atualizado;
+  }
+  return responderPedidoEntrega(pedido, res);
+}
+function responderPedidoEntrega(pedido, res) {
+  return res.status(201).json({ mensagem: 'Pedido realizado. O pagamento será feito na entrega.', tipo_pagamento: 'entrega', pedido: { ...pedido, pagamento: 'entrega' } });
+}
 async function responderCheckout(pedido, res, provedorSolicitado, pagamentosAtivos) {
   if (pedido.pago_em || pedido.status === 'cancelado') return res.status(409).json({ erro: 'Este pedido já foi pago ou cancelado. Confira seus pedidos.' });
   // Não cria checkout para uma gravação incompleta ou ainda em andamento.
@@ -191,9 +214,10 @@ rota('get', '/api/pedidos', autenticar, soAdmin, async (req, res) => {
   let consulta = supabase.from('pedidos').select('*, itens_pedido(*, products(nome)), profiles(nome,telefone)');
   if (dia !== undefined) {
     if (typeof dia !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dia) || Number.isNaN(Date.parse(dia)) || new Date(dia).toISOString().slice(0, 10) !== dia) return res.status(400).json({ erro: 'Selecione uma data válida.' });
-    // Turno local: 18h inclusivo até meia-noite exclusiva, em UTC-3.
-    const inicio = new Date(`${dia}T18:00:00-03:00`);
-    const fim = new Date(inicio.getTime() + 6 * 60 * 60 * 1000);
+    // Exibe todos os pedidos do dia local selecionado. O painel não pode
+    // esconder compras feitas fora do antigo turno fixo de 18h à meia-noite.
+    const inicio = new Date(`${dia}T00:00:00-03:00`);
+    const fim = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
     consulta = consulta.gte('data_criacao', inicio.toISOString()).lt('data_criacao', fim.toISOString());
   }
   if (status) consulta = consulta.eq('status', status);

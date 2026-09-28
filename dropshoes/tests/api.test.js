@@ -76,6 +76,24 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal((await req('/api/pedidos', 'POST', pedido, token)).body.pedido.id, id);
   assert.equal(chamadasCheckout, 1);
   assert.equal(db.tabelas.pedidos.length, 1);
+  const pedidoEntrega = { ...pedido, pagamento: 'entrega', checkout_chave: '00000000-0000-4000-8000-000000000002' };
+  const entregaCriada = await req('/api/pedidos', 'POST', pedidoEntrega, token);
+  assert.equal(entregaCriada.status, 201);
+  assert.equal(entregaCriada.body.pedido.pagamento, 'entrega');
+  assert.equal(entregaCriada.body.pedido.pagamento_status, 'pending');
+  assert.equal(entregaCriada.body.payment_url, undefined);
+  assert.equal(chamadasCheckout, 1);
+  assert.equal((await req(`/api/pedidos/${entregaCriada.body.pedido.id}/status`, 'PATCH', { status: 'aceito' }, admin1)).status, 200);
+  // Mesmo com uma RPC antiga que devolve "site", a escolha de entrega não
+  // pode abrir checkout nem fazer o carrinho procurar uma payment_url.
+  db.rpcPagamentoLegado = true;
+  const entregaLegada = await req('/api/pedidos', 'POST', { ...pedidoEntrega, checkout_chave: '00000000-0000-4000-8000-000000000003' }, token);
+  assert.equal(entregaLegada.status, 201);
+  assert.equal(entregaLegada.body.tipo_pagamento, 'entrega');
+  assert.equal(entregaLegada.body.pedido.pagamento, 'entrega');
+  assert.equal(db.tabelas.pedidos.find(p => p.id === entregaLegada.body.pedido.id).pagamento, 'entrega');
+  assert.equal(chamadasCheckout, 1);
+  db.rpcPagamentoLegado = false;
   assert.equal((await req('/api/pedidos', 'POST', { ...pedido, pagamento: 'whatsapp' }, token)).status, 400);
   assert.equal((await req(`/api/pedidos/${id}/status`, 'PATCH', { status: 'aceito' }, admin1)).status, 409);
   db.tabelas.pedidos.find(p => p.id === id).pagamento_status = 'approved';
@@ -87,7 +105,7 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal((await req(`/api/pedidos/${id}/confirmar-recebimento`, 'POST', {}, token)).status, 409);
   db.concorrer = false;
   assert.equal((await req(`/api/pedidos/${id}/confirmar-recebimento`, 'POST', {}, token)).status, 200);
-  assert.equal((await req('/api/meus-pedidos', 'GET', undefined, token)).body.length, 1);
+  assert.equal((await req('/api/meus-pedidos', 'GET', undefined, token)).body.length, 3);
   db.falhar = 'products';
   const falha = await req('/api/produtos', 'GET', undefined, token);
   assert.equal(falha.status, 500); assert.doesNotMatch(JSON.stringify(falha.body), /interna simulada/);

@@ -53,12 +53,12 @@ test('sessão administrativa anterior não redireciona compra sem entrar para lo
   assert.ok(r.valores.get('carrinho'));
 });
 
-test('cliente autenticado permanece na loja e sair retorna ao catálogo', async () => {
+test('cliente autenticado permanece na loja e sair retorna ao login de cliente', async () => {
   const r = await navegar({ status: 200, perfil: { role: 'cliente', nome: 'Cliente' } });
   assert.equal(r.resultado.role, 'cliente');
   assert.equal(r.redirecionamentos.length, 0);
   await r.eventos.click({ preventDefault() {} });
-  assert.deepEqual(r.redirecionamentos, ['../tela cliente/Produtos.html']);
+  assert.deepEqual(r.redirecionamentos, ['../tela de login/login cliente.html']);
 });
 
 test('falha de sessão ou logout não redireciona visitante; administração continua protegida', async () => {

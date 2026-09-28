@@ -36,6 +36,8 @@ function linhaPedido(pedido) {
       };
       situacao.append(pagar);
     }
+  } else if (pedido.pagamento === 'entrega') {
+    const pagamento = document.createElement('small'); pagamento.textContent = 'Pagamento na entrega — será cobrado quando receber o pedido.'; situacao.append(pagamento);
   }
   if (pedido.status === 'pronto_entrega') { const botao = document.createElement('button'); botao.className = 'btn btn-recebido'; botao.textContent = 'Confirmar que recebi'; botao.onclick = () => confirmarRecebimento(pedido.id); situacao.append(botao); }
   const total = document.createElement('td'); total.textContent = dinheiro(pedido.valor); linha.append(id, data, situacao, total); return linha;

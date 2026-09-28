@@ -9,13 +9,15 @@ function bancoSimulado() {
   };
   let contador = 0;
   const db = {
-    tabelas, falhar: null, concorrer: false,
+    tabelas, falhar: null, concorrer: false, rpcPagamentoLegado: false,
     async rpc(nome, { p_pedido, p_itens }) {
       if (nome !== 'criar_pedido_com_itens') throw new Error('RPC desconhecida');
       if (db.falhar === 'pedidos' || db.falhar === 'itens_pedido') return { data: null, error: { code: 'simulado' } };
       const anterior = tabelas.pedidos.find(p => p.checkout_chave === p_pedido.checkout_chave);
       if (anterior) return { data: anterior, error: null };
-      const pedido = { id: `novo-${++contador}`, data_criacao: new Date().toISOString(), ...p_pedido };
+      // Simula a versão antiga da função instalada no Supabase, que ignorava
+      // pagamento: "entrega" e persistia "site".
+      const pedido = { id: `novo-${++contador}`, data_criacao: new Date().toISOString(), ...p_pedido, ...(db.rpcPagamentoLegado ? { pagamento: 'site' } : {}) };
       tabelas.pedidos.push(pedido);
       tabelas.itens_pedido.push(...p_itens.map(item => ({ id: `novo-${++contador}`, ...item, pedido_id: pedido.id })));
       return { data: { ...pedido }, error: null };

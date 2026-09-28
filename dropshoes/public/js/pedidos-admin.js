@@ -13,7 +13,14 @@ const STATUS = {
   recebido: { texto: 'Recebido pelo cliente', detalhe: 'Pedido concluído.' },
   cancelado: { texto: 'Cancelado', detalhe: 'Pedido cancelado.' }
 };
+const STATUS_PAGAMENTO = { pending: 'Pagamento pendente', approved: 'Pagamento aprovado', in_process: 'Pagamento em processamento', authorized: 'Pagamento autorizado', rejected: 'Pagamento recusado', cancelled: 'Pagamento cancelado', refunded: 'Pagamento reembolsado', charged_back: 'Pagamento estornado' };
 const esc = valor => String(valor ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
+function descricaoPagamento(pedido) {
+  if (pedido.pagamento === 'entrega') return { classe: 'pagamento-entrega', texto: 'Pagamento na entrega — pendente de recebimento' };
+  const pix = pedido.pagamento_provedor === 'mercadopago_pix';
+  const provedor = pix ? 'Pix — Mercado Pago' : pedido.pagamento_provedor === 'infinitepay' || String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Pagamento online';
+  return { classe: pix ? 'pagamento-pix' : 'pagamento-infinitepay', texto: `${STATUS_PAGAMENTO[pedido.pagamento_status] || `Status do pagamento: ${pedido.pagamento_status || 'indisponível'}`} — ${provedor}` };
+}
 function mostrarErro(erro) {
   let aviso = document.getElementById('erro-pedidos');
   if (!aviso) { aviso = document.createElement('p'); aviso.id = 'erro-pedidos'; aviso.setAttribute('role', 'alert'); document.getElementById('lista-pedidos')?.before(aviso); }
@@ -38,11 +45,11 @@ async function carregar() {
   const area = document.getElementById('lista-pedidos'); area.innerHTML = pedidos.length ? '' : '<p>Nenhum pedido encontrado entre 18h e meia-noite para os filtros selecionados.</p>';
   pedidos.forEach(pedido => {
     const situacao = STATUS[pedido.status] || STATUS.pendente; const itens = (pedido.itens_pedido || []).map(item => `${item.quantidade}x ${item.products?.nome || 'Item'}`).join(', '); const card = document.createElement('article');
-    card.className = `pedido-card status-${pedido.status}`;
+    const pagamentoInfo = descricaoPagamento(pedido);
+    card.className = `pedido-card status-${pedido.status} ${pagamentoInfo.classe}`;
     card.innerHTML = `<div class="pedido-cabecalho"><h2>Pedido N${esc(pedido.id)}</h2><span class="status-pedido status-${esc(pedido.status)}">${situacao.texto}</span></div><p class="status-detalhe">${situacao.detalhe}</p><p><strong>Cliente:</strong> ${esc(pedido.cliente_nome || pedido.profiles?.nome || 'Cliente')}</p><p><strong>Telefone:</strong> ${esc(pedido.cliente_telefone || pedido.profiles?.telefone || 'Não informado')}</p><p><strong>Horário:</strong> ${esc(new Date(pedido.data_criacao).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }))}</p><p><strong>Entrega:</strong> ${esc(pedido.endereco)}, nº ${esc(pedido.numero_casa)} — ${esc(pedido.bairro)}, CEP ${esc(pedido.cep)}</p><p><strong>Itens:</strong> ${esc(itens)}</p><p><strong>Total:</strong> ${dinheiro(pedido.valor)}</p><div class="pedido-acoes"></div>`;
     if (pedido.observacao_geral) { const obs = document.createElement('p'); obs.textContent = `Observação: ${pedido.observacao_geral}`; card.append(obs); }
-    const provedor = String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Pagamento online';
-    const pagamento = document.createElement('p'); pagamento.textContent = pedido.pagamento === 'site' ? (pedido.pagamento_status === 'approved' ? `Pagamento aprovado — ${provedor}` : `Pagamento: ${pedido.pagamento_status || 'pendente'} — ${provedor}`) : 'Pedido anterior à integração'; card.append(pagamento);
+    const pagamento = document.createElement('p'); pagamento.className = 'detalhe-pagamento'; pagamento.textContent = pagamentoInfo.texto; card.append(pagamento);
     const acoes = card.querySelector('.pedido-acoes');
     if (situacao.proximo && (pedido.pagamento !== 'site' || pedido.pagamento_status === 'approved')) { const botao = document.createElement('button'); botao.className = 'btn btn-primary'; botao.textContent = situacao.acao; botao.onclick = () => atualizarStatus(pedido.id, situacao.proximo); acoes.append(botao); }
     if (['pendente', 'aceito', 'em_preparo'].includes(pedido.status)) { const cancelar = document.createElement('button'); cancelar.className = 'btn btn-cancelar'; cancelar.textContent = 'Cancelar pedido'; cancelar.onclick = () => atualizarStatus(pedido.id, 'cancelado'); acoes.append(cancelar); }
@@ -66,10 +73,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const valor = tipo => partes.find(p => p.type === tipo).value;
     return `${valor('year')}-${valor('month')}-${valor('day')}`;
   };
-  const definirHoje = () => { document.getElementById('data-pedidos').value = hoje(); };
-  definirHoje();
+  const campoData = document.getElementById('data-pedidos');
+  campoData.value = hoje();
   if (!(await sessaoPronta)) return;
-  const atualizar = () => { definirHoje(); return carregar().catch(mostrarErro); };
+  const atualizar = () => carregar().catch(mostrarErro);
   document.getElementById('filtros-pedidos').addEventListener('submit', event => { event.preventDefault(); if (carregando || alterando) return; pagina = 0; atualizar(); });
   document.getElementById('pagina-anterior').addEventListener('click', () => { if (carregando || alterando) return; pagina = Math.max(0, pagina - 1); atualizar(); });
   document.getElementById('pagina-proxima').addEventListener('click', () => { if (carregando || alterando) return; pagina++; atualizar(); });

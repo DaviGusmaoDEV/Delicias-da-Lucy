@@ -90,6 +90,7 @@ export async function finalizarCompra() {
   const cliente_nome = document.getElementById('cliente-nome')?.value.trim() || '';
   const cliente_telefone = document.getElementById('cliente-telefone')?.value.trim() || '';
   const provedor_pagamento = document.querySelector('input[name="provedor-pagamento"]:checked')?.value || 'infinitepay';
+  const pagamento = provedor_pagamento === 'entrega' ? 'entrega' : 'site';
   if (cliente_nome.length < 2 || !/^(?:55)?\d{10,11}$/.test(cliente_telefone.replace(/[\s()+-]/g, ''))) return Swal.fire({ icon: 'info', text: 'Preencha nome e telefone com DDD.' });
   const enderecoInicial = camposEntrega();
   if (!enderecoInicial.numero_casa || !enderecoInicial.cep) return Swal.fire({ icon: 'info', title: 'Complete o endereço', text: 'Informe o número da casa e o CEP para calcular a entrega.' });
@@ -99,7 +100,7 @@ export async function finalizarCompra() {
     const entrega = camposEntrega();
     if (Object.values(entrega).some(valor => !valor)) throw new Error('Confira rua, número, bairro e CEP para calcular a entrega.');
     // Visitantes compram sem conta: o próprio POST do pedido cria uma sessão técnica HttpOnly.
-    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, cliente_nome, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento: 'site', itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
+    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, cliente_nome, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
     const resumo = new TextEncoder().encode(JSON.stringify(corpo));
     const assinatura = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', resumo)), b => b.toString(16).padStart(2, '0')).join('');
     let tentativa;
@@ -109,7 +110,10 @@ export async function finalizarCompra() {
     const dados = await enviar('/api/pedidos', 'POST', { ...corpo, checkout_chave: tentativa.chave });
     if (dados.pedido?.taxa_entrega != null) { valorFreteAtual = Number(dados.pedido.taxa_entrega); atualizarResumo(); }
     limparCarrinho(); sessionStorage.removeItem('checkoutAtual');
-    if (dados.pagamento?.provider === 'mercadopago_pix') {
+    if (dados.tipo_pagamento === 'entrega' || dados.pedido?.pagamento === 'entrega') {
+      await Swal.fire({ icon: 'success', title: 'Pedido realizado!', text: 'O pagamento será feito na entrega.' });
+      window.location.assign('../tela cliente/meu perfil cliente.html');
+    } else if (dados.pagamento?.provider === 'mercadopago_pix') {
       sessionStorage.setItem('pagamentoPix', JSON.stringify({ pedido_id: dados.pedido.id, valor: dados.pedido.valor, pagamento: dados.pagamento }));
       window.location.assign(`../tela cliente/pagamento pix.html?pedido=${encodeURIComponent(dados.pedido.id)}`);
     } else {
@@ -155,7 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const atualizarTextoPagamento = () => {
     const provedor = document.querySelector('input[name="provedor-pagamento"]:checked')?.value;
     const botaoPagamento = document.getElementById('btn-finalizar-pedido');
-    if (botaoPagamento) botaoPagamento.textContent = provedor === 'infinitepay' ? 'Continuar para InfinitePay' : 'Pagamento via pix';
+    if (botaoPagamento) botaoPagamento.textContent = provedor === 'entrega' ? 'Realizar pedido' : provedor === 'infinitepay' ? 'Continuar para InfinitePay' : 'Pagamento via pix';
   };
   document.querySelectorAll('input[name="provedor-pagamento"]').forEach(opcao => opcao.addEventListener('change', atualizarTextoPagamento));
   atualizarTextoPagamento();

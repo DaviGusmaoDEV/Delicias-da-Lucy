@@ -109,7 +109,7 @@ test('produção recusa segredo curto, origem insegura e proxy inválido', () =>
   assert.doesNotThrow(() => validarProducao(segredo, env));
 });
 
-test('pedidos da noite: janela 18h–24h, filtros, paginação e acesso administrativo', async t => {
+test('pedidos administrativos: dia inteiro, filtros, paginação e acesso administrativo', async t => {
   const { req, db } = await ambiente(t);
   const token = jwt.sign({ id: 'admin2', role: 'admin2' }, segredo);
   const headers = { Authorization: `Bearer ${token}` };
@@ -121,11 +121,11 @@ test('pedidos da noite: janela 18h–24h, filtros, paginação e acesso administ
   );
   assert.equal((await req('/api/pedidos?data=2026-09-24')).status, 401);
   const consultar = filtro => req('/api/pedidos?data=2026-09-24' + filtro, 'GET', undefined, headers);
-  assert.deepEqual((await (await consultar('')).json()).pedidos.map(p => p.id), ['fim', 'inicio']);
-  assert.deepEqual((await (await consultar('&status=pendente')).json()).pedidos.map(p => p.id), ['inicio']);
+  assert.deepEqual((await (await consultar('')).json()).pedidos.map(p => p.id), ['fim', 'inicio', 'antes']);
+  assert.deepEqual((await (await consultar('&status=pendente')).json()).pedidos.map(p => p.id), ['inicio', 'antes']);
   for (const filtro of ['&status=inventado', '&pagina=-1', '&data=2026-09-25']) assert.equal((await consultar(filtro)).status, 400);
   assert.equal((await req('/api/pedidos?data=2026-02-30', 'GET', undefined, headers)).status, 400);
   for(let i=0;i<50;i++) db.tabelas.pedidos.push({id:`extra-${i}`,data_criacao:'2026-09-24T22:00:00.000Z',status:'em_preparo'});
   const primeira = await (await consultar('')).json(); assert.equal(primeira.pedidos.length,50); assert.equal(primeira.temMais,true);
-  const segunda = await (await consultar('&pagina=1')).json(); assert.equal(segunda.pedidos.length,2); assert.equal(segunda.temMais,false);
+  const segunda = await (await consultar('&pagina=1')).json(); assert.equal(segunda.pedidos.length,3); assert.equal(segunda.temMais,false);
 });

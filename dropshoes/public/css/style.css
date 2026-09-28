@@ -68,9 +68,9 @@ button, .btn, .nav-item { min-height: 44px; }
 .grid-entrega { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
 .frete-calculo-container, .pagamento-container { border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; }
 .frete-calculo-container label, .pagamento-container label { display: block; font-weight: 700; margin: 8px 0; }
-.opcao-pagamento { display: grid !important; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: start; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer; }
-.opcao-pagamento input { grid-row: span 2; margin-top: 3px; }
-.opcao-pagamento small { grid-column: 2; font-weight: 400; color: #666; }
+.opcao-pagamento-pix .opcao-pagamento-inf { display: grid !important; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: start; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer; }
+.opcao-pagamento-pix .opcao-pagamento-inf input { grid-row: span 2; margin-top: 3px; }
+.opcao-pagamento-pix .opcao-pagamento-inf small { grid-column: 2; font-weight: 400; color: #666; }
 .pedido-card { background: var(--card-bg); border: 1px solid var(--border-color); border-left: 6px solid var(--primary); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin-bottom: 18px; font-size: 16px; }
 .pedido-card p { margin: 8px 0; }
 .pedido-card select { padding: 8px; margin: 0 12px 0 6px; }
@@ -89,6 +89,13 @@ button, .btn, .nav-item { min-height: 44px; }
 .pedido-card.status-em_preparo { border-left-color: #fb923c; }
 .pedido-card.status-pronto_entrega { border-left-color: #a78bfa; }
 .pedido-card.status-recebido { border-left-color: #22c55e; }
+.detalhe-pagamento { font-weight: 700; }
+.pedido-card.pagamento-pix { border-left-color: #ca8a04; background: #fef9c3; }
+.pedido-card.pagamento-infinitepay { border-left-color: #f97316; background: #ffedd5; }
+.pedido-card.pagamento-entrega { border-left-color: #a855f7; background: #f3e8ff; }
+.pedido-card.pagamento-pix .detalhe-pagamento { color: #854d0e; }
+.pedido-card.pagamento-infinitepay .detalhe-pagamento { color: #9a3412; }
+.pedido-card.pagamento-entrega .detalhe-pagamento { color: #6b21a8; }
 .btn-recebido { background: #15803d; color: #fff; margin-top: 10px; }
 @media (max-width: 680px) { .grid-entrega { grid-template-columns: 1fr; } .frete-container-inline { flex-direction: column; } }
 
@@ -1179,8 +1186,32 @@ dialog .form-control {
 .pagina-carrinho .frete-container-inline { display: flex; align-items: end; gap: 12px; }
 .pagina-carrinho .frete-container-inline .form-control { min-width: 0; }
 .pagina-carrinho .btn-calcular { min-height: 46px; margin-top: 0; white-space: nowrap; }
-.pagina-carrinho .opcao-pagamento { min-height: 74px; margin: 10px 0; }
-.pagina-carrinho .opcao-pagamento:has(input:checked) { border-color: var(--primary); background: #fff8e8; }
+.pagina-carrinho .opcao-pagamento-pix,
+.pagina-carrinho .opcao-pagamento-inf,
+.pagina-carrinho .opcao-pagamento-retirada {
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    gap: 4px 8px;
+    align-items: start;
+    min-height: 74px;
+    margin: 10px 0;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.pagina-carrinho .opcao-pagamento-pix input,
+.pagina-carrinho .opcao-pagamento-inf input,
+.pagina-carrinho .opcao-pagamento-retirada input { grid-row: span 2; margin-top: 3px; }
+.pagina-carrinho .opcao-pagamento-pix small,
+.pagina-carrinho .opcao-pagamento-inf small,
+.pagina-carrinho .opcao-pagamento-retirada small { grid-column: 2; font-weight: 400; color: #666; }
+.pagina-carrinho .opcao-pagamento-pix { border-color: #fde68a; background: #fffbeb; }
+.pagina-carrinho .opcao-pagamento-inf { border-color: #fed7aa; background: #fff7ed; }
+.pagina-carrinho .opcao-pagamento-retirada { border-color: #e9d5ff; background: #faf5ff; }
+.pagina-carrinho .opcao-pagamento-pix:has(input:checked) { border-color: #ca8a04; background: #fef3c7; }
+.pagina-carrinho .opcao-pagamento-inf:has(input:checked) { border-color: #f97316; background: #ffedd5; }
+.pagina-carrinho .opcao-pagamento-retirada:has(input:checked) { border-color: #a855f7; background: #f3e8ff; }
 .pagina-carrinho .resumo-carrinho { padding-top: 4px; }
 .pagina-carrinho .resumo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 5px 0; }
 .pagina-carrinho .resumo-linha strong { white-space: nowrap; }

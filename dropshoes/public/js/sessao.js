@@ -1,11 +1,10 @@
 import { api, encerrarSessao } from './api.js';
 const administracao = document.body.dataset.acesso === 'admin';
-const catalogo = '../tela cliente/Produtos.html';
+const entradaCliente = '../tela de login/login cliente.html';
 const entradaAdmin = '../tela de login/login.html';
 function visitante() {
   localStorage.setItem('role', 'visitante');
   localStorage.removeItem('nomeUsuario');
-  document.querySelectorAll('[data-sair]').forEach(link => { link.hidden = true; });
   return { role: 'visitante', visitanteNovo: true };
 }
 async function limparCookies() {
@@ -15,7 +14,7 @@ async function limparCookies() {
 document.querySelectorAll('[data-sair]').forEach(link => link.addEventListener('click', async event => {
   event.preventDefault();
   await encerrarSessao();
-  window.location.assign(administracao ? entradaAdmin : catalogo);
+  window.location.assign(administracao ? entradaAdmin : entradaCliente);
 }));
 export const sessaoPronta = (async () => {
   localStorage.removeItem('token');

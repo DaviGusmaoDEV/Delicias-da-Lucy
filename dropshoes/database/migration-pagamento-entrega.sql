@@ -1,40 +1,7 @@
--- Executar após as migrações existentes de pedidos/pagamentos.
+-- Migração aditiva: permite pedidos com pagamento na entrega sem checkout online.
+-- Execute uma vez no Supabase após as migrações de pedidos e visitantes.
 begin;
-create table if not exists public.clientes_visitantes (
-  id uuid primary key default gen_random_uuid(),
-  nome varchar(100) not null check (length(btrim(nome)) between 2 and 100),
-  telefone varchar(13) not null check (telefone ~ '^[0-9]{10,13}$'),
-  cep varchar(8) not null check (cep ~ '^[0-9]{8}$'),
-  criado_em timestamptz not null default now()
-);
-alter table public.pedidos alter column usuario_id drop not null;
-alter table public.pedidos add column if not exists visitante_id uuid references public.clientes_visitantes(id);
-alter table public.pedidos add column if not exists cliente_nome varchar(100);
-alter table public.pedidos add column if not exists cliente_telefone varchar(13);
-alter table public.pedidos add column if not exists cliente_email text;
-create index if not exists pedidos_visitante_idx on public.pedidos(visitante_id);
-do $$ begin
-  if not exists(select 1 from pg_constraint where conname='pedidos_um_comprador' and conrelid='public.pedidos'::regclass) then
-    alter table public.pedidos add constraint pedidos_um_comprador check(num_nonnulls(usuario_id,visitante_id)=1) not valid;
-  end if;
-end $$;
--- Dados privados acessíveis somente pelo backend, que verifica a sessão e o cargo.
-do $$
-declare tabela text; sequencia text;
-begin
-  foreach tabela in array array['profiles','clientes_visitantes','products','pedidos','itens_pedido','fluxo_caixa'] loop
-    execute format('alter table public.%I enable row level security',tabela);
-    execute format('revoke all privileges on table public.%I from public,anon,authenticated',tabela);
-    execute format('grant select,insert,update,delete on table public.%I to service_role',tabela);
-    sequencia := pg_get_serial_sequence(format('public.%I',tabela),'id');
-    if sequencia is not null then
-      execute format('revoke all privileges on sequence %s from public,anon,authenticated',sequencia);
-      execute format('grant usage,select on sequence %s to service_role',sequencia);
-    end if;
-  end loop;
-end $$;
--- Pedido e itens são gravados juntos: qualquer falha desfaz a operação inteira.
--- Somente o backend pode chamar esta função; preço e comprador vêm da API validada.
+
 create or replace function public.criar_pedido_com_itens(p_pedido jsonb, p_itens jsonb)
 returns jsonb
 language plpgsql
@@ -89,6 +56,7 @@ begin
   return to_jsonb(novo);
 end;
 $$;
+
 revoke all privileges on function public.criar_pedido_com_itens(jsonb,jsonb) from public,anon,authenticated;
 grant execute on function public.criar_pedido_com_itens(jsonb,jsonb) to service_role;
 notify pgrst, 'reload schema';

@@ -1,7 +1,12 @@
 export async function encerrarSessao() {
-  await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-  sessionStorage.removeItem('checkoutAtual');
-  for (const chave of ['token', 'role', 'nomeUsuario', 'carrinho']) localStorage.removeItem(chave);
+  try {
+    // O cookie HttpOnly é invalidado pelo servidor quando a rede estiver disponível.
+    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+  } finally {
+    // Permite entrar em outra conta mesmo se a conexão cair durante a saída.
+    sessionStorage.removeItem('checkoutAtual');
+    for (const chave of ['token', 'role', 'nomeUsuario', 'carrinho']) localStorage.removeItem(chave);
+  }
 }
 
 export async function api(url, opcoes = {}) {
