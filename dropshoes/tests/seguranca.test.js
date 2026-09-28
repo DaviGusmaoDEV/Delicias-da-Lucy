@@ -5,9 +5,10 @@ const jwt = require('jsonwebtoken');
 const { criarApp } = require('../server');
 const { bancoSimulado } = require('./banco-simulado');
 const segredo = 'segredo-longo-exclusivo-dos-testes-seguranca';
-async function ambiente(t) {
+async function ambiente(t, pagamentosTeste) {
   const db = bancoSimulado();
-  const server = criarApp({ db, secret: segredo, entrega: async () => ({ taxa: 1.5 }), pagamentos: { disponivel: true, checkout: async () => 'https://www.mercadopago.com.br/checkout/teste', notificar: (_req,res) => res.sendStatus(401) } }).listen(0,'127.0.0.1');
+  const pagamentos = pagamentosTeste || { disponivel: true, checkout: async () => 'https://www.mercadopago.com.br/checkout/teste', notificar: (_req,res) => res.sendStatus(401) };
+  const server = criarApp({ db, secret: segredo, entrega: async () => ({ taxa: 1.5 }), pagamentos }).listen(0,'127.0.0.1');
   await once(server,'listening'); t.after(() => new Promise(r => server.close(r)));
   const base = `http://127.0.0.1:${server.address().port}`;
   const req = (url, method='GET', body, headers={}) => fetch(base+url, { method, headers: { ...(body === undefined ? {} : {'Content-Type':'application/json'}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -55,7 +56,8 @@ test('compra sem conta: telefone repetido não permite acessar nem pagar pedido 
 });
 
 test('primeiro pedido cria somente sessão técnica de visitante, sem cadastro nem e-mail', async t => {
-  const { req, db } = await ambiente(t);
+  const pix = { disponivel: true, checkout: async () => ({ provider: 'mercadopago_pix', qr_code: 'pix-copia-e-cola', qr_code_base64: 'cXItY29kZQ==', payment_id: 'PAY-TESTE', order_id: 'ORDER-TESTE', status: 'pending' }), notificar: (_req, res) => res.sendStatus(401) };
+  const { req, db } = await ambiente(t, pix);
   const pedido = {
     cliente_nome: contato.nome,
     cliente_telefone: contato.telefone,
@@ -64,7 +66,7 @@ test('primeiro pedido cria somente sessão técnica de visitante, sem cadastro n
     bairro: 'Ipiranga',
     numero_casa: '12',
     pagamento: 'site',
-    provedor_pagamento: 'infinitepay',
+    provedor_pagamento: 'mercadopago_pix',
     checkout_chave: '00000000-0000-4000-8000-000000000099',
     itens: [{ produto_id: 'p1', quantidade: 1 }]
   };
@@ -73,10 +75,12 @@ test('primeiro pedido cria somente sessão técnica de visitante, sem cadastro n
   const sessao = cookie(resposta);
   assert.match(resposta.headers.get('set-cookie'), /HttpOnly/);
   const criado = (await resposta.json()).pedido;
-  assert.equal(criado.usuario_id, null);
-  assert.ok(criado.visitante_id);
+  assert.ok(db.tabelas.pedidos[0].visitante_id);
+  assert.equal(db.tabelas.pedidos[0].usuario_id, null);
+  assert.equal(criado.pagamento_provedor, 'mercadopago_pix');
   assert.equal(db.tabelas.clientes_visitantes.length, 1);
   assert.equal(db.tabelas.clientes_visitantes[0].email, undefined);
+  assert.equal(db.tabelas.pedidos[0].cliente_email, null);
   const meusPedidos = await req('/api/meus-pedidos', 'GET', undefined, { Cookie: sessao });
   assert.equal(meusPedidos.status, 200);
   assert.equal((await meusPedidos.json()).length, 1);

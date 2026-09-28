@@ -114,7 +114,6 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
   if ([endereco, numero_casa, bairro, cep].some(campo => typeof campo !== 'string' || !campo.trim() || campo.length > 250) || (observacao_geral != null && typeof observacao_geral !== 'string')) return res.status(400).json({ erro: 'Preencha rua, número, bairro e CEP para a entrega.' });
   if (pagamento !== 'site') return res.status(400).json({ erro: 'Forma de pagamento inválida.' });
   if (!pagamentosAtivos?.disponivel) return res.status(503).json({ erro: 'Pagamento online indisponível. Tente novamente mais tarde.' });
-  if (provedorSolicitado === 'mercadopago_pix' && emailPedido && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailPedido)) return res.status(400).json({ erro: 'Informe um e-mail válido para gerar o Pix.' });
   if (typeof checkout_chave !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkout_chave)) return res.status(400).json({ erro: 'Atualize o carrinho e tente novamente.' });
   const { data: existente, error: buscaErro } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('checkout_chave', checkout_chave), req.user).maybeSingle();
   if (buscaErro) return res.status(503).json({ erro: 'Não foi possível consultar seu pedido.' });

@@ -22,7 +22,16 @@ function linhaPedido(pedido) {
       const pagar = document.createElement('button'); pagar.className = 'btn btn-primary'; pagar.textContent = 'Continuar pagamento';
       pagar.onclick = async () => {
         pagar.disabled = true;
-        try { const dados = await api(`/api/pedidos/${encodeURIComponent(pedido.id)}/pagar`, { method: 'POST' }); window.location.assign(dados.payment_url); }
+        try {
+          const dados = await api(`/api/pedidos/${encodeURIComponent(pedido.id)}/pagar`, { method: 'POST' });
+          if (dados.pagamento?.provider === 'mercadopago_pix') {
+            sessionStorage.setItem('pagamentoPix', JSON.stringify({ pedido_id: dados.pedido.id, valor: dados.pedido.valor, pagamento: dados.pagamento }));
+            window.location.assign(`../tela cliente/pagamento pix.html?pedido=${encodeURIComponent(dados.pedido.id)}`);
+            return;
+          }
+          if (!dados.payment_url?.startsWith('https://')) throw new Error('Não foi possível abrir o pagamento. Tente novamente.');
+          window.location.assign(dados.payment_url);
+        }
         catch (erro) { mostrarErro(erro); pagar.disabled = false; }
       };
       situacao.append(pagar);

@@ -87,8 +87,6 @@ export async function calcularFrete() {
 export async function finalizarCompra() {
   if (finalizando) return;
   if (!carrinho.length) return Swal.fire({ icon: 'info', title: 'Carrinho vazio', text: 'Escolha os produtos antes de continuar.' });
-  const perfil = await sessaoPronta;
-  if (!perfil) return Swal.fire({ icon: 'error', text: 'Não foi possível verificar sua sessão. Atualize a página e tente novamente.' });
   const cliente_nome = document.getElementById('cliente-nome')?.value.trim() || '';
   const cliente_telefone = document.getElementById('cliente-telefone')?.value.trim() || '';
   const provedor_pagamento = document.querySelector('input[name="provedor-pagamento"]:checked')?.value || 'infinitepay';
