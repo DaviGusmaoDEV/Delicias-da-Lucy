@@ -17,17 +17,20 @@ function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STOR
   async function json(url, opcoes = {}) {
     try {
       const resposta = await consultar(url, { signal: AbortSignal.timeout(8000), ...opcoes });
-      if (!resposta.ok) throw new Error();
+      if (!resposta.ok) {
+        if (url.includes('brasilapi.com.br/api/cep/') && resposta.status === 404) throw new Error('CEP inválido ou não encontrado. Confira os números.');
+        throw new Error();
+      }
       return await resposta.json();
     } catch { throw new Error('Não foi possível calcular a entrega. Tente novamente.'); }
   }
   async function consultarEndereco(cep) {
     const numero = String(cep || '').replace(/\D/g, '');
-    if (!/^\d{8}$/.test(numero)) throw new Error('Informe um CEP com 8 números.');
+    if (!/^\d{8}$/.test(numero)) throw new Error('CEP inválido. Informe 8 números.');
     const salvo = enderecos.get(numero);
     if (salvo && salvo.ate > Date.now()) return salvo.dados;
     const endereco = await json(`https://brasilapi.com.br/api/cep/v2/${numero}`);
-    if (endereco.errors || !endereco.city) throw new Error('CEP não encontrado. Confira os números.');
+    if (endereco.errors || !endereco.city) throw new Error('CEP inválido ou não encontrado. Confira os números.');
     if (endereco.city !== cidade || endereco.state !== uf) throw new Error(`No momento entregamos apenas em ${cidade} / ${uf}.`);
     const dados = { cep: numero, cidade: endereco.city, uf: endereco.state, endereco: endereco.street || '', bairro: endereco.neighborhood || '' };
     if (enderecos.size >= 500) enderecos.delete(enderecos.keys().next().value);
@@ -36,7 +39,7 @@ function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STOR
   }
   const cotar = async (cep, enderecoInformado = {}) => {
     const numero = String(cep || '').replace(/\D/g, '');
-    if (!/^\d{8}$/.test(numero)) throw new Error('Informe um CEP com 8 números.');
+    if (!/^\d{8}$/.test(numero)) throw new Error('CEP inválido. Informe 8 números.');
     if (!origem || !coordenadas(...origem)) throw new Error('O ponto de saída da loja ainda não foi configurado.');
     const enderecoCliente = String(enderecoInformado.endereco || '').trim().slice(0, 250);
     const bairroCliente = String(enderecoInformado.bairro || '').trim().slice(0, 250);
