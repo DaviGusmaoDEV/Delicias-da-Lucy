@@ -73,7 +73,7 @@ function expiraEm(order, payment, agora) {
   return new Date(agora.getTime() + 24 * 60 * 60 * 1000).toISOString();
 }
 
-function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN, segredo = process.env.MERCADOPAGO_WEBHOOK_SECRET, fetcher = globalThis.fetch, agora = () => new Date() } = {}) {
+function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN, segredo = process.env.MERCADOPAGO_WEBHOOK_SECRET, payerEmail = process.env.MERCADOPAGO_PAYER_EMAIL, fetcher = globalThis.fetch, agora = () => new Date() } = {}) {
   // Sem o segredo do webhook não há confirmação confiável; portanto o Pix não
   // deve ser oferecido mesmo que o Access Token esteja configurado.
   const disponivel = Boolean(db && accessToken && segredo && typeof fetcher === 'function');
@@ -94,7 +94,7 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
     // A primeira tentativa é determinística por pedido: se a API responder e a
     // gravação local falhar, o retry usa a mesma chave e não cria outra Order.
     const idempotencyKey = expirado ? randomUUID() : (pedido.pagamento_idempotencia || `pedido-${pedido.id}-pix`);
-    const email = String(pedido.cliente_email || pedido.email || '').trim().toLowerCase();
+    const email = String(pedido.cliente_email || pedido.email || payerEmail || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe um e-mail válido para gerar o Pix.');
     const valor = Number(pedido.valor);
     if (!Number.isFinite(valor) || valor <= 0) throw new Error('Valor do pedido inválido.');

@@ -90,11 +90,9 @@ export async function finalizarCompra() {
   const perfil = await sessaoPronta;
   if (!perfil) return Swal.fire({ icon: 'error', text: 'Não foi possível verificar sua sessão. Atualize a página e tente novamente.' });
   const cliente_nome = document.getElementById('cliente-nome')?.value.trim() || '';
-  const cliente_email = document.getElementById('cliente-email')?.value.trim() || '';
   const cliente_telefone = document.getElementById('cliente-telefone')?.value.trim() || '';
   const provedor_pagamento = document.querySelector('input[name="provedor-pagamento"]:checked')?.value || 'infinitepay';
   if (cliente_nome.length < 2 || !/^(?:55)?\d{10,11}$/.test(cliente_telefone.replace(/[\s()+-]/g, ''))) return Swal.fire({ icon: 'info', text: 'Preencha nome e telefone com DDD.' });
-  if (provedor_pagamento === 'mercadopago_pix' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente_email)) return Swal.fire({ icon: 'info', text: 'Informe um e-mail válido para gerar o Pix.' });
   const enderecoInicial = camposEntrega();
   if (!enderecoInicial.numero_casa || !enderecoInicial.cep) return Swal.fire({ icon: 'info', title: 'Complete o endereço', text: 'Informe o número da casa e o CEP para calcular a entrega.' });
   const botao = document.querySelector('.btn-finalizar'); finalizando = true; if (botao) botao.disabled = true;
@@ -103,7 +101,7 @@ export async function finalizarCompra() {
     const entrega = camposEntrega();
     if (Object.values(entrega).some(valor => !valor)) throw new Error('Confira rua, número, bairro e CEP para calcular a entrega.');
     if (perfil?.role === 'visitante') await enviar('/api/cadastro-cliente', 'POST', { nome: cliente_nome, telefone: cliente_telefone, cep: entrega.cep });
-    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, cliente_nome, cliente_email, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento: 'site', itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
+    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, cliente_nome, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento: 'site', itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
     const resumo = new TextEncoder().encode(JSON.stringify(corpo));
     const assinatura = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', resumo)), b => b.toString(16).padStart(2, '0')).join('');
     let tentativa;
@@ -149,17 +147,20 @@ async function atualizarEntrega() { await preencherEnderecoPeloCep(); return cal
 window.calcularFrete = atualizarEntrega; window.finalizarCompra = finalizarCompra;
 document.addEventListener('DOMContentLoaded', async () => {
   const perfil = await sessaoPronta;
-  for (const [id, campo] of [['cliente-nome', 'nome'], ['cliente-email', 'email'], ['cliente-telefone', 'telefone'], ['cep', 'cep']]) {
+  for (const [id, campo] of [['cliente-nome', 'nome'], ['cliente-telefone', 'telefone'], ['cep', 'cep']]) {
     const input = document.getElementById(id); if (input && perfil?.[campo]) input.value = perfil[campo];
     if (input && perfil?.role === 'cliente' && ['cliente-nome', 'cliente-telefone'].includes(id)) input.readOnly = true;
   }
   renderizarCarrinho();
   document.getElementById('btn-calcular-frete')?.addEventListener('click', atualizarEntrega);
   document.getElementById('btn-finalizar-pedido')?.addEventListener('click', finalizarCompra);
-  document.getElementById('btn-pagamento-pix')?.addEventListener('click', () => {
-    const opcao = document.querySelector('input[name="provedor-pagamento"][value="mercadopago_pix"]');
-    if (opcao) { opcao.checked = true; opcao.dispatchEvent(new Event('change', { bubbles: true })); }
-  });
+  const atualizarTextoPagamento = () => {
+    const provedor = document.querySelector('input[name="provedor-pagamento"]:checked')?.value;
+    const botaoPagamento = document.getElementById('btn-finalizar-pedido');
+    if (botaoPagamento) botaoPagamento.textContent = provedor === 'infinitepay' ? 'Continuar para InfinitePay' : 'Pagamento via pix';
+  };
+  document.querySelectorAll('input[name="provedor-pagamento"]').forEach(opcao => opcao.addEventListener('change', atualizarTextoPagamento));
+  atualizarTextoPagamento();
   document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) atualizarEntrega(); });
   document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; cotacaoAnterior = null; cotacaoEmAndamento = null; consultaCepAnterior = ''; valorFreteAtual = 0; atualizarResumo(); document.getElementById('info-frete').textContent = 'Calcule a entrega para o novo CEP.'; });
 });

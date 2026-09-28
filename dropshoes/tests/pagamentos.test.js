@@ -43,6 +43,14 @@ test('Orders API cria Pix com valor do servidor e idempotência', async () => {
   assert.equal(dados.qr_code, '000201teste'); assert.equal(dados.status, 'pending');
 });
 
+test('visitante pode criar Pix sem informar e-mail usando o payer técnico do backend', async () => {
+  const db = bancoSimulado(); let corpo;
+  const fetcher = async (_url, options) => { corpo = JSON.parse(options.body); return { ok: true, status: 201, json: async () => ({ id: 'ORD-GUEST', status: 'action_required', transactions: { payments: [{ id: 'PAY-GUEST', amount: '20.00', payment_method: { id: 'pix', type: 'bank_transfer', qr_code: 'pix', qr_code_base64: 'base64' } }] } }) }; };
+  const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, payerEmail: 'pagamentos@example.test', fetcher });
+  await servico.checkout({ id: 'pedido-visitante', valor: 20 });
+  assert.equal(corpo.payer.email, 'pagamentos@example.test');
+});
+
 test('webhook Orders consulta a Order, valida valor e registra a confirmação', async () => {
   const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site', pagamento_provedor: 'mercadopago_pix' });
   const registros = []; db.rpc = async (nome, dados) => { registros.push({ nome, dados }); return { error: null }; };
