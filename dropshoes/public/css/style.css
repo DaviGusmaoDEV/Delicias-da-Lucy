@@ -71,6 +71,8 @@ button, .btn, .nav-item { min-height: 44px; }
 .opcao-pagamento { display: grid !important; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: start; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer; }
 .opcao-pagamento input { grid-row: span 2; margin-top: 3px; }
 .opcao-pagamento small { grid-column: 2; font-weight: 400; color: #666; }
+.btn-pagamento-pix { width: 100%; min-height: 48px; margin: 12px 0; border: 0; border-radius: var(--radius-sm); background: #168a55; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.btn-pagamento-pix:hover { background: #106b42; }
 .pedido-card { background: var(--card-bg); border: 1px solid var(--border-color); border-left: 6px solid var(--primary); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin-bottom: 18px; font-size: 16px; }
 .pedido-card p { margin: 8px 0; }
 .pedido-card select { padding: 8px; margin: 0 12px 0 6px; }

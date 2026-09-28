@@ -156,6 +156,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderizarCarrinho();
   document.getElementById('btn-calcular-frete')?.addEventListener('click', atualizarEntrega);
   document.getElementById('btn-finalizar-pedido')?.addEventListener('click', finalizarCompra);
+  document.getElementById('btn-pagamento-pix')?.addEventListener('click', () => {
+    const opcao = document.querySelector('input[name="provedor-pagamento"][value="mercadopago_pix"]');
+    if (opcao) { opcao.checked = true; opcao.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
   document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) atualizarEntrega(); });
   document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; cotacaoAnterior = null; cotacaoEmAndamento = null; consultaCepAnterior = ''; valorFreteAtual = 0; atualizarResumo(); document.getElementById('info-frete').textContent = 'Calcule a entrega para o novo CEP.'; });
 });
