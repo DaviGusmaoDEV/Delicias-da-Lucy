@@ -25,9 +25,12 @@ async function carregar() {
   const data = hoje();
   const tipo = el('dashboard-periodo')?.value || 'dia';
   const faixa = periodoSelecionado(data, tipo);
-  const [resultadoPedidos, caixa] = await Promise.all([api(`/api/pedidos?${new URLSearchParams({ data, pagina: '0' })}`), api('/api/fluxo-caixa')]);
+  const [resultadoPedidos, caixa] = await Promise.all([
+    api(`/api/pedidos?${new URLSearchParams({ data, pagina: '0' })}`),
+    api(`/api/fluxo-caixa?${new URLSearchParams({ inicio: faixa.inicio, fim: faixa.fim })}`)
+  ]);
   const pedidos = resultadoPedidos.pedidos || [];
-  const movimentos = caixa.filter(item => item.data >= faixa.inicio && item.data <= faixa.fim);
+  const movimentos = caixa;
   const entradas = movimentos.filter(item => item.tipo === 'receita').reduce((total, item) => total + Number(item.valor), 0);
   const saidas = movimentos.filter(item => item.tipo !== 'receita').reduce((total, item) => total + Number(item.valor), 0);
   el('dashboard-pedidos').textContent = pedidos.length;

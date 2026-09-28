@@ -1,9 +1,15 @@
 // Limite por processo. Em múltiplas instâncias, aplicar também no proxy compartilhado.
 function limitarAutenticacao({ maximo = 30, janela = 15 * 60 * 1000, agora = Date.now } = {}) {
   const tentativas = new Map();
+  let proximaLimpeza = 0;
   return (req, res, next) => {
     const instante = agora();
-    for (const [ip, registro] of tentativas) if (registro.ate <= instante) tentativas.delete(ip);
+    // Evita percorrer toda a tabela de IPs a cada requisição sob tráfego alto.
+    // A retenção extra é limitada a um minuto (ou à própria janela, se menor).
+    if (instante >= proximaLimpeza) {
+      for (const [ip, registro] of tentativas) if (registro.ate <= instante) tentativas.delete(ip);
+      proximaLimpeza = instante + Math.min(janela, 60 * 1000);
+    }
     const chave = req.ip;
     let registro = tentativas.get(chave);
     if (!registro) {

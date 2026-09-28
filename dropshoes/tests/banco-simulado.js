@@ -28,6 +28,7 @@ function bancoSimulado() {
         select(valor = '*') { campos = valor; retornar = true; return this; },
         eq(campo, valor) { filtros.push(row => String(row[campo]) === String(valor)); return this; },
         gte(campo, valor) { filtros.push(row => row[campo] >= valor); return this; },
+        lte(campo, valor) { filtros.push(row => row[campo] <= valor); return this; },
         lt(campo, valor) { filtros.push(row => row[campo] < valor); return this; },
         range(inicio, fim) { intervalo = [inicio, fim]; return this; },
         is(campo, valor) { filtros.push(row => valor === null ? row[campo] == null : row[campo] === valor); return this; },

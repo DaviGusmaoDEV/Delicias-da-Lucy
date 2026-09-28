@@ -5,6 +5,8 @@ import { sessaoPronta } from './sessao.js';
 let admin = false;
 let carregando = false;
 let produtos = [];
+let ultimaAtualizacao = 0;
+const INTERVALO_ATUALIZACAO = 30_000;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 const aviso = mensagem => { const area = document.getElementById('mensagem-produto'); if (area) area.textContent = mensagem; };
 
@@ -28,6 +30,7 @@ async function carregarProdutos(silencioso = false) {
     if (!silencioso || JSON.stringify(atualizados) !== JSON.stringify(produtos)) {
       produtos = atualizados; renderizar(); aviso(`${produtos.length} produto(s) no cardápio.`);
     }
+    ultimaAtualizacao = Date.now();
   } catch (erro) { aviso(erro.message); }
   finally { carregando = false; }
 }
@@ -107,8 +110,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-fechar-modal-especial')?.addEventListener('click', () => document.getElementById('modal-produto-especial').close());
   await carregarProdutos();
   if (!admin) {
-    setInterval(() => { if (!document.hidden) carregarProdutos(true); }, 10000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) carregarProdutos(true); });
-    window.addEventListener('focus', () => carregarProdutos(true));
+    const atualizarAoRetornar = () => {
+      if (!document.hidden && Date.now() - ultimaAtualizacao >= INTERVALO_ATUALIZACAO) carregarProdutos(true);
+    };
+    setInterval(atualizarAoRetornar, INTERVALO_ATUALIZACAO);
+    document.addEventListener('visibilitychange', atualizarAoRetornar);
+    window.addEventListener('focus', atualizarAoRetornar);
   }
 });

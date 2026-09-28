@@ -34,6 +34,11 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   const caixa = await req('/api/fluxo-caixa', 'POST', transacao, admin1);
   assert.equal(caixa.status, 201);
   assert.equal((await req(`/api/fluxo-caixa/${caixa.body.id}`, 'PUT', { ...transacao, valor: 25 }, admin1)).body.valor, 25);
+  db.tabelas.fluxo_caixa.push({ id: 'outro-dia', descricao: 'Venda posterior', tipo: 'receita', valor: 10, data: '2026-09-23' });
+  const caixaFiltrado = await req('/api/fluxo-caixa?inicio=2026-09-22&fim=2026-09-22', 'GET', undefined, admin1);
+  assert.deepEqual(caixaFiltrado.body.map(item => item.id), [caixa.body.id]);
+  assert.equal((await req('/api/fluxo-caixa?inicio=2026-02-30', 'GET', undefined, admin1)).status, 400);
+  assert.equal((await req('/api/fluxo-caixa?inicio=2026-09-23&fim=2026-09-22', 'GET', undefined, admin1)).status, 400);
   assert.equal((await req('/api/fluxo-caixa', 'POST', { ...transacao, data: '2026-02-30' }, admin1)).status, 400);
   assert.equal((await req('/api/fluxo-caixa', 'POST', { ...transacao, valor: -5 }, admin1)).status, 400);
   assert.equal((await req(`/api/fluxo-caixa/${caixa.body.id}`, 'DELETE', undefined, admin1)).status, 204);

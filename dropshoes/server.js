@@ -21,6 +21,7 @@ const { registrar: registrarVisitante, autenticarCompra, autenticarOuCriarCompra
 if (!supabase) console.warn('Configure SUPABASE_SECRET_KEY (ou SUPABASE_SERVICE_ROLE_KEY) para habilitar login e cadastro seguros.');
 const ADMIN_ROLES = ['admin1', 'admin2'];
 const ORDER_STATUSES = ['pendente', 'aceito', 'em_preparo', 'pronto_entrega', 'recebido', 'cancelado'];
+const dataIsoValida = valor => typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor) && !Number.isNaN(Date.parse(valor)) && new Date(valor).toISOString().slice(0, 10) === valor;
 protecoes(app);
 app.use(express.json({ limit: '100kb' }));
 // Configure somente a quantidade real de proxies controlados da hospedagem.
@@ -79,10 +80,19 @@ async function salvarProduto(req, res) {
   const { data, error } = await consulta.select().single(); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.status(req.params.id ? 200 : 201).json(data);
 }
 rota('delete', '/api/produtos/:id', autenticar, soAdmin, async (req, res) => { const { error } = await supabase.from('products').delete().eq('id', req.params.id); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.status(204).end(); });
-rota('get', '/api/fluxo-caixa', autenticar, soAdmin1, async (req, res) => { const { data, error } = await supabase.from('fluxo_caixa').select('*').order('data', { ascending: false }); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.json(data); });
+rota('get', '/api/fluxo-caixa', autenticar, soAdmin1, async (req, res) => {
+  const { inicio, fim } = req.query;
+  if ((inicio !== undefined && !dataIsoValida(inicio)) || (fim !== undefined && !dataIsoValida(fim)) || (inicio && fim && inicio > fim)) return res.status(400).json({ erro: 'Período de caixa inválido.' });
+  let consulta = supabase.from('fluxo_caixa').select('id,descricao,tipo,valor,data,pedido_id').order('data', { ascending: false });
+  if (inicio) consulta = consulta.gte('data', inicio);
+  if (fim) consulta = consulta.lte('data', fim);
+  const { data, error } = await consulta;
+  if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' });
+  res.json(data);
+});
 async function salvarTransacao(req, res) {
   const { descricao, tipo, valor, data } = req.body;
-  const dataValida = typeof data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data) && !Number.isNaN(Date.parse(data)) && new Date(data).toISOString().slice(0, 10) === data;
+  const dataValida = dataIsoValida(data);
   if (typeof descricao !== 'string' || !descricao.trim() || descricao.length > 300 || !['receita', 'despesa', 'total-despesa-funcionario'].includes(tipo) || typeof valor !== 'number' || !Number.isFinite(valor) || valor < 0.01 || valor > 99999999 || !dataValida) return res.status(400).json({ erro: 'Informe descrição, tipo, valor positivo e data válida.' });
   const transacao = { descricao: descricao.trim(), tipo, valor: Math.round(valor * 100) / 100, data };
   const consulta = req.params.id ? supabase.from('fluxo_caixa').update(transacao).eq('id', req.params.id).is('pedido_id', null) : supabase.from('fluxo_caixa').insert([transacao]);
@@ -213,7 +223,7 @@ rota('get', '/api/pedidos', autenticar, soAdmin, async (req, res) => {
   if (typeof status !== 'string' || (status && !ORDER_STATUSES.includes(status)) || typeof pagina !== 'string' || !/^\d{1,5}$/.test(pagina)) return res.status(400).json({ erro: 'Filtro de pedidos inválido.' });
   let consulta = supabase.from('pedidos').select('*, itens_pedido(*, products(nome)), profiles(nome,telefone)');
   if (dia !== undefined) {
-    if (typeof dia !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dia) || Number.isNaN(Date.parse(dia)) || new Date(dia).toISOString().slice(0, 10) !== dia) return res.status(400).json({ erro: 'Selecione uma data válida.' });
+    if (!dataIsoValida(dia)) return res.status(400).json({ erro: 'Selecione uma data válida.' });
     // Exibe todos os pedidos do dia local selecionado. O painel não pode
     // esconder compras feitas fora do antigo turno fixo de 18h à meia-noite.
     const inicio = new Date(`${dia}T00:00:00-03:00`);

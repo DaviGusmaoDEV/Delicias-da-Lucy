@@ -4,6 +4,7 @@ const params = new URLSearchParams(location.search);
 const pedidoId = params.get('pedido');
 let pagamento;
 let timer;
+let finalizado = false;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 const $ = id => document.getElementById(id);
 
@@ -18,7 +19,8 @@ function mostrarDados(dados) {
 }
 
 function finalizar(status) {
-  clearInterval(timer);
+  finalizado = true;
+  pararVerificacao();
   $('pix-pendente').hidden = true;
   $('pix-conteudo').hidden = true;
   $('pix-finalizado').hidden = false;
@@ -27,6 +29,16 @@ function finalizar(status) {
     $('pix-finalizado-texto').textContent = 'Gere uma nova cobrança para tentar novamente.';
     $('pix-novo').hidden = false;
   }
+}
+
+function pararVerificacao() {
+  if (timer) clearInterval(timer);
+  timer = null;
+}
+
+function iniciarVerificacao() {
+  if (timer || document.hidden || finalizado) return;
+  timer = setInterval(() => verificar().catch(() => {}), 5000);
 }
 
 async function verificar() {
@@ -43,7 +55,7 @@ async function iniciar() {
   if (salvo?.pedido_id === pedidoId) mostrarDados(salvo);
   else mostrarDados(await api(`/api/pedidos/${encodeURIComponent(pedidoId)}/pagamento`));
   await verificar();
-  timer = setInterval(() => verificar().catch(() => {}), 5000);
+  iniciarVerificacao();
 }
 
 $('pix-copiar')?.addEventListener('click', async () => {
@@ -56,4 +68,9 @@ $('pix-novo')?.addEventListener('click', async () => {
   try { const dados = await enviar(`/api/pedidos/${encodeURIComponent(pedidoId)}/pagar`, 'POST', {}); sessionStorage.setItem('pagamentoPix', JSON.stringify({ pedido_id: pedidoId, valor: dados.pedido.valor, pagamento: dados.pagamento })); location.reload(); }
   catch (erro) { $('pix-erro').hidden = false; $('pix-erro').textContent = erro.message; $('pix-novo').disabled = false; }
 });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return pararVerificacao();
+  verificar().catch(() => {}).finally(iniciarVerificacao);
+});
+window.addEventListener('pagehide', pararVerificacao, { once: true });
 iniciar().catch(erro => { $('pix-erro').hidden = false; $('pix-erro').textContent = erro.message; });
