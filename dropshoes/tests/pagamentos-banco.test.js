@@ -41,7 +41,7 @@ test('PostgreSQL real: receita atômica, duplicidade, estorno e acesso da RPC', 
   // A migração de visitantes bloqueia leitura e escrita diretas por chaves públicas.
   sql(`alter table pedidos alter column id set default gen_random_uuid();
     alter table pedidos add column usuario_id uuid, add column subtotal numeric(10,2),
-      add column taxa_entrega numeric(10,2), add column status text, add column observacao_geral text,
+      add column taxa_entrega numeric(10,2), add column status text, add column recebido_em timestamptz, add column observacao_geral text,
       add column endereco text, add column numero_casa text, add column bairro text, add column cep text;
     create table products(id uuid primary key);
     create table itens_pedido(id uuid primary key default gen_random_uuid(), pedido_id uuid references pedidos(id),
@@ -73,5 +73,18 @@ test('PostgreSQL real: receita atômica, duplicidade, estorno e acesso da RPC', 
   assert.equal(sql("select has_function_privilege('anon','criar_pedido_com_itens(jsonb,jsonb)','EXECUTE')"), 'f');
   assert.equal(sql("select has_function_privilege('authenticated','criar_pedido_com_itens(jsonb,jsonb)','EXECUTE')"), 'f');
   assert.equal(sql("select relrowsecurity from pg_class where oid='public.clientes_visitantes'::regclass"),'t');
+  execFileSync('psql', [...args, '-f', path.join(__dirname, '../database/migration-recebimento-entrega.sql')], { stdio: 'pipe' });
+  execFileSync('psql', [...args, '-f', path.join(__dirname, '../database/migration-recebimento-entrega.sql')], { stdio: 'pipe' });
+  const entrega = '00000000-0000-4000-8000-000000000094';
+  sql(`insert into pedidos(id,visitante_id,valor,pagamento,status) values('${entrega}','${visitante}',30,'entrega','pronto_entrega');`);
+  const confirmarEntrega = `set role service_role; select confirmar_recebimento_pedido('${entrega}','2026-09-24 02:30:00+00');`;
+  await Promise.all(Array.from({ length: 3 }, () => exec('psql', [...args, '-c', confirmarEntrega])));
+  assert.equal(sql(`select status || ':' || pagamento_status from pedidos where id='${entrega}'`), 'recebido:approved');
+  assert.equal(sql(`select count(*) || ':' || sum(valor) from fluxo_caixa where pedido_id='${entrega}' and tipo='receita'`), '1:30.00');
+  assert.equal(sql("select has_function_privilege('anon','confirmar_recebimento_pedido(text,timestamptz)','EXECUTE')"), 'f');
+  const cancelado = '00000000-0000-4000-8000-000000000095';
+  sql(`insert into pedidos(id,visitante_id,valor,pagamento,status) values('${cancelado}','${visitante}',10,'entrega','cancelado'); insert into itens_pedido(pedido_id,produto_id,quantidade,preco_unitario) values('${cancelado}','${produto}',1,10);`);
+  assert.match(sql(`set role service_role; select excluir_pedido_cancelado('${cancelado}');`), /t$/);
+  assert.equal(sql(`select count(*) from pedidos where id='${cancelado}'`), '0');
 
 });

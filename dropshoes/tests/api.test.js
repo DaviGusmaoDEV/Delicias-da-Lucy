@@ -89,6 +89,9 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal(entregaCriada.body.payment_url, undefined);
   assert.equal(chamadasCheckout, 1);
   assert.equal((await req(`/api/pedidos/${entregaCriada.body.pedido.id}/status`, 'PATCH', { status: 'aceito' }, admin1)).status, 200);
+  const entregaCancelavel = await req('/api/pedidos', 'POST', { ...pedidoEntrega, checkout_chave: '00000000-0000-4000-8000-000000000004' }, token);
+  for (const status of ['aceito', 'em_preparo', 'pronto_entrega']) assert.equal((await req(`/api/pedidos/${entregaCancelavel.body.pedido.id}/status`, 'PATCH', { status }, admin1)).status, 200);
+  assert.equal((await req(`/api/pedidos/${entregaCancelavel.body.pedido.id}/status`, 'PATCH', { status: 'cancelado' }, admin1)).status, 200);
   // Mesmo com uma RPC antiga que devolve "site", a escolha de entrega não
   // pode abrir checkout nem fazer o carrinho procurar uma payment_url.
   db.rpcPagamentoLegado = true;
@@ -110,7 +113,21 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal((await req(`/api/pedidos/${id}/confirmar-recebimento`, 'POST', {}, token)).status, 409);
   db.concorrer = false;
   assert.equal((await req(`/api/pedidos/${id}/confirmar-recebimento`, 'POST', {}, token)).status, 200);
-  assert.equal((await req('/api/meus-pedidos', 'GET', undefined, token)).body.length, 3);
+  for (const status of ['em_preparo', 'pronto_entrega']) assert.equal((await req(`/api/pedidos/${entregaCriada.body.pedido.id}/status`, 'PATCH', { status }, admin1)).status, 200);
+  const entregaRecebida = await req(`/api/pedidos/${entregaCriada.body.pedido.id}/confirmar-recebimento`, 'POST', {}, token);
+  assert.equal(entregaRecebida.status, 200);
+  assert.equal(entregaRecebida.body.pedido.pagamento_status, 'approved');
+  const receitaEntrega = db.tabelas.fluxo_caixa.filter(item => item.pedido_id === entregaCriada.body.pedido.id && item.tipo === 'receita');
+  assert.equal(receitaEntrega.length, 1);
+  assert.equal(receitaEntrega[0].valor, entregaCriada.body.pedido.valor);
+  assert.equal((await req('/api/meus-pedidos', 'GET', undefined, token)).body.length, 4);
+  db.tabelas.pedidos.push({ id: 'cancelado-sem-receita', status: 'cancelado', pagamento: 'entrega', pagamento_status: 'pending', valor: 12 });
+  db.tabelas.itens_pedido.push({ id: 'item-cancelado', pedido_id: 'cancelado-sem-receita', produto_id: 'p1', quantidade: 1, preco_unitario: 12 });
+  assert.equal((await req('/api/pedidos/cancelado-sem-receita', 'DELETE', undefined, admin1)).status, 204);
+  assert.equal(db.tabelas.pedidos.some(item => item.id === 'cancelado-sem-receita'), false);
+  assert.equal(db.tabelas.itens_pedido.some(item => item.pedido_id === 'cancelado-sem-receita'), false);
+  db.tabelas.pedidos.push({ id: 'cancelado-pago', status: 'cancelado', pagamento: 'site', pagamento_status: 'approved', pago_em: new Date().toISOString(), valor: 12 });
+  assert.equal((await req('/api/pedidos/cancelado-pago', 'DELETE', undefined, admin1)).status, 409);
   db.falhar = 'products';
   const falha = await req('/api/produtos', 'GET', undefined, token);
   assert.equal(falha.status, 500); assert.doesNotMatch(JSON.stringify(falha.body), /interna simulada/);

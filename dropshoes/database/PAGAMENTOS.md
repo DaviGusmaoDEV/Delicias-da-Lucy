@@ -3,9 +3,10 @@
 ## Ativação
 
 1. No SQL Editor do Supabase, aplique `schema-pagamentos-caixa.sql` e, em uma
-   instalação já existente, `migration-mercadopago-orders.sql`. As migrações são
-   aditivas e não excluem pedidos antigos. A confirmação só pode ser executada
-   pelo servidor com a chave privada `service_role`.
+   instalação já existente, `migration-mercadopago-orders.sql` e
+   `migration-recebimento-entrega.sql`. As migrações são aditivas e não excluem
+   pedidos antigos. A confirmação só pode ser executada pelo servidor com a
+   chave privada `service_role`.
 2. Em `dropshoes/.env`, configure:
 
    ```dotenv
@@ -51,6 +52,11 @@ e [idempotência e erros](https://www.mercadopago.com.br/developers/en/docs/chec
   que o provedor repita a notificação. Acompanhe falhas no painel de notificações.
 - Dois pagamentos aprovados diferentes para o mesmo pedido exigem conferência
   manual: a função rejeita o segundo, evitando duplicar receita do pedido.
+- Quando o cliente confirma uma entrega, a função SQL marca o pedido como
+  recebido e registra uma única receita de pagamento na entrega. Repetições
+  concorrentes retornam o mesmo pedido, sem duplicar o lançamento.
+- Somente pedidos cancelados, sem pagamento e sem lançamento no caixa podem ser
+  excluídos pelo Admin 1. Pedidos com histórico financeiro devem ser preservados.
 
 ## Entrega
 

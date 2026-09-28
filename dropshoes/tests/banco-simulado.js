@@ -10,8 +10,29 @@ function bancoSimulado() {
   let contador = 0;
   const db = {
     tabelas, falhar: null, concorrer: false, rpcPagamentoLegado: false,
-    async rpc(nome, { p_pedido, p_itens }) {
+    async rpc(nome, argumentos = {}) {
+      if (nome === 'confirmar_recebimento_pedido') {
+        const pedido = tabelas.pedidos.find(item => String(item.id) === String(argumentos.p_pedido_id));
+        if (!pedido || pedido.status !== 'pronto_entrega' || db.concorrer) return { data: null, error: { code: 'P0001' } };
+        const recebidoEm = argumentos.p_recebido_em;
+        Object.assign(pedido, { status: 'recebido', recebido_em: recebidoEm });
+        if (pedido.pagamento === 'entrega') {
+          Object.assign(pedido, { pagamento_status: 'approved', pagamento_id: pedido.pagamento_id || `entrega:${pedido.id}`, pagamento_atualizado: recebidoEm, pago_em: pedido.pago_em || recebidoEm });
+          if (!tabelas.fluxo_caixa.some(item => item.pedido_id === String(pedido.id) && item.tipo === 'receita')) tabelas.fluxo_caixa.push({ id: `novo-${++contador}`, descricao: `Pedido #${pedido.id} — pagamento na entrega`, tipo: 'receita', valor: pedido.valor, data: recebidoEm.slice(0, 10), pedido_id: String(pedido.id) });
+        }
+        return { data: { ...pedido }, error: null };
+      }
+      if (nome === 'excluir_pedido_cancelado') {
+        const pedido = tabelas.pedidos.find(item => String(item.id) === String(argumentos.p_pedido_id));
+        const financeiro = pedido && (pedido.pago_em || ['approved', 'refunded', 'charged_back'].includes(pedido.pagamento_status) || tabelas.fluxo_caixa.some(item => item.pedido_id === String(pedido.id)));
+        if (!pedido) return { data: false, error: null };
+        if (pedido.status !== 'cancelado' || financeiro) return { data: null, error: { code: 'P0001' } };
+        tabelas.itens_pedido = tabelas.itens_pedido.filter(item => String(item.pedido_id) !== String(pedido.id));
+        tabelas.pedidos = tabelas.pedidos.filter(item => item !== pedido);
+        return { data: true, error: null };
+      }
       if (nome !== 'criar_pedido_com_itens') throw new Error('RPC desconhecida');
+      const { p_pedido, p_itens } = argumentos;
       if (db.falhar === 'pedidos' || db.falhar === 'itens_pedido') return { data: null, error: { code: 'simulado' } };
       const anterior = tabelas.pedidos.find(p => p.checkout_chave === p_pedido.checkout_chave);
       if (anterior) return { data: anterior, error: null };

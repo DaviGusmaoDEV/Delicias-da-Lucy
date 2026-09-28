@@ -4,6 +4,7 @@ import { sessaoPronta } from './sessao.js';
 let pagina = 0;
 let carregando = false;
 let alterando = false;
+let podeExcluir = false;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 const STATUS = {
   pendente: { texto: 'Aguardando confirmação', detalhe: 'O restaurante está visualizando este pedido.', proximo: 'aceito', acao: 'Aceitar pedido' },
@@ -35,6 +36,14 @@ async function atualizarStatus(id, status) {
   catch (erro) { mostrarErro(erro); }
   finally { alterando = false; document.querySelectorAll('.pedido-acoes button').forEach(botao => { botao.disabled = false; }); }
 }
+async function excluirPedido(id) {
+  if (alterando || !window.confirm('Excluir permanentemente este pedido cancelado? Esta ação não pode ser desfeita.')) return;
+  alterando = true;
+  document.querySelectorAll('.pedido-acoes button').forEach(botao => { botao.disabled = true; });
+  try { await api(`/api/pedidos/${encodeURIComponent(id)}`, { method: 'DELETE' }); await carregar(); }
+  catch (erro) { mostrarErro(erro); }
+  finally { alterando = false; document.querySelectorAll('.pedido-acoes button').forEach(botao => { botao.disabled = false; }); }
+}
 async function carregar() {
   if (carregando) return;
   carregando = true;
@@ -52,7 +61,8 @@ async function carregar() {
     const pagamento = document.createElement('p'); pagamento.className = 'detalhe-pagamento'; pagamento.textContent = pagamentoInfo.texto; card.append(pagamento);
     const acoes = card.querySelector('.pedido-acoes');
     if (situacao.proximo && (pedido.pagamento !== 'site' || pedido.pagamento_status === 'approved')) { const botao = document.createElement('button'); botao.className = 'btn btn-primary'; botao.textContent = situacao.acao; botao.onclick = () => atualizarStatus(pedido.id, situacao.proximo); acoes.append(botao); }
-    if (['pendente', 'aceito', 'em_preparo'].includes(pedido.status)) { const cancelar = document.createElement('button'); cancelar.className = 'btn btn-cancelar'; cancelar.textContent = 'Cancelar pedido'; cancelar.onclick = () => atualizarStatus(pedido.id, 'cancelado'); acoes.append(cancelar); }
+    if (['pendente', 'aceito', 'em_preparo'].includes(pedido.status) || (pedido.status === 'pronto_entrega' && pedido.pagamento === 'entrega' && pedido.pagamento_status !== 'approved')) { const cancelar = document.createElement('button'); cancelar.className = 'btn btn-cancelar'; cancelar.textContent = 'Cancelar pedido'; cancelar.onclick = () => atualizarStatus(pedido.id, 'cancelado'); acoes.append(cancelar); }
+    if (pedido.status === 'cancelado' && podeExcluir) { const excluir = document.createElement('button'); excluir.className = 'btn btn-cancelar'; excluir.textContent = 'Excluir pedido'; excluir.onclick = () => excluirPedido(pedido.id); acoes.append(excluir); }
     const imprimir = document.createElement('button'); imprimir.className = 'btn imprimir'; imprimir.textContent = 'Imprimir bilhete'; imprimir.onclick = () => imprimirBilhete(pedido, itens); acoes.append(imprimir); area.append(card);
   });
   document.getElementById('pagina-anterior').disabled = pagina === 0;
@@ -75,7 +85,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   const campoData = document.getElementById('data-pedidos');
   campoData.value = hoje();
-  if (!(await sessaoPronta)) return;
+  const perfil = await sessaoPronta; if (!perfil) return;
+  podeExcluir = perfil.role === 'admin1';
   const atualizar = () => carregar().catch(mostrarErro);
   document.getElementById('filtros-pedidos').addEventListener('submit', event => { event.preventDefault(); if (carregando || alterando) return; pagina = 0; atualizar(); });
   document.getElementById('pagina-anterior').addEventListener('click', () => { if (carregando || alterando) return; pagina = Math.max(0, pagina - 1); atualizar(); });

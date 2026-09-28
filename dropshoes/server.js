@@ -242,8 +242,9 @@ rota('patch', '/api/pedidos/:id/status', autenticar, soAdmin, async (req, res) =
   const { data: atual, error: erroBusca } = await supabase.from('pedidos').select('id,status,pagamento,pagamento_status').eq('id', req.params.id).single();
   if (erroBusca || !atual) return res.status(404).json({ erro: 'Pedido não encontrado.' });
   if (proximo !== 'cancelado' && atual.pagamento === 'site' && atual.pagamento_status !== 'approved') return res.status(409).json({ erro: 'Aguarde a confirmação do pagamento antes de preparar o pedido.' });
-  const transicoes = { pendente: ['aceito', 'cancelado'], aceito: ['em_preparo', 'cancelado'], em_preparo: ['pronto_entrega', 'cancelado'], pronto_entrega: [], recebido: [], cancelado: [] };
+  const transicoes = { pendente: ['aceito', 'cancelado'], aceito: ['em_preparo', 'cancelado'], em_preparo: ['pronto_entrega', 'cancelado'], pronto_entrega: ['cancelado'], recebido: [], cancelado: [] };
   if (!transicoes[atual.status]?.includes(proximo)) return res.status(400).json({ erro: 'Este status não pode ser aplicado neste momento.' });
+  if (proximo === 'cancelado' && atual.status === 'pronto_entrega' && (atual.pagamento !== 'entrega' || atual.pagamento_status === 'approved')) return res.status(409).json({ erro: 'Pedidos pagos ou já enviados por pagamento online não podem ser cancelados nesta etapa.' });
   const alteracao = { status: proximo };
   if (proximo === 'pronto_entrega') alteracao.pronto_em = new Date().toISOString();
   let atualizar = supabase.from('pedidos').update(alteracao).eq('id', req.params.id).eq('status', atual.status);
@@ -256,8 +257,24 @@ rota('post', '/api/pedidos/:id/confirmar-recebimento', autenticarCompra, async (
   const { data: pedido, error: erroBusca } = await pedidosDoComprador(supabase.from('pedidos').select('id,status').eq('id', req.params.id), req.user).single();
   if (erroBusca || !pedido) return res.status(404).json({ erro: 'Pedido não encontrado.' });
   if (pedido.status !== 'pronto_entrega') return res.status(400).json({ erro: 'Este pedido ainda não está em entrega.' });
-  const { data, error } = await supabase.from('pedidos').update({ status: 'recebido', recebido_em: new Date().toISOString() }).eq('id', pedido.id).eq('status', 'pronto_entrega').select().maybeSingle();
-  if (error) return res.status(400).json({ erro: 'Não foi possível atualizar o pedido.' }); if (!data) return res.status(409).json({ erro: 'O pedido mudou. Atualize a página e tente novamente.' }); res.json({ pedido: data });
+  const { data, error } = await supabase.rpc('confirmar_recebimento_pedido', { p_pedido_id: String(pedido.id), p_recebido_em: new Date().toISOString() });
+  if (error) {
+    console.error(JSON.stringify({ evento: 'pedido_recebimento', resultado: 'falha', pedido_id: String(pedido.id), codigo: String(error.code || 'rpc').slice(0, 60) }));
+    if (['PGRST202', '42883'].includes(String(error.code))) return res.status(503).json({ erro: 'A atualização de recebimento ainda precisa ser aplicada no banco.' });
+    return res.status(409).json({ erro: 'O pedido mudou. Atualize a página e tente novamente.' });
+  }
+  if (!data) return res.status(409).json({ erro: 'O pedido mudou. Atualize a página e tente novamente.' });
+  res.json({ pedido: data });
+});
+rota('delete', '/api/pedidos/:id', autenticar, soAdmin1, async (req, res) => {
+  const { data, error } = await supabase.rpc('excluir_pedido_cancelado', { p_pedido_id: String(req.params.id) });
+  if (error) {
+    console.error(JSON.stringify({ evento: 'pedido_exclusao', resultado: 'falha', pedido_id: String(req.params.id), codigo: String(error.code || 'rpc').slice(0, 60) }));
+    if (['PGRST202', '42883'].includes(String(error.code))) return res.status(503).json({ erro: 'A exclusão de pedidos ainda precisa ser aplicada no banco.' });
+    return res.status(409).json({ erro: 'Somente pedidos cancelados e sem lançamento financeiro podem ser excluídos.' });
+  }
+  if (!data) return res.status(404).json({ erro: 'Pedido cancelado não encontrado.' });
+  res.sendStatus(204);
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
