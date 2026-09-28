@@ -51,6 +51,14 @@ test('visitante pode criar Pix sem informar e-mail usando o payer técnico do ba
   assert.equal(corpo.payer.email, 'pagamentos@example.test');
 });
 
+test('visitante pode criar Pix sem configuração adicional de e-mail', async () => {
+  const db = bancoSimulado(); let corpo;
+  const fetcher = async (_url, options) => { corpo = JSON.parse(options.body); return { ok: true, status: 201, json: async () => ({ id: 'ORD-GUEST-2', status: 'action_required', transactions: { payments: [{ id: 'PAY-GUEST-2', amount: '20.00', payment_method: { id: 'pix', type: 'bank_transfer', qr_code: 'pix', qr_code_base64: 'base64' } }] } }) }; };
+  const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher });
+  await servico.checkout({ id: 'pedido-visitante-2', valor: 20 });
+  assert.match(corpo.payer.email, /^pedido-pedido-visitante-2@/);
+});
+
 test('webhook Orders consulta a Order, valida valor e registra a confirmação', async () => {
   const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site', pagamento_provedor: 'mercadopago_pix' });
   const registros = []; db.rpc = async (nome, dados) => { registros.push({ nome, dados }); return { error: null }; };

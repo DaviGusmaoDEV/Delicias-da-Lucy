@@ -100,7 +100,7 @@ export async function finalizarCompra() {
     if (!(await atualizarEntrega())) return;
     const entrega = camposEntrega();
     if (Object.values(entrega).some(valor => !valor)) throw new Error('Confira rua, número, bairro e CEP para calcular a entrega.');
-    if (perfil?.role === 'visitante') await enviar('/api/cadastro-cliente', 'POST', { nome: cliente_nome, telefone: cliente_telefone, cep: entrega.cep });
+    // Visitantes compram sem conta: o próprio POST do pedido cria uma sessão técnica HttpOnly.
     const corpo = { ...entrega, taxa_entrega: valorFreteAtual, cliente_nome, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento: 'site', itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
     const resumo = new TextEncoder().encode(JSON.stringify(corpo));
     const assinatura = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', resumo)), b => b.toString(16).padStart(2, '0')).join('');

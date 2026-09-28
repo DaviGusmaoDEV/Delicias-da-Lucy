@@ -73,6 +73,18 @@ function expiraEm(order, payment, agora) {
   return new Date(agora.getTime() + 24 * 60 * 60 * 1000).toISOString();
 }
 
+function emailPagadorTecnico(pedido, emailInformado, emailConfigurado) {
+  const candidato = String(emailInformado || emailConfigurado || '').trim().toLowerCase();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidato)) return candidato;
+  const id = String(pedido.id).replace(/[^a-z0-9-]/gi, '').slice(0, 60) || 'pedido';
+  let dominio = 'dropshoes.social.br';
+  try {
+    const host = new URL(process.env.PUBLIC_BASE_URL || 'https://dropshoes.social.br').hostname;
+    if (host && !['localhost', '127.0.0.1'].includes(host)) dominio = host;
+  } catch {}
+  return `pedido-${id}@${dominio}`;
+}
+
 function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN, segredo = process.env.MERCADOPAGO_WEBHOOK_SECRET, payerEmail = process.env.MERCADOPAGO_PAYER_EMAIL, fetcher = globalThis.fetch, agora = () => new Date() } = {}) {
   // Sem o segredo do webhook não há confirmação confiável; portanto o Pix não
   // deve ser oferecido mesmo que o Access Token esteja configurado.
@@ -94,8 +106,7 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
     // A primeira tentativa é determinística por pedido: se a API responder e a
     // gravação local falhar, o retry usa a mesma chave e não cria outra Order.
     const idempotencyKey = expirado ? randomUUID() : (pedido.pagamento_idempotencia || `pedido-${pedido.id}-pix`);
-    const email = String(pedido.cliente_email || pedido.email || payerEmail || '').trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe um e-mail válido para gerar o Pix.');
+    const email = emailPagadorTecnico(pedido, pedido.cliente_email || pedido.email, payerEmail);
     const valor = Number(pedido.valor);
     if (!Number.isFinite(valor) || valor <= 0) throw new Error('Valor do pedido inválido.');
     const order = await chamadaMercadoPago(fetcher, accessToken, '/v1/orders', {

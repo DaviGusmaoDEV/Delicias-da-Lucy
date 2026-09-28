@@ -54,6 +54,34 @@ test('compra sem conta: telefone repetido não permite acessar nem pagar pedido 
   assert.equal((await req('/api/meus-pedidos','GET',undefined,{Cookie:`lucy_visitante=${forjado}`})).status,401);
 });
 
+test('primeiro pedido cria somente sessão técnica de visitante, sem cadastro nem e-mail', async t => {
+  const { req, db } = await ambiente(t);
+  const pedido = {
+    cliente_nome: contato.nome,
+    cliente_telefone: contato.telefone,
+    cep: contato.cep,
+    endereco: 'Rua Teste',
+    bairro: 'Ipiranga',
+    numero_casa: '12',
+    pagamento: 'site',
+    provedor_pagamento: 'infinitepay',
+    checkout_chave: '00000000-0000-4000-8000-000000000099',
+    itens: [{ produto_id: 'p1', quantidade: 1 }]
+  };
+  const resposta = await req('/api/pedidos', 'POST', pedido);
+  assert.equal(resposta.status, 201);
+  const sessao = cookie(resposta);
+  assert.match(resposta.headers.get('set-cookie'), /HttpOnly/);
+  const criado = (await resposta.json()).pedido;
+  assert.equal(criado.usuario_id, null);
+  assert.ok(criado.visitante_id);
+  assert.equal(db.tabelas.clientes_visitantes.length, 1);
+  assert.equal(db.tabelas.clientes_visitantes[0].email, undefined);
+  const meusPedidos = await req('/api/meus-pedidos', 'GET', undefined, { Cookie: sessao });
+  assert.equal(meusPedidos.status, 200);
+  assert.equal((await meusPedidos.json()).length, 1);
+});
+
 test('payloads malformados, injeção, arquivos privados e excesso de pedidos são bloqueados', async t => {
   const {req,base,db} = await ambiente(t);
   for(const corpo of [[], {nome:{$ne:null},telefone:contato.telefone,cep:contato.cep}]) assert.equal((await req('/api/cadastro-cliente','POST',corpo)).status,400);

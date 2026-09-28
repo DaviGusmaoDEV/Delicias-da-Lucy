@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="../js/sessao.js" defer></script>
 </head>
-<body data-acesso="cliente" data-publica>
+<body class="pagina-carrinho" data-acesso="cliente" data-publica>
 
     <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -49,7 +49,7 @@
                     <input id="cliente-nome" class="form-control" autocomplete="name" minlength="2" maxlength="100" required>
                     <label for="cliente-telefone">Telefone com DDD</label>
                     <input id="cliente-telefone" class="form-control" type="tel" autocomplete="tel" maxlength="20" required>
-                    <p>Não precisa criar uma conta. Já tem uma? <a href="../tela de login/login cliente.html">Entrar</a></p>
+                    <p class="ajuda-campo">Compre sem cadastro. Usaremos estes dados somente para entregar e acompanhar este pedido.</p>
                 </fieldset>
                 <fieldset class="frete-calculo-container">
                     <legend class="frete-label">Endereço de entrega</legend>
@@ -105,9 +105,9 @@
                 <small class="carrinho-item-detalhes item-carrinho-detalhes-texto"></small>
             </div>
             <div class="item-carrinho-acoes-qtd">
-                <button class="btn-qtd-menos btn-controle-qtd">-</button>
-                <span class="carrinho-item-qtd"></span>
-                <button class="btn-qtd-mais btn-controle-qtd">+</button>
+                <button type="button" class="btn-qtd-menos btn-controle-qtd" aria-label="Diminuir quantidade">-</button>
+                <span class="carrinho-item-qtd" aria-live="polite"></span>
+                <button type="button" class="btn-qtd-mais btn-controle-qtd" aria-label="Aumentar quantidade">+</button>
             </div>
             <div>
                 <strong class="carrinho-item-total"></strong>

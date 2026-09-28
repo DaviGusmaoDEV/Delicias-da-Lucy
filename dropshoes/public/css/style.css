@@ -1149,6 +1149,70 @@ dialog .form-control {
     }
 }
 
+/* Carrinho: uma única composição, confortável para toque de 320px a desktop. */
+.pagina-carrinho .container { max-width: 880px; }
+.pagina-carrinho .box-sidebar { width: 100%; }
+.pagina-carrinho #itens-carrinho { display: grid; gap: 10px; }
+.pagina-carrinho .item-carrinho-linha {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+.pagina-carrinho .carrinho-item-nome { overflow-wrap: anywhere; }
+.pagina-carrinho .item-carrinho-detalhes-texto { color: var(--text-muted); }
+.pagina-carrinho .item-carrinho-acoes-qtd { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.pagina-carrinho .btn-controle-qtd {
+    width: 44px;
+    min-height: 44px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--dark);
+    font-size: 1.25rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+.pagina-carrinho .frete-container-inline { display: flex; align-items: end; gap: 12px; }
+.pagina-carrinho .frete-container-inline .form-control { min-width: 0; }
+.pagina-carrinho .btn-calcular { min-height: 46px; margin-top: 0; white-space: nowrap; }
+.pagina-carrinho .opcao-pagamento { min-height: 74px; margin: 10px 0; }
+.pagina-carrinho .opcao-pagamento:has(input:checked) { border-color: var(--primary); background: #fff8e8; }
+.pagina-carrinho .resumo-carrinho { padding-top: 4px; }
+.pagina-carrinho .resumo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 5px 0; }
+.pagina-carrinho .resumo-linha strong { white-space: nowrap; }
+.pagina-carrinho .resumo-linha.total { font-size: 1.125rem; }
+.pagina-carrinho .btn-finalizar { width: 100%; min-height: 52px; margin-top: 16px; }
+
+@media (max-width: 680px) {
+    .pagina-carrinho .container {
+        padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+    .pagina-carrinho .box-sidebar { padding: 16px 12px; gap: 14px; }
+    .pagina-carrinho .item-carrinho-linha { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+    .pagina-carrinho .item-carrinho-linha > :last-child { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+    .pagina-carrinho .frete-container-inline { align-items: stretch; }
+    .pagina-carrinho .frete-container-inline .btn-calcular { width: 100%; }
+}
+
+@media (max-width: 576px) {
+    .pagina-carrinho .sidebar-footer { flex: 0 0 auto; }
+    .pagina-carrinho .sidebar-footer .nav-item { width: 44px; padding: 10px; font-size: 0; gap: 0; justify-content: center; }
+    .pagina-carrinho .sidebar-footer .material-symbols-outlined { font-size: 22px; }
+}
+
+@media (max-width: 390px) {
+    .pagina-carrinho .sidebar { padding-inline: 10px; }
+    .pagina-carrinho .sidebar .logo { font-size: 15px; }
+    .pagina-carrinho .sidebar-nav { margin-left: 8px; gap: 2px; }
+    .pagina-carrinho .item-carrinho-linha { padding: 12px; }
+    .pagina-carrinho .item-carrinho-acoes-qtd { gap: 5px; }
+    .pagina-carrinho .btn-controle-qtd { width: 40px; min-height: 40px; }
+}
+
 /* ==========================================================================
    🚀 13. ONBOARDING (TUTORIAL GUIADO), ACESSIBILIDADE & UX EXTRA
    ========================================================================== */

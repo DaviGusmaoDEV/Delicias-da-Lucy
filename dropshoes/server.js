@@ -17,7 +17,7 @@ const app = express();
 const JWT_SECRET = secret;
 const supabase = db || criarClienteSupabase();
 const { cadastro, login, autenticar } = criarAutenticacao({ db: supabase, secret: JWT_SECRET });
-const { registrar: registrarVisitante, autenticarCompra } = criarVisitantes({ db: supabase, secret: JWT_SECRET, autenticar });
+const { registrar: registrarVisitante, autenticarCompra, autenticarOuCriarCompra } = criarVisitantes({ db: supabase, secret: JWT_SECRET, autenticar });
 if (!supabase) console.warn('Configure SUPABASE_SECRET_KEY (ou SUPABASE_SERVICE_ROLE_KEY) para habilitar login e cadastro seguros.');
 const ADMIN_ROLES = ['admin1', 'admin2'];
 const ORDER_STATUSES = ['pendente', 'aceito', 'em_preparo', 'pronto_entrega', 'recebido', 'cancelado'];
@@ -98,7 +98,7 @@ rota('delete', '/api/fluxo-caixa/:id', autenticar, soAdmin1, async (req, res) =>
   res.status(204).end();
 });
 
-rota('post', '/api/pedidos', limitePedidos, autenticarCompra, async (req, res) => {
+rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req, res) => {
   if (!['cliente', 'visitante'].includes(req.user.role)) return res.status(403).json({ erro: 'Pedidos devem ser feitos pela conta de cliente.' });
   const { itens, observacao_geral, endereco, numero_casa, bairro, cep, pagamento, checkout_chave, cliente_nome, cliente_telefone } = req.body;
   let emailPedido = '';
