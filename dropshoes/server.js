@@ -48,6 +48,8 @@ const infinitePay = pagamentosTeste ? null : criarInfinitePay({ db: supabase });
 const provedorPagamentoPadrao = String(process.env.PAYMENT_PROVIDER || 'infinitepay').trim().toLowerCase();
 const provedores = pagamentosTeste ? { infinitepay: pagamentosTeste, mercadopago_pix: pagamentosTeste } : { infinitepay: infinitePay, mercadopago_pix: pagamentos };
 const normalizarProvedor = valor => ({ mercadopago: 'mercadopago_pix', mercado_pago: 'mercadopago_pix', pix: 'mercadopago_pix', mercadopago_pix: 'mercadopago_pix', infinitepay: 'infinitepay' }[String(valor || '').trim().toLowerCase()] || null);
+const pagamentoPixPublico = pagamento => pagamento && ({ provider: 'mercadopago_pix', qr_code: pagamento.qr_code, qr_code_base64: pagamento.qr_code_base64, payment_id: pagamento.payment_id, order_id: pagamento.order_id, status: pagamento.status, expires_at: pagamento.expires_at });
+const pedidoPagamentoPixPublico = pedido => ({ id: pedido.id, valor: pedido.valor, status: pedido.status, pagamento: pedido.pagamento, pagamento_status: pedido.pagamento_status, pagamento_provedor: 'mercadopago_pix' });
 rota('post', '/api/webhooks/mercadopago', pagamentos.notificar);
 if (infinitePay) rota('post', '/api/webhooks/infinitepay', infinitePay.notificar);
 
@@ -159,7 +161,8 @@ async function responderCheckout(pedido, res, provedorSolicitado, pagamentosAtiv
     }
   }
   if (!dadosPagamento && provedor === 'mercadopago_pix') dadosPagamento = { provider: 'mercadopago_pix', payment_url: pedido.payment_url || null, qr_code: pedido.pagamento_qr_code, qr_code_base64: pedido.pagamento_qr_code_base64, payment_id: String(pedido.pagamento_id || '').replace(/^mercadopago:/, ''), status: pedido.pagamento_status || 'pending', expires_at: pedido.pagamento_expira_em };
-  return res.status(201).json({ mensagem: 'Aguardando pagamento.', pedido, payment_url, ...(dadosPagamento ? { pagamento: dadosPagamento } : {}) });
+  const pagamentoResposta = provedor === 'mercadopago_pix' ? pagamentoPixPublico(dadosPagamento) : null;
+  return res.status(201).json({ mensagem: 'Aguardando pagamento.', pedido: provedor === 'mercadopago_pix' ? pedidoPagamentoPixPublico(pedido) : pedido, payment_url: provedor === 'mercadopago_pix' ? undefined : payment_url, ...(pagamentoResposta ? { pagamento: pagamentoResposta } : {}) });
 }
 rota('post', '/api/pedidos/:id/pagar', limitePedidos, autenticarCompra, async (req, res) => {
   const { data: pedido, error } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('id', req.params.id), req.user).maybeSingle();
@@ -169,7 +172,7 @@ rota('post', '/api/pedidos/:id/pagar', limitePedidos, autenticarCompra, async (r
 rota('get', '/api/pedidos/:id/pagamento', autenticarCompra, async (req, res) => {
   const { data: pedido, error } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('id', req.params.id), req.user).maybeSingle();
   if (error || !pedido || pedido.pagamento !== 'site' || normalizarProvedor(pedido.pagamento_provedor) !== 'mercadopago_pix') return res.status(404).json({ erro: 'Pagamento não encontrado.' });
-  res.json({ pedido_id: pedido.id, valor: pedido.valor, pagamento: { provider: 'mercadopago_pix', payment_url: pedido.payment_url || null, qr_code: pedido.pagamento_qr_code, qr_code_base64: pedido.pagamento_qr_code_base64, payment_id: String(pedido.pagamento_id || '').replace(/^mercadopago:/, ''), status: pedido.pagamento_status || 'pending', expires_at: pedido.pagamento_expira_em } });
+  res.json({ pedido_id: pedido.id, valor: pedido.valor, pagamento: pagamentoPixPublico({ provider: 'mercadopago_pix', qr_code: pedido.pagamento_qr_code, qr_code_base64: pedido.pagamento_qr_code_base64, payment_id: String(pedido.pagamento_id || '').replace(/^mercadopago:/, ''), status: pedido.pagamento_status || 'pending', expires_at: pedido.pagamento_expira_em }) });
 });
 rota('get', '/api/pedidos/:id/pagamento-status', autenticarCompra, async (req, res) => {
   const { data: pedido, error } = await pedidosDoComprador(supabase.from('pedidos').select('id,valor,pagamento,pagamento_provedor,pagamento_status,status,pagamento_expira_em'), req.user).maybeSingle();

@@ -74,7 +74,9 @@ function expiraEm(order, payment, agora) {
 }
 
 function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN, segredo = process.env.MERCADOPAGO_WEBHOOK_SECRET, fetcher = globalThis.fetch, agora = () => new Date() } = {}) {
-  const disponivel = Boolean(db && accessToken && typeof fetcher === 'function');
+  // Sem o segredo do webhook não há confirmação confiável; portanto o Pix não
+  // deve ser oferecido mesmo que o Access Token esteja configurado.
+  const disponivel = Boolean(db && accessToken && segredo && typeof fetcher === 'function');
 
   async function persistir(id, valores) {
     if (!db?.from) return;

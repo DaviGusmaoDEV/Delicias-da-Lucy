@@ -21,6 +21,11 @@ test('assinatura usa query assinada e rejeita dados adulterados', () => {
   req.query['data.id'] = ['ORD-123']; assert.equal(assinaturaValida(req, segredo), false);
 });
 
+test('Mercado Pago fica indisponível sem Access Token e sem webhook secret', () => {
+  assert.equal(criarPagamentos({ db: bancoSimulado(), accessToken: '', segredo }).disponivel, false);
+  assert.equal(criarPagamentos({ db: bancoSimulado(), accessToken: 'token-de-teste', segredo: '' }).disponivel, false);
+});
+
 test('Orders API cria Pix com valor do servidor e idempotência', async () => {
   const db = bancoSimulado(); const chamadas = [];
   const fetcher = async (url, options) => {
@@ -53,6 +58,11 @@ test('webhook não registra confirmação quando valor retornado diverge', async
   const fetcher = async () => ({ ok: true, status: 200, json: async () => ({ id: 'ORD-123', external_reference: 'pedido1', status: 'processed', transactions: { payments: [{ id: 'PAY-123', amount: '19.99', status: 'processed' }] } }) });
   const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher }); const res = resposta(); await servico.notificar(requisicao(), res);
   assert.equal(res.statusCode, 422); assert.equal(chamou, false);
+});
+
+test('Orders API rejeita resposta sem QR Code sem expor o corpo recebido', async () => {
+  const servico = criarPagamentos({ db: bancoSimulado(), accessToken: 'token-de-teste', segredo, fetcher: async () => ({ ok: true, status: 201, json: async () => ({ id: 'ORD-1', status: 'action_required', segredo: 'não registrar' }) }) });
+  await assert.rejects(() => servico.checkout({ id: 'pedido1', valor: 20, cliente_email: 'cliente@example.test' }), /não retornou os dados do Pix/);
 });
 
 test('webhook repetido é reconhecido antes de aplicar qualquer efeito novamente', async () => {
