@@ -1,5 +1,6 @@
 import { api } from './api.js';
 import { sessaoPronta } from './sessao.js';
+import { rotuloPedido } from './numero-pedido.js';
 const el = id => document.getElementById(id);
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 const textoStatus = { pendente: 'Aguardando preparo', aceito: 'Aceito', em_preparo: 'Em preparo', pronto_entrega: 'Em entrega', recebido: 'Concluído', cancelado: 'Cancelado' };
@@ -56,7 +57,7 @@ function renderizarQuadro(movimentos) {
   movimentos.slice().sort((a, b) => `${b.data}${b.criado_em || ''}`.localeCompare(`${a.data}${a.criado_em || ''}`)).forEach(movimento => {
     const linha = document.createElement('tr');
     linha.className = movimento.tipo === 'receita' ? 'movimento-entrada' : movimento.tipo === 'total-despesa-funcionario' ? 'movimento-funcionario' : 'movimento-saida';
-    for (const valor of [movimento.data, movimento.descricao, nomes[movimento.tipo] || movimento.tipo, movimento.pedido_id ? `#${movimento.pedido_id}` : 'Manual', dinheiro(movimento.valor)]) { const celula = document.createElement('td'); celula.textContent = valor; linha.append(celula); }
+    for (const valor of [movimento.data, movimento.descricao, nomes[movimento.tipo] || movimento.tipo, movimento.pedido_id ? `Pedido técnico ${movimento.pedido_id}` : 'Manual', dinheiro(movimento.valor)]) { const celula = document.createElement('td'); celula.textContent = valor; linha.append(celula); }
     corpo.append(linha);
   });
 }
@@ -66,7 +67,7 @@ function renderizarPedidos(pedidos) {
   if (!pedidos.length) return vazio(lista, 'Nenhum pedido no período.');
   const itens = pedidos.slice(0, 5).map(pedido => {
     const item = document.createElement('li');
-    const titulo = document.createElement('strong'); titulo.textContent = `#${pedido.id} — ${pedido.cliente_nome || pedido.profiles?.nome || 'Cliente'}`;
+    const titulo = document.createElement('strong'); titulo.textContent = `${rotuloPedido(pedido, { tecnico: true })} — ${pedido.cliente_nome || pedido.profiles?.nome || 'Cliente'}`;
     const detalhe = document.createElement('span'); detalhe.textContent = `${textoStatus[pedido.status] || pedido.status} · ${pedido.pagamento_status === 'approved' ? 'Pago' : 'Aguardando pagamento'} · ${dinheiro(pedido.valor)}`;
     item.append(titulo, detalhe); return item;
   });

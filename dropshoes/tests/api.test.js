@@ -4,6 +4,16 @@ const { once } = require('node:events');
 const { criarApp } = require('../server');
 const { bancoSimulado } = require('./banco-simulado');
 
+test('numeração comercial simulada é única em criações concorrentes', async () => {
+  const db = bancoSimulado();
+  const resultados = await Promise.all([1, 2].map(indice => db.rpc('criar_pedido_com_itens', {
+    p_pedido: { checkout_chave: `00000000-0000-4000-8000-00000000010${indice}`, pagamento: 'entrega', valor: indice },
+    p_itens: []
+  })));
+  assert.deepEqual(resultados.map(resultado => resultado.data.numero_pedido).sort((a, b) => a - b), [1, 2]);
+  assert.notEqual(resultados[0].data.id, resultados[0].data.numero_pedido);
+});
+
 test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros', async t => {
   const db = bancoSimulado();
   let chamadasCheckout = 0;
@@ -75,6 +85,7 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   const criado = await req('/api/pedidos', 'POST', pedido, token);
   assert.equal(criado.status, 201); assert.equal(criado.body.pedido.subtotal, 37.05);
   assert.equal(criado.body.pedido.valor, 43.05);
+  assert.equal(criado.body.pedido.numero_pedido, 1);
   const id = criado.body.pedido.id;
   assert.match(criado.body.payment_url, /^https:/);
   assert.equal(criado.body.payment_url, 'https://checkout.infinitepay.io/checkout/teste');
@@ -84,6 +95,7 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   const pedidoEntrega = { ...pedido, pagamento: 'entrega', checkout_chave: '00000000-0000-4000-8000-000000000002' };
   const entregaCriada = await req('/api/pedidos', 'POST', pedidoEntrega, token);
   assert.equal(entregaCriada.status, 201);
+  assert.equal(entregaCriada.body.pedido.numero_pedido, 2);
   assert.equal(entregaCriada.body.pedido.pagamento, 'entrega');
   assert.equal(entregaCriada.body.pedido.pagamento_status, 'pending');
   assert.equal(entregaCriada.body.payment_url, undefined);

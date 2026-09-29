@@ -63,3 +63,12 @@ test('bilhete inclui nome, rua, bairro, número e itens, sem CEP e com escape de
   assert.doesNotMatch(html, /14060-040|CEP|<script>/);
   assert.match(html, /&lt;script&gt;/);
 });
+
+test('número comercial usa N1 e não transforma ID técnico histórico em número comercial', async () => {
+  const { numeroComercial, rotuloPedido } = await modulo('numero-pedido.js');
+  assert.equal(numeroComercial({ id: 70, numero_pedido: 1 }), 1);
+  assert.equal(rotuloPedido({ id: 70, numero_pedido: 1 }), 'Pedido N1');
+  assert.equal(numeroComercial({ id: 68, numero_pedido: null }), null);
+  assert.equal(rotuloPedido({ id: 68, numero_pedido: null }), 'Pedido histórico');
+  assert.equal(rotuloPedido({ id: 68, numero_pedido: null }, { tecnico: true }), 'Pedido histórico (ID técnico 68)');
+});

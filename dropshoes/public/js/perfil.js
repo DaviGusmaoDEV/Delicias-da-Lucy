@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { sessaoPronta } from './sessao.js';
 import { pedidoNoHistorico, statusPedido, textoPagamento } from './status-pedidos.mjs';
+import { rotuloPedido } from './numero-pedido.js';
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 async function confirmarRecebimento(id) { try { await api(`/api/pedidos/${id}/confirmar-recebimento`, { method: 'POST' }); await carregarPedidos(); } catch (erro) { alert(erro.message); } }
 function dataPedido(valor) {
@@ -10,7 +11,7 @@ function dataPedido(valor) {
 function linhaPedido(pedido) {
   const [titulo, descricao] = statusPedido(pedido.status);
   const linha = document.createElement('tr'); linha.className = `linha-pedido status-${pedido.status || 'desconhecido'}`;
-  const id = document.createElement('td'); id.textContent = `#${pedido.id}`;
+  const id = document.createElement('td'); id.textContent = rotuloPedido(pedido);
   const data = document.createElement('td'); data.textContent = dataPedido(pedido.data_criacao);
   const situacao = document.createElement('td');
   const selo = document.createElement('span'); selo.className = `status-pedido status-${pedido.status || 'desconhecido'}`; selo.textContent = titulo; situacao.append(selo);

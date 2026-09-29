@@ -1,4 +1,5 @@
 import { api, enviar } from './api.js';
+import { rotuloPedido } from './numero-pedido.js';
 
 const params = new URLSearchParams(location.search);
 const pedidoId = params.get('pedido');
@@ -10,7 +11,7 @@ const $ = id => document.getElementById(id);
 
 function mostrarDados(dados) {
   pagamento = dados.pagamento || dados;
-  $('pix-pedido').textContent = `#${dados.pedido_id || dados.pedido?.id || pedidoId}`;
+  $('pix-pedido').textContent = rotuloPedido({ numero_pedido: dados.numero_pedido ?? dados.pedido?.numero_pedido, id: dados.pedido_id || dados.pedido?.id || pedidoId });
   $('pix-total').textContent = dinheiro(dados.valor || dados.pedido?.valor);
   const base64 = pagamento.qr_code_base64;
   if (base64) $('pix-qr').src = base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`;

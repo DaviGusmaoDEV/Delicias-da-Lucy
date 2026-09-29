@@ -44,3 +44,14 @@ test('todos os scripts do navegador têm sintaxe válida', () => {
     assert.equal(resultado.status, 0, `${arquivo}: ${resultado.stderr}`);
   }
 });
+
+test('migration de numeração comercial preserva históricos e usa sequence única', () => {
+  const sql = fs.readFileSync(path.resolve(__dirname, '../database/migration-numero-pedido.sql'), 'utf8');
+  assert.match(sql, /add column if not exists numero_pedido bigint/i);
+  assert.match(sql, /create sequence if not exists public\.pedidos_numero_pedido_seq/i);
+  assert.match(sql, /default nextval\('public\.pedidos_numero_pedido_seq'::regclass\)/i);
+  assert.match(sql, /create unique index if not exists pedidos_numero_pedido_unique/i);
+  assert.doesNotMatch(sql, /update\s+public\.pedidos/i);
+  assert.doesNotMatch(sql, /delete\s+from\s+public\.pedidos/i);
+  assert.doesNotMatch(sql, /truncate|drop\s+table|alter\s+sequence[^;]*(restart|setval)/i);
+});

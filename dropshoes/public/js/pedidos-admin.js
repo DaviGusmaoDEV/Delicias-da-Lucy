@@ -1,6 +1,7 @@
 import { bilhetePedido } from './bilhete.js';
 import { api, enviar } from './api.js';
 import { sessaoPronta } from './sessao.js';
+import { rotuloPedido } from './numero-pedido.js';
 let pagina = 0;
 let carregando = false;
 let alterando = false;
@@ -56,7 +57,7 @@ async function carregar() {
     const situacao = STATUS[pedido.status] || STATUS.pendente; const itens = (pedido.itens_pedido || []).map(item => `${item.quantidade}x ${item.products?.nome || 'Item'}`).join(', '); const card = document.createElement('article');
     const pagamentoInfo = descricaoPagamento(pedido);
     card.className = `pedido-card status-${pedido.status} ${pagamentoInfo.classe}`;
-    card.innerHTML = `<div class="pedido-cabecalho"><h2>Pedido N${esc(pedido.id)}</h2><span class="status-pedido status-${esc(pedido.status)}">${situacao.texto}</span></div><p class="status-detalhe">${situacao.detalhe}</p><p><strong>Cliente:</strong> ${esc(pedido.cliente_nome || pedido.profiles?.nome || 'Cliente')}</p><p><strong>Telefone:</strong> ${esc(pedido.cliente_telefone || pedido.profiles?.telefone || 'Não informado')}</p><p><strong>Horário:</strong> ${esc(new Date(pedido.data_criacao).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }))}</p><p><strong>Entrega:</strong> ${esc(pedido.endereco)}, nº ${esc(pedido.numero_casa)} — ${esc(pedido.bairro)}, CEP ${esc(pedido.cep)}</p><p><strong>Itens:</strong> ${esc(itens)}</p><p><strong>Total:</strong> ${dinheiro(pedido.valor)}</p><div class="pedido-acoes"></div>`;
+    card.innerHTML = `<div class="pedido-cabecalho"><h2>${esc(rotuloPedido(pedido, { tecnico: true }))}</h2><span class="status-pedido status-${esc(pedido.status)}">${situacao.texto}</span></div><p class="status-detalhe">${situacao.detalhe}</p><p><strong>Cliente:</strong> ${esc(pedido.cliente_nome || pedido.profiles?.nome || 'Cliente')}</p><p><strong>Telefone:</strong> ${esc(pedido.cliente_telefone || pedido.profiles?.telefone || 'Não informado')}</p><p><strong>Horário:</strong> ${esc(new Date(pedido.data_criacao).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }))}</p><p><strong>Entrega:</strong> ${esc(pedido.endereco)}, nº ${esc(pedido.numero_casa)} — ${esc(pedido.bairro)}, CEP ${esc(pedido.cep)}</p><p><strong>Itens:</strong> ${esc(itens)}</p><p><strong>Total:</strong> ${dinheiro(pedido.valor)}</p><div class="pedido-acoes"></div>`;
     if (pedido.observacao_geral) { const obs = document.createElement('p'); obs.textContent = `Observação: ${pedido.observacao_geral}`; card.append(obs); }
     const pagamento = document.createElement('p'); pagamento.className = 'detalhe-pagamento'; pagamento.textContent = pagamentoInfo.texto; card.append(pagamento);
     const acoes = card.querySelector('.pedido-acoes');

@@ -8,6 +8,7 @@ function bancoSimulado() {
     clientes_visitantes: [], pedidos: [], itens_pedido: [], fluxo_caixa: [], pagamento_eventos: []
   };
   let contador = 0;
+  let numeroPedido = 0;
   const db = {
     tabelas, falhar: null, concorrer: false, rpcPagamentoLegado: false,
     async rpc(nome, argumentos = {}) {
@@ -38,7 +39,7 @@ function bancoSimulado() {
       if (anterior) return { data: anterior, error: null };
       // Simula a versão antiga da função instalada no Supabase, que ignorava
       // pagamento: "entrega" e persistia "site".
-      const pedido = { id: `novo-${++contador}`, data_criacao: new Date().toISOString(), ...p_pedido, ...(db.rpcPagamentoLegado ? { pagamento: 'site' } : {}) };
+      const pedido = { id: `novo-${++contador}`, numero_pedido: ++numeroPedido, data_criacao: new Date().toISOString(), ...p_pedido, ...(db.rpcPagamentoLegado ? { pagamento: 'site' } : {}) };
       tabelas.pedidos.push(pedido);
       tabelas.itens_pedido.push(...p_itens.map(item => ({ id: `novo-${++contador}`, ...item, pedido_id: pedido.id })));
       return { data: { ...pedido }, error: null };
