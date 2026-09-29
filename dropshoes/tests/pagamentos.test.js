@@ -81,14 +81,14 @@ test('visitante pode criar Pix sem configuração adicional de e-mail', async ()
 test('webhook Orders consulta a Order, valida valor e registra a confirmação', async () => {
   const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site', pagamento_provedor: 'mercadopago_pix' });
   const registros = []; db.rpc = async (nome, dados) => { registros.push({ nome, dados }); return { error: null }; };
-  const fetcher = async () => ({ ok: true, status: 200, json: async () => ({ id: 'ORD-123', external_reference: 'pedido1', status: 'processed', transactions: { payments: [{ id: 'PAY-123', amount: '20.00', status: 'processed', date_last_updated: '2026-09-23T12:00:00Z', date_approved: '2026-09-23T12:00:00Z', payment_method: { id: 'pix' } }] } }) });
+  const fetcher = async () => ({ ok: true, status: 200, json: async () => ({ id: 'ORD-123', external_reference: 'pedido1', total_amount: '20.00', total_paid_amount: '20.00', status: 'processed', status_detail: 'accredited', transactions: { payments: [{ id: 'PAY-123', amount: '20.00', status: 'processed', status_detail: 'accredited', date_last_updated: '2026-09-23T12:00:00Z', date_approved: '2026-09-23T12:00:00Z', payment_method: { id: 'pix', type: 'bank_transfer' } }] } }) });
   const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher });
   const res = resposta(); await servico.notificar(requisicao(), res);
   assert.equal(res.statusCode, 200); assert.equal(registros[0].dados.p_pagamento_id, 'mercadopago:PAY-123'); assert.equal(registros[0].dados.p_status, 'approved');
 });
 
 test('webhook não registra confirmação quando valor retornado diverge', async () => {
-  const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site' });
+  const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site', pagamento_provedor: 'mercadopago_pix', pagamento_id: 'mercadopago:PAY-123', pagamento_order_id: 'ORD-123' });
   let chamou = false; db.rpc = async () => { chamou = true; return { error: null }; };
   const fetcher = async () => ({ ok: true, status: 200, json: async () => ({ id: 'ORD-123', external_reference: 'pedido1', status: 'processed', transactions: { payments: [{ id: 'PAY-123', amount: '19.99', status: 'processed' }] } }) });
   const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher }); const res = resposta(); await servico.notificar(requisicao(), res);
@@ -103,12 +103,53 @@ test('Orders API rejeita resposta sem QR Code sem expor o corpo recebido', async
 });
 
 test('webhook repetido é reconhecido antes de aplicar qualquer efeito novamente', async () => {
-  const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site' });
+  const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site', pagamento_provedor: 'mercadopago_pix', pagamento_id: 'mercadopago:PAY-123', pagamento_order_id: 'ORD-123' });
   let chamadasRpc = 0; db.rpc = async () => { chamadasRpc++; return { error: null }; };
-  const fetcher = async () => ({ ok: true, status: 200, json: async () => ({ id: 'ORD-123', external_reference: 'pedido1', status: 'processed', transactions: { payments: [{ id: 'PAY-123', amount: '20.00', status: 'processed' }] } }) });
+  const fetcher = async () => ({ ok: true, status: 200, json: async () => ({ id: 'ORD-123', external_reference: 'pedido1', total_amount: '20.00', status: 'processed', status_detail: 'accredited', transactions: { payments: [{ id: 'PAY-123', amount: '20.00', status: 'processed', status_detail: 'accredited', payment_method: { id: 'pix', type: 'bank_transfer' } }] } }) });
   const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher });
   await servico.notificar(requisicao(), resposta()); await servico.notificar(requisicao(), resposta());
   assert.equal(chamadasRpc, 1);
+});
+
+test('webhook rejeita identidade, referência, valor, método ou pagamento divergentes', async () => {
+  const casos = [
+    ['Order ID divergente', order => { order.id = 'ORD-OUTRA'; }],
+    ['external_reference divergente', order => { order.external_reference = 'pedido-outro'; }],
+    ['valor divergente', order => { order.total_amount = '19.99'; }],
+    ['método diferente de Pix', order => { order.transactions.payments[0].payment_method = { id: 'visa', type: 'credit_card' }; }],
+    ['payment.id divergente', order => { order.transactions.payments[0].id = 'PAY-OUTRO'; }]
+  ];
+  for (const [descricao, alterar] of casos) {
+    const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site', pagamento_provedor: 'mercadopago_pix', pagamento_id: 'mercadopago:PAY-123', pagamento_order_id: 'ORD-123' });
+    let chamadasRpc = 0; db.rpc = async () => { chamadasRpc++; return { error: null }; };
+    const order = { id: 'ORD-123', external_reference: 'pedido1', total_amount: '20.00', total_paid_amount: '20.00', status: 'processed', status_detail: 'accredited', transactions: { payments: [{ id: 'PAY-123', amount: '20.00', status: 'processed', status_detail: 'accredited', payment_method: { id: 'pix', type: 'bank_transfer' } }] } };
+    alterar(order);
+    const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher: async () => ({ ok: true, status: 200, json: async () => order }) });
+    const res = resposta(); await servico.notificar(requisicao('ORD-123', `evt-${descricao}`), res);
+    assert.equal(res.statusCode, descricao === 'external_reference divergente' ? 200 : 422, descricao); assert.equal(chamadasRpc, 0, descricao); assert.equal(db.tabelas.pagamento_eventos.length, 0, descricao);
+  }
+});
+
+test('webhook não confirma estados não finais e não cria evento financeiro', async () => {
+  for (const status of ['pending', 'processing', 'rejected', 'cancelled', 'refunded']) {
+    const db = bancoSimulado(); db.tabelas.pedidos.push({ id: 'pedido1', valor: 20, pagamento: 'site', pagamento_provedor: 'mercadopago_pix', pagamento_id: 'mercadopago:PAY-123', pagamento_order_id: 'ORD-123' });
+    let chamadasRpc = 0; db.rpc = async () => { chamadasRpc++; return { error: null }; };
+    const finalizado = status === 'refunded' ? { status: 'processed', status_detail: 'accredited', refunded_amount: '20.00' } : { status, status_detail: status === 'pending' ? 'waiting_transfer' : status };
+    const order = { id: 'ORD-123', external_reference: 'pedido1', total_amount: '20.00', total_paid_amount: status === 'refunded' ? '20.00' : '0.00', status: finalizado.status, status_detail: finalizado.status_detail, transactions: { payments: [{ id: 'PAY-123', amount: '20.00', ...finalizado, payment_method: { id: 'pix', type: 'bank_transfer' } }] } };
+    const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher: async () => ({ ok: true, status: 200, json: async () => order }) });
+    const res = resposta(); await servico.notificar(requisicao('ORD-123', `evt-status-${status}`), res);
+    assert.equal(res.statusCode, 200, status); assert.equal(chamadasRpc, 0, status); assert.equal(db.tabelas.pagamento_eventos.length, 0, status); assert.equal(db.tabelas.fluxo_caixa.length, 0, status);
+  }
+});
+
+test('webhook aprovado salva Order ID ausente e só cria um evento de confirmação', async () => {
+  const db = bancoSimulado(); const pedido = { id: 'pedido1', valor: 20, pagamento: 'site', pagamento_provedor: 'mercadopago_pix', pagamento_id: 'mercadopago:PAY-123', pagamento_order_id: null, pagamento_status: 'pending' }; db.tabelas.pedidos.push(pedido);
+  db.rpc = async (_nome, dados) => { Object.assign(pedido, { pagamento_status: dados.p_status, pago_em: pedido.pago_em || dados.p_atualizado }); if (!db.tabelas.fluxo_caixa.length) db.tabelas.fluxo_caixa.push({ id: 1, pedido_id: 'pedido1', tipo: 'receita', valor: dados.p_valor }); return { error: null }; };
+  const order = { id: 'ORD-123', external_reference: 'pedido1', total_amount: '20.00', total_paid_amount: '20.00', status: 'processed', status_detail: 'accredited', transactions: { payments: [{ id: 'PAY-123', amount: '20.00', status: 'processed', status_detail: 'accredited', payment_method: { id: 'pix', type: 'bank_transfer' }, date_approved: '2026-09-29T17:00:00Z' }] } };
+  const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher: async () => ({ ok: true, status: 200, json: async () => order }) });
+  await servico.notificar(requisicao('ORD-123', 'evt-aprovado-1'), resposta()); const pagoEm = pedido.pago_em;
+  await servico.notificar(requisicao('ORD-123', 'evt-aprovado-2'), resposta());
+  assert.equal(pedido.pagamento_order_id, 'ORD-123'); assert.equal(pedido.pagamento_status, 'approved'); assert.equal(pedido.pago_em, pagoEm); assert.equal(db.tabelas.fluxo_caixa.filter(item => item.tipo === 'receita').length, 1); assert.equal(db.tabelas.pagamento_eventos.length, 1);
 });
 
 test('reconciliação consulta somente a Order existente e confirma uma única receita', async () => {

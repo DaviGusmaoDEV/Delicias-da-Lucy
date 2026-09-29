@@ -154,7 +154,7 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
     return retorno;
   }
 
-  async function registrarOrder(order, pedido, payment, eventoId) {
+  async function registrarOrder(order, pedido, payment, eventoId, { registrarEvento = true } = {}) {
     const valor = Number(payment.amount ?? order.total_amount);
     const status = statusPagamento(order, payment);
     const paymentId = String(payment.id || order.id || '');
@@ -165,8 +165,10 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
       p_valor: valor, p_estornado: Number(payment.refunded_amount || 0), p_atualizado: atualizado, p_aprovado: aprovado
     });
     if (erroRegistro) throw new Error('registro_pagamento');
-    const { error: erroEvento } = await db.from('pagamento_eventos').insert([{ provedor: 'mercadopago', evento_id: eventoId, pagamento_id: paymentId, pedido_id: String(pedido.id), status }]);
-    if (erroEvento && !['23505', '409'].includes(String(erroEvento.code))) throw new Error('registro_evento');
+    if (registrarEvento) {
+      const { error: erroEvento } = await db.from('pagamento_eventos').insert([{ provedor: 'mercadopago', evento_id: eventoId, pagamento_id: paymentId, pedido_id: String(pedido.id), status }]);
+      if (erroEvento && !['23505', '409'].includes(String(erroEvento.code))) throw new Error('registro_evento');
+    }
     return { status, paymentId };
   }
 
@@ -237,11 +239,31 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
       const { payment } = dadosPagamento(order);
       const externalReference = String(order.external_reference || '');
       if (!externalReference) return res.sendStatus(200);
-      const { data: pedido, error } = await db.from('pedidos').select('id,valor,pagamento,pagamento_provedor').eq('id', externalReference).maybeSingle();
+      if (String(order.id || '') !== String(orderId)) return res.status(422).json({ erro: 'Order não corresponde à notificação.' });
+      const { data: pedido, error } = await db.from('pedidos').select('id,valor,pagamento,pagamento_provedor,pagamento_id,pagamento_order_id').eq('id', externalReference).maybeSingle();
       if (error) throw new Error('consulta_pedido');
-      if (!pedido || pedido.pagamento !== 'site') return res.sendStatus(200);
+      if (!pedido || pedido.pagamento !== 'site' || pedido.pagamento_provedor !== 'mercadopago_pix') return res.sendStatus(200);
       const valor = Number(payment.amount ?? order.total_amount);
-      if (!Number.isFinite(valor) || Math.round(valor * 100) !== Math.round(Number(pedido.valor) * 100)) return res.status(422).json({ erro: 'Pagamento não corresponde ao pedido.' });
+      if (!Number.isFinite(valor) || Math.round(valor * 100) !== Math.round(Number(pedido.valor) * 100) ||
+        !mesmoValor(order.total_amount, pedido.valor) ||
+        payment.payment_method?.id !== 'pix' || payment.payment_method?.type !== 'bank_transfer' ||
+        (pedido.pagamento_id && `mercadopago:${payment.id || ''}` !== pedido.pagamento_id) ||
+        (pedido.pagamento_order_id && pedido.pagamento_order_id !== orderId)) {
+        return res.status(422).json({ erro: 'Pagamento não corresponde ao pedido.' });
+      }
+      if (order.status !== 'processed' || order.status_detail !== 'accredited' ||
+        payment.status !== 'processed' || payment.status_detail !== 'accredited' ||
+        Number(payment.refunded_amount || 0) !== 0 ||
+        (order.total_paid_amount != null && !mesmoValor(order.total_paid_amount, pedido.valor))) return res.sendStatus(200);
+      if (!pedido.pagamento_order_id) {
+        const { data: vinculo, error: erroVinculo } = await db.from('pedidos')
+          .update({ pagamento_order_id: orderId }).eq('id', pedido.id).is('pagamento_order_id', null)
+          .select('id,pagamento_order_id').maybeSingle();
+        if (erroVinculo || !vinculo) {
+          const { data: atual, error: erroAtual } = await db.from('pedidos').select('pagamento_order_id').eq('id', pedido.id).maybeSingle();
+          if (erroAtual || atual?.pagamento_order_id !== orderId) return res.status(422).json({ erro: 'Order não corresponde ao pedido.' });
+        }
+      }
       const { status, paymentId } = await registrarOrder(order, pedido, payment, eventoId);
       console.info(JSON.stringify({ evento: 'mercadopago_order', resultado: 'processado', pedido_id: externalReference, order_id: String(order.id || ''), payment_id: paymentId, status }));
       return res.sendStatus(200);
