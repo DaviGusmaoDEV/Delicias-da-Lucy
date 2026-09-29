@@ -55,6 +55,27 @@ test('produção aceita apenas a origem pública e responde ao preflight com cre
   assert.equal(recusado.headers.get('access-control-allow-origin'), null);
 });
 
+test('reconciliação Mercado Pago exige Admin 1 e não aceita confirmação vinda do cliente', async t => {
+  const chamadas = [];
+  const pagamentos = {
+    disponivel: true,
+    checkout: async () => ({}),
+    notificar: (_req, res) => res.sendStatus(401),
+    reconciliar: async (pedidoId, orderId) => { chamadas.push({ pedidoId, orderId }); return { pedido_id: 68, payment_status: 'approved' }; }
+  };
+  const { req } = await ambiente(t, pagamentos);
+  const rota = '/api/admin/pedidos/68/reconciliar-mercadopago';
+  const corpo = { order_id: 'ORD01TEST68', paid: true };
+  assert.equal((await req(rota, 'POST', corpo)).status, 401);
+  const admin2 = await req('/api/login', 'POST', { identificador: 'equipe@example.test', senha: 'senha-admin', acesso: 'admin' }, { 'X-Session-Mode': 'cookie' });
+  assert.equal((await req(rota, 'POST', corpo, { Cookie: cookie(admin2) })).status, 403);
+  assert.equal(chamadas.length, 0);
+  const admin1 = await req('/api/login', 'POST', { identificador: 'dona@example.test', senha: 'senha-admin', acesso: 'admin' }, { 'X-Session-Mode': 'cookie' });
+  const resposta = await req(rota, 'POST', corpo, { Cookie: cookie(admin1) });
+  assert.equal(resposta.status, 200);
+  assert.deepEqual(chamadas, [{ pedidoId: '68', orderId: 'ORD01TEST68' }]);
+});
+
 test('compra sem conta: telefone repetido não permite acessar nem pagar pedido alheio', async t => {
   const {req,db} = await ambiente(t);
   const a = await req('/api/cadastro-cliente','POST',{...contato,role:'admin1',id:'admin1'}); assert.equal(a.status,201);

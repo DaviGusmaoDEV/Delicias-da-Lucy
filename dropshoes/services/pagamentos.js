@@ -41,6 +41,18 @@ function mensagemSegura(erro) {
   };
 }
 
+function erroReconciliacao(mensagem, status = 409) {
+  const erro = new Error(mensagem);
+  erro.status_reconciliacao = status;
+  return erro;
+}
+
+function mesmoValor(valor, esperado) {
+  return Number.isFinite(Number(valor)) && Math.round(Number(valor) * 100) === Math.round(Number(esperado) * 100);
+}
+
+const orderIdValido = valor => typeof valor === 'string' && /^ORD[A-Z0-9-]{5,80}$/.test(valor);
+
 function statusPagamento(order, payment) {
   const ordem = String(order?.status || '').toLowerCase();
   const pagamento = String(payment?.status || '').toLowerCase();
@@ -91,9 +103,9 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
   const disponivel = Boolean(db && accessToken && segredo && typeof fetcher === 'function');
 
   async function persistir(id, valores) {
-    if (!db?.from) return;
-    const { error } = await db.from('pedidos').update(valores).eq('id', id);
-    if (error) throw new Error('Não foi possível salvar os dados do pagamento.');
+    if (!db?.from) throw new Error('Não foi possível salvar os dados do pagamento.');
+    const { data, error } = await db.from('pedidos').update(valores).eq('id', id).select('id').maybeSingle();
+    if (error || !data) throw new Error('Não foi possível salvar os dados do pagamento.');
   }
 
   async function checkout(pedido) {
@@ -101,7 +113,7 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
     const expirado = pedido.pagamento_expira_em && Date.parse(pedido.pagamento_expira_em) <= agora().getTime();
     if (!expirado && pedido.pagamento_provedor === 'mercadopago_pix' && pedido.pagamento_id && pedido.pagamento_qr_code) {
       const paymentId = String(pedido.pagamento_id).replace(/^mercadopago:/, '');
-      return { provider: 'mercadopago_pix', payment_url: pedido.payment_url || null, qr_code: pedido.pagamento_qr_code, qr_code_base64: pedido.pagamento_qr_code_base64, payment_id: paymentId, status: pedido.pagamento_status || 'pending', expires_at: pedido.pagamento_expira_em };
+      return { provider: 'mercadopago_pix', payment_url: pedido.payment_url || null, qr_code: pedido.pagamento_qr_code, qr_code_base64: pedido.pagamento_qr_code_base64, payment_id: paymentId, order_id: pedido.pagamento_order_id || null, status: pedido.pagamento_status || 'pending', expires_at: pedido.pagamento_expira_em };
     }
     // A primeira tentativa é determinística por pedido: se a API responder e a
     // gravação local falhar, o retry usa a mesma chave e não cria outra Order.
@@ -118,6 +130,11 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
         payer: { email }
       })
     });
+    const orderId = String(order.id || '');
+    if (!orderIdValido(orderId)) throw new Error('O Mercado Pago não retornou um Order ID válido.');
+    // Grave o vínculo assim que a Orders API responder. Mesmo se faltar QR Code
+    // ou a segunda gravação falhar, o ID não ficará restrito aos Runtime Logs.
+    await persistir(pedido.id, { pagamento_order_id: orderId });
     const { payment, metodo } = dadosPagamento(order);
     if (!metodo.qr_code || !metodo.qr_code_base64) {
       const erro = new Error('O Mercado Pago não retornou os dados do Pix.');
@@ -127,7 +144,7 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
     }
     const expiresAt = expiraEm(order, payment, agora());
     const paymentId = String(payment.id || order.id || '');
-    const retorno = { provider: 'mercadopago_pix', payment_url: metodo.ticket_url || null, qr_code: metodo.qr_code, qr_code_base64: metodo.qr_code_base64, payment_id: paymentId, order_id: String(order.id || ''), status: statusPagamento(order, payment), expires_at: expiresAt };
+    const retorno = { provider: 'mercadopago_pix', payment_url: metodo.ticket_url || null, qr_code: metodo.qr_code, qr_code_base64: metodo.qr_code_base64, payment_id: paymentId, order_id: orderId, status: statusPagamento(order, payment), expires_at: expiresAt };
     await persistir(pedido.id, {
       pagamento_provedor: 'mercadopago_pix', pagamento_id: `mercadopago:${paymentId}`, pagamento_status: retorno.status,
       pagamento_atualizado: new Date().toISOString(), pagamento_expira_em: expiresAt, pagamento_idempotencia: idempotencyKey,
@@ -135,6 +152,64 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
     });
     console.info(JSON.stringify({ evento: 'mercadopago_order', resultado: 'criado', pedido_id: String(pedido.id), order_id: String(order.id || ''), payment_id: paymentId, status: retorno.status }));
     return retorno;
+  }
+
+  async function registrarOrder(order, pedido, payment, eventoId) {
+    const valor = Number(payment.amount ?? order.total_amount);
+    const status = statusPagamento(order, payment);
+    const paymentId = String(payment.id || order.id || '');
+    const atualizado = payment.date_last_updated || order.last_updated_date || new Date().toISOString();
+    const aprovado = payment.date_approved || null;
+    const { error: erroRegistro } = await db.rpc('registrar_pagamento_pedido', {
+      p_pedido_id: String(pedido.id), p_pagamento_id: `mercadopago:${paymentId}`, p_status: status,
+      p_valor: valor, p_estornado: Number(payment.refunded_amount || 0), p_atualizado: atualizado, p_aprovado: aprovado
+    });
+    if (erroRegistro) throw new Error('registro_pagamento');
+    const { error: erroEvento } = await db.from('pagamento_eventos').insert([{ provedor: 'mercadopago', evento_id: eventoId, pagamento_id: paymentId, pedido_id: String(pedido.id), status }]);
+    if (erroEvento && !['23505', '409'].includes(String(erroEvento.code))) throw new Error('registro_evento');
+    return { status, paymentId };
+  }
+
+  async function reconciliar(pedidoId, orderIdInformado) {
+    if (!disponivel) throw erroReconciliacao('Reconciliação indisponível.', 503);
+    const { data: pedido, error } = await db.from('pedidos')
+      .select('id,valor,pagamento,pagamento_provedor,pagamento_id,pagamento_order_id,pagamento_status,pago_em')
+      .eq('id', pedidoId).maybeSingle();
+    if (error) throw erroReconciliacao('Não foi possível consultar o pedido.', 503);
+    if (!pedido || pedido.pagamento !== 'site' || pedido.pagamento_provedor !== 'mercadopago_pix' || !pedido.pagamento_id) {
+      throw erroReconciliacao('Pedido Pix não encontrado.', 404);
+    }
+    const orderId = pedido.pagamento_order_id || orderIdInformado;
+    if (!orderIdValido(orderId)) throw erroReconciliacao('Order ID não registrado para este pedido.', 409);
+    if (orderIdInformado && orderIdInformado !== orderId) throw erroReconciliacao('Order ID difere do vínculo salvo.');
+    // O ID recebido só localiza a Order. Estado, referência, valor e identidade
+    // do pagamento vêm exclusivamente da consulta autenticada ao provedor.
+    const order = await chamadaMercadoPago(fetcher, accessToken, `/v1/orders/${encodeURIComponent(orderId)}`, { method: 'GET' });
+    const payments = order?.transactions?.payments;
+    const payment = Array.isArray(payments) && payments.length === 1 ? payments[0] : null;
+    if (String(order.id || '') !== orderId || String(order.external_reference || '') !== String(pedido.id) ||
+      !mesmoValor(order.total_amount, pedido.valor) || !payment ||
+      !mesmoValor(payment.amount, pedido.valor) ||
+      (order.total_paid_amount != null && !mesmoValor(order.total_paid_amount, pedido.valor)) ||
+      `mercadopago:${payment.id || ''}` !== pedido.pagamento_id ||
+      payment.payment_method?.id !== 'pix' || payment.payment_method?.type !== 'bank_transfer') {
+      throw erroReconciliacao('Order não corresponde ao pedido.');
+    }
+    if (order.status !== 'processed' || order.status_detail !== 'accredited' ||
+      payment.status !== 'processed' || (payment.status_detail && payment.status_detail !== 'accredited') ||
+      Number(payment.refunded_amount || 0) !== 0) {
+      throw erroReconciliacao('Pagamento ainda não está integralmente acreditado.');
+    }
+    await registrarOrder(order, pedido, payment, `reconciliacao:${orderId}`);
+    const { data: atualizado, error: erroAtualizado } = await db.from('pedidos')
+      .select('pagamento_status,pago_em,status').eq('id', pedido.id).maybeSingle();
+    const { data: receita, error: erroReceita } = await db.from('fluxo_caixa')
+      .select('id').eq('pedido_id', String(pedido.id)).eq('tipo', 'receita').maybeSingle();
+    if (erroAtualizado || erroReceita || atualizado?.pagamento_status !== 'approved' || !atualizado.pago_em || !receita) {
+      throw erroReconciliacao('Confirmação financeira não pôde ser verificada.', 503);
+    }
+    console.info(JSON.stringify({ evento: 'mercadopago_reconciliacao', resultado: 'confirmado', pedido_id: String(pedido.id), order_id: orderId }));
+    return { pedido_id: pedido.id, payment_status: atualizado.pagamento_status, order_status: atualizado.status, financeiro_registrado: true };
   }
 
   async function notificar(req, res) {
@@ -155,17 +230,7 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
       if (!pedido || pedido.pagamento !== 'site') return res.sendStatus(200);
       const valor = Number(payment.amount ?? order.total_amount);
       if (!Number.isFinite(valor) || Math.round(valor * 100) !== Math.round(Number(pedido.valor) * 100)) return res.status(422).json({ erro: 'Pagamento não corresponde ao pedido.' });
-      const status = statusPagamento(order, payment);
-      const paymentId = String(payment.id || order.id || '');
-      const atualizado = payment.date_last_updated || order.last_updated_date || new Date().toISOString();
-      const aprovado = payment.date_approved || null;
-      const { error: erroRegistro } = await db.rpc('registrar_pagamento_pedido', {
-        p_pedido_id: externalReference, p_pagamento_id: `mercadopago:${paymentId}`, p_status: status,
-        p_valor: valor, p_estornado: Number(payment.refunded_amount || 0), p_atualizado: atualizado, p_aprovado: aprovado
-      });
-      if (erroRegistro) throw new Error('registro_pagamento');
-      const { error: erroEvento } = await db.from('pagamento_eventos').insert([{ provedor: 'mercadopago', evento_id: eventoId, pagamento_id: paymentId, pedido_id: externalReference, status }]);
-      if (erroEvento && !['23505', '409'].includes(String(erroEvento.code))) throw new Error('registro_evento');
+      const { status, paymentId } = await registrarOrder(order, pedido, payment, eventoId);
       console.info(JSON.stringify({ evento: 'mercadopago_order', resultado: 'processado', pedido_id: externalReference, order_id: String(order.id || ''), payment_id: paymentId, status }));
       return res.sendStatus(200);
     } catch (erro) {
@@ -174,7 +239,7 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
     }
   }
 
-  return { disponivel, checkout, notificar };
+  return { disponivel, checkout, notificar, reconciliar };
 }
 
 module.exports = { criarPagamentos, assinaturaValida, urlCheckoutValida, statusPagamento };

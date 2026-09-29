@@ -3,8 +3,10 @@
 ## Ativação
 
 1. No SQL Editor do Supabase, aplique `schema-pagamentos-caixa.sql` e, em uma
-   instalação já existente, `migration-mercadopago-orders.sql` e
-   `migration-recebimento-entrega.sql`. As migrações são aditivas e não excluem
+   instalação já existente, `migration-mercadopago-orders.sql`,
+   `migration-mercadopago-order-id.sql` e `migration-recebimento-entrega.sql`.
+   A migration do Order ID deve ser aplicada antes de publicar o código novo.
+   As migrações são aditivas e não excluem
    pedidos antigos. A confirmação só pode ser executada pelo servidor com a
    chave privada `service_role`.
 2. Em `dropshoes/.env`, configure:
@@ -37,6 +39,12 @@ e [idempotência e erros](https://www.mercadopago.com.br/developers/en/docs/chec
 - A volta do navegador para o site não confirma pagamento. O servidor verifica a
   assinatura e consulta a Order diretamente em `/v1/orders/{id}`, conferindo pedido
   e valor em BRL.
+- O webhook continua sendo o caminho principal de confirmação. Após criar um Pix,
+  o servidor grava o ID da Order em `pedidos.pagamento_order_id`. Se a notificação
+  se perder, somente o Admin 1 pode solicitar reconciliação; o backend lê esse ID
+  do pedido e confirma o pagamento apenas após consultar e validar a Orders API.
+  Pedidos antigos sem ID salvo exigem o ID obtido de um registro confiável da
+  criação da Order; informar um status pelo cliente nunca confirma pagamento.
 - Pedidos pendentes, rejeitados ou apenas criados não geram receita. O preparo só
   é liberado após aprovação. O status de entrega é independente do status financeiro.
 - A função SQL bloqueia a linha do pedido e confirma pagamento e receita na mesma
