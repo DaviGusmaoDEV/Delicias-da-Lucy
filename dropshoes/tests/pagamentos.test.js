@@ -12,6 +12,17 @@ function requisicao(id = 'ORD-123', evento = 'evt-1') {
   return { query: { 'data.id': id }, body: { id: evento, type: 'order', action: 'order.updated', data: { id } }, get: nome => headers[nome] };
 }
 function resposta() { return { statusCode: 200, status(n) { this.statusCode = n; return this; }, json(v) { this.body = v; return this; }, sendStatus(n) { this.statusCode = n; return this; } }; }
+function pedidoPixAntigo(orderId = null) {
+  return { id: 68, valor: 8.63, pagamento: 'site', pagamento_provedor: 'mercadopago_pix', pagamento_id: 'mercadopago:PAY-68', pagamento_order_id: orderId, pagamento_status: 'pending', status: 'pendente' };
+}
+function orderPix68(overrides = {}) {
+  return {
+    id: 'ORD01TEST68', external_reference: '68', total_amount: '8.63', total_paid_amount: '8.63',
+    status: 'processed', status_detail: 'accredited',
+    transactions: { payments: [{ id: 'PAY-68', amount: '8.63', status: 'processed', status_detail: 'accredited', payment_method: { id: 'pix', type: 'bank_transfer' }, date_last_updated: '2026-09-29T17:00:00Z' }] },
+    ...overrides
+  };
+}
 
 test('assinatura usa query assinada e rejeita dados adulterados', () => {
   const req = requisicao();
@@ -154,6 +165,52 @@ test('reconciliação rejeita Order divergente ou ainda não acreditada sem grav
   await assert.rejects(() => servico.reconciliar('68', 'ORD01OUTRO68'), /difere do vínculo/);
   assert.equal(chamadasRpc, 0);
   assert.equal(db.tabelas.pagamento_eventos.length, 0);
+});
+
+test('reconciliação válida de pedido antigo grava Order ID e permanece idempotente', async () => {
+  const db = bancoSimulado();
+  const pedido = pedidoPixAntigo(); db.tabelas.pedidos.push(pedido);
+  db.rpc = async (_nome, dados) => {
+    pedido.pagamento_status = dados.p_status; pedido.pago_em ||= dados.p_atualizado;
+    if (!db.tabelas.fluxo_caixa.some(item => item.pedido_id === '68' && item.tipo === 'receita')) db.tabelas.fluxo_caixa.push({ id: 1, pedido_id: '68', tipo: 'receita', valor: dados.p_valor });
+    return { error: null };
+  };
+  const order = orderPix68();
+  const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher: async () => ({ ok: true, status: 200, json: async () => order }) });
+  await servico.reconciliar('68', order.id);
+  await servico.reconciliar('68');
+  assert.equal(pedido.pagamento_order_id, order.id);
+  assert.equal(db.tabelas.fluxo_caixa.filter(item => item.pedido_id === '68' && item.tipo === 'receita').length, 1);
+  assert.equal(db.tabelas.pagamento_eventos.length, 1);
+});
+
+test('reconciliação inválida ou de outro pedido não grava Order ID', async () => {
+  for (const alterar of [
+    order => { order.status_detail = 'waiting_transfer'; },
+    order => { order.external_reference = '69'; }
+  ]) {
+    const db = bancoSimulado(); const pedido = pedidoPixAntigo(); db.tabelas.pedidos.push(pedido);
+    db.rpc = async () => ({ error: null });
+    const order = orderPix68(); alterar(order);
+    const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher: async () => ({ ok: true, status: 200, json: async () => order }) });
+    await assert.rejects(() => servico.reconciliar('68', order.id));
+    assert.equal(pedido.pagamento_order_id, null);
+    assert.equal(db.tabelas.fluxo_caixa.length, 0);
+  }
+});
+
+test('reconciliação com mesmo Order ID é idempotente e com Order ID diferente rejeita sem sobrescrever', async () => {
+  const db = bancoSimulado(); const pedido = pedidoPixAntigo('ORD01TEST68'); db.tabelas.pedidos.push(pedido);
+  db.rpc = async (_nome, dados) => {
+    pedido.pagamento_status = dados.p_status; pedido.pago_em ||= dados.p_atualizado;
+    if (!db.tabelas.fluxo_caixa.some(item => item.pedido_id === '68' && item.tipo === 'receita')) db.tabelas.fluxo_caixa.push({ id: 1, pedido_id: '68', tipo: 'receita', valor: dados.p_valor });
+    return { error: null };
+  };
+  const order = orderPix68();
+  const servico = criarPagamentos({ db, accessToken: 'token-de-teste', segredo, fetcher: async () => ({ ok: true, status: 200, json: async () => order }) });
+  await assert.rejects(() => servico.reconciliar('68', 'ORD01OUTRO68'), /difere do vínculo/);
+  await servico.reconciliar('68', 'ORD01TEST68');
+  assert.equal(pedido.pagamento_order_id, 'ORD01TEST68');
 });
 
 test('pedido antigo sem Order ID salvo aceita ID de recuperação, mas nunca status do cliente', async () => {

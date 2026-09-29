@@ -200,6 +200,18 @@ function criarPagamentos({ db, accessToken = process.env.MERCADOPAGO_ACCESS_TOKE
       Number(payment.refunded_amount || 0) !== 0) {
       throw erroReconciliacao('Pagamento ainda não está integralmente acreditado.');
     }
+    if (!pedido.pagamento_order_id) {
+      const { data: vinculo, error: erroVinculo } = await db.from('pedidos')
+        .update({ pagamento_order_id: orderId }).eq('id', pedido.id).is('pagamento_order_id', null)
+        .select('id,pagamento_order_id').maybeSingle();
+      if (erroVinculo) throw erroReconciliacao('Não foi possível salvar o vínculo da Order.', 503);
+      if (!vinculo) {
+        const { data: atual, error: erroAtual } = await db.from('pedidos')
+          .select('pagamento_order_id').eq('id', pedido.id).maybeSingle();
+        if (erroAtual) throw erroReconciliacao('Não foi possível verificar o vínculo da Order.', 503);
+        if (atual?.pagamento_order_id !== orderId) throw erroReconciliacao('Order ID difere do vínculo salvo.');
+      }
+    }
     await registrarOrder(order, pedido, payment, `reconciliacao:${orderId}`);
     const { data: atualizado, error: erroAtualizado } = await db.from('pedidos')
       .select('pagamento_status,pago_em,status').eq('id', pedido.id).maybeSingle();
