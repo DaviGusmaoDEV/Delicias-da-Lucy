@@ -34,6 +34,27 @@ test('sessão de navegador HttpOnly, CSP, CSRF, logout e permissões reais do ba
   assert.equal((await req('/api/fluxo-caixa','GET',undefined,{Authorization:`Bearer ${fingirDono}`})).status,403);
 });
 
+test('produção aceita apenas a origem pública e responde ao preflight com credenciais', async t => {
+  const express = require('express');
+  const { protecoes, origemPermitida } = require('../middleware/seguranca');
+  const env = { NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://dropshoes.social.br' };
+  const reqFalso = { protocol: 'http', get: nome => nome === 'host' ? 'dropshoes.social.br' : undefined };
+  assert.equal(origemPermitida('https://dropshoes.social.br', reqFalso, env), true);
+  assert.equal(origemPermitida('https://preview.vercel.app', reqFalso, env), false);
+  assert.equal(origemPermitida('http://localhost:3000', reqFalso, env), false);
+  const app = express(); protecoes(app, env); app.post('/api/teste', (_req, res) => res.sendStatus(204));
+  const server = app.listen(0, '127.0.0.1'); await once(server, 'listening'); t.after(() => new Promise(r => server.close(r)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const preflight = await fetch(base + '/api/teste', { method: 'OPTIONS', headers: { Origin: 'https://dropshoes.social.br', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' } });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://dropshoes.social.br');
+  assert.equal(preflight.headers.get('access-control-allow-credentials'), 'true');
+  assert.match(preflight.headers.get('access-control-allow-methods'), /POST/);
+  const recusado = await fetch(base + '/api/teste', { method: 'OPTIONS', headers: { Origin: 'https://preview.vercel.app', 'Access-Control-Request-Method': 'POST' } });
+  assert.equal(recusado.status, 403);
+  assert.equal(recusado.headers.get('access-control-allow-origin'), null);
+});
+
 test('compra sem conta: telefone repetido não permite acessar nem pagar pedido alheio', async t => {
   const {req,db} = await ambiente(t);
   const a = await req('/api/cadastro-cliente','POST',{...contato,role:'admin1',id:'admin1'}); assert.equal(a.status,201);

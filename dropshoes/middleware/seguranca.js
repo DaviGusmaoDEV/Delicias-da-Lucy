@@ -7,7 +7,17 @@ function validarProducao(secret, env = process.env) {
   if (origem.protocol !== 'https:' || origem.username || origem.password || origem.pathname !== '/' || origem.search || origem.hash) throw new Error('PUBLIC_BASE_URL deve conter somente a origem HTTPS do site.');
   if (!/^\d+$/.test(String(env.TRUST_PROXY_HOPS || '0'))) throw new Error('TRUST_PROXY_HOPS deve ser um inteiro não negativo.');
 }
-function protecoes(app) {
+function origemPublica(env = process.env) {
+  try { return env.PUBLIC_BASE_URL ? new URL(env.PUBLIC_BASE_URL).origin : null; } catch { return null; }
+}
+function configurarCors(res, origem) {
+  res.set('Vary', 'Origin');
+  res.set('Access-Control-Allow-Origin', origem);
+  res.set('Access-Control-Allow-Credentials', 'true');
+  res.set('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Mode');
+}
+function protecoes(app, env = process.env) {
   app.disable('x-powered-by');
   app.use(helmet({
     contentSecurityPolicy: { directives: {
@@ -16,9 +26,9 @@ function protecoes(app) {
       fontSrc: ["'self'", 'https://fonts.gstatic.com'], imgSrc: ["'self'", 'https:', 'data:'],
       connectSrc: ["'self'"], objectSrc: ["'none'"], baseUri: ["'none'"],
       frameAncestors: ["'none'"], formAction: ["'self'"],
-      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
+      upgradeInsecureRequests: env.NODE_ENV === 'production' ? [] : null
     } },
-    strictTransportSecurity: process.env.NODE_ENV === 'production' ? undefined : false,
+    strictTransportSecurity: env.NODE_ENV === 'production' ? undefined : false,
     referrerPolicy: { policy: 'no-referrer' }
   }));
   app.use('/api', (req, res, next) => {
@@ -26,11 +36,15 @@ function protecoes(app) {
     res.on('finish', () => {
       if ([401, 403, 429].includes(res.statusCode)) console.warn(JSON.stringify({ evento: 'acesso_negado', status: res.statusCode, metodo: req.method, rota: req.route?.path || 'api' }));
     });
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-      const origem = req.get('origin');
-      let permitida;
-      try { permitida = process.env.PUBLIC_BASE_URL ? new URL(process.env.PUBLIC_BASE_URL).origin : `${req.protocol}://${req.get('host')}`; } catch { return res.status(503).json({ erro: 'Configuração do site indisponível.' }); }
-      if (req.get('sec-fetch-site') === 'cross-site' || (origem && !origemPermitida(origem, req))) return res.status(403).json({ erro: 'Origem não permitida.' });
+    const origem = req.get('origin');
+    const permitida = origem ? origemPermitida(origem, req, env) : false;
+    if (origem && permitida) configurarCors(res, origem);
+    if (req.method === 'OPTIONS') {
+      if (origem && !permitida) return res.status(403).json({ erro: 'Origem não permitida.' });
+      return res.sendStatus(204);
+    }
+    if (!['GET', 'HEAD'].includes(req.method)) {
+      if (req.get('sec-fetch-site') === 'cross-site' || (origem && !permitida)) return res.status(403).json({ erro: 'Origem não permitida.' });
       if ((Number(req.get('content-length')) > 0 || req.get('transfer-encoding')) && !req.is('application/json')) return res.status(415).json({ erro: 'Envie os dados em JSON.' });
     }
     next();
@@ -42,18 +56,20 @@ function lerCookie(req, nome) {
   if (!item) return null;
   try { return decodeURIComponent(item.slice(nome.length + 1)); } catch { return null; }
 }
-function origemPermitida(origem, req) {
+function origemPermitida(origem, req, env = process.env) {
   let recebida;
+  try { recebida = new URL(origem); } catch { return false; }
+  const publica = origemPublica(env);
+  // Em produção, a origem canônica é configurada explicitamente. Não dependa
+  // de req.protocol: atrás do proxy da Vercel ele pode ser HTTP internamente.
+  if (env.NODE_ENV === 'production') return Boolean(publica) && recebida.origin === publica;
   let atual;
-  try {
-    recebida = new URL(origem);
-    atual = new URL(`${req.protocol}://${req.get('host')}`);
-  } catch { return false; }
-  if (recebida.origin === atual.origin) return true;
-  if (process.env.NODE_ENV !== 'production') {
+  try { atual = new URL(`${req.protocol}://${req.get('host')}`); } catch { return false; }
+  if (recebida.origin === atual.origin || (publica && recebida.origin === publica)) return true;
+  if (env.NODE_ENV !== 'production') {
     const loopback = ['localhost', '127.0.0.1', '::1'];
     return loopback.includes(recebida.hostname) && loopback.includes(atual.hostname);
   }
   return false;
 }
-module.exports = { protecoes, opcoesCookie, lerCookie, validarProducao, origemPermitida };
+module.exports = { protecoes, opcoesCookie, lerCookie, validarProducao, origemPermitida, origemPublica };
