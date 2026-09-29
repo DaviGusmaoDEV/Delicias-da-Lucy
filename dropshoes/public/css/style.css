@@ -90,8 +90,8 @@ button, .btn, .nav-item { min-height: 44px; }
 .pedido-card.status-pronto_entrega { border-left-color: #a78bfa; }
 .pedido-card.status-recebido { border-left-color: #22c55e; }
 .detalhe-pagamento { font-weight: 700; }
-.pedido-card.pagamento-pix { border-left-color: #ca8a04; background: #fef9c3; }
-.pedido-card.pagamento-infinitepay { border-left-color: #f97316; background: #ffedd5; }
+.pedido-card.pagamento-pix { border-left-color: #0879BF; background: #E6F4FF; }
+.pedido-card.pagamento-infinitepay { border-left-color: #087F6D; background: #E6FAF5; }
 .pedido-card.pagamento-entrega { border-left-color: #a855f7; background: #f3e8ff; }
 .pedido-card.pagamento-pix .detalhe-pagamento { color: #854d0e; }
 .pedido-card.pagamento-infinitepay .detalhe-pagamento { color: #9a3412; }
