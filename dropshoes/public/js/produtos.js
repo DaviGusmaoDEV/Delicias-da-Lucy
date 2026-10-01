@@ -74,12 +74,17 @@ async function selecionarAdicionais(produto, card, acionador) {
   };
   lista.querySelectorAll('input').forEach(input => input.addEventListener('change', atualizarPreco));
   atualizarPreco();
+  const primeiroCheckbox = lista.querySelector('input');
+  if (primeiroCheckbox) primeiroCheckbox.focus();
   card.querySelector('.btn-confirmar-adicionais').onclick = () => {
     const selecionados = [...lista.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, preco: Number(input.dataset.preco) }));
     const adicionado = adicionarAoCarrinho(produto, selecionados);
     if (adicionado) { painel.hidden = true; acionador.focus(); }
   };
   card.querySelector('.btn-cancelar-adicionais').onclick = () => { painel.hidden = true; acionador.focus(); };
+  painel.onkeydown = evento => {
+    if (evento.key === 'Escape') { evento.preventDefault(); painel.hidden = true; acionador.focus(); }
+  };
   return true;
 }
 function configurarImagem(imagem, fallback, produto) {

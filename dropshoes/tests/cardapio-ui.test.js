@@ -30,6 +30,10 @@ test('template do produto mantém seletores funcionais e ação textual explíci
   assert.match(html, /seletor-adicionais/);
   assert.match(html, /lista-adicionais/);
   assert.match(html, /btn-confirmar-adicionais/);
+  assert.match(html, /Adicionais opcionais/i);
+  assert.match(html, /Escolha se quiser adicionar algo/i);
+  assert.match(html, /Adicionar ao carrinho/i);
+  assert.doesNotMatch(html, /<input[^>]+required/i);
 });
 
 test('seleção de adicionais usa identidade determinística por combinação', () => {
@@ -51,6 +55,14 @@ test('cardápio reutiliza o carrinho existente e oferece feedback sem alerta tem
   assert.match(produtos, /carrinho:atualizado/);
   assert.match(carrinho, /new CustomEvent\(['"]carrinho:atualizado['"]/);
   assert.doesNotMatch(carrinho, /title:\s*['"]Adicionado ao carrinho['"]/);
+});
+
+test('personalização permite zero adicionais e oferece foco/escape', () => {
+  const js = ler('js/produtos.js');
+  assert.match(js, /adicionarAoCarrinho\(produto, selecionados\)/);
+  assert.match(js, /const primeiroCheckbox = lista\.querySelector\('input'\)/);
+  assert.match(js, /evento\.key === 'Escape'/);
+  assert.doesNotMatch(ler('tela cliente/Produtos.html'), /<input[^>]+required/i);
 });
 
 test('renderização contempla carregamento, erro, vazio, filtro, promoção e imagem ausente', () => {
