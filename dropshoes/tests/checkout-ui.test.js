@@ -28,6 +28,7 @@ test('template do checkout oferece quantidade, subtotal do item e remoção com 
   for (const classe of ['carrinho-item-nome', 'carrinho-item-detalhes', 'carrinho-item-qtd', 'carrinho-item-total', 'btn-qtd-menos', 'btn-qtd-mais', 'btn-remover-item']) {
     assert.match(html, new RegExp(`class=["'][^"']*\\b${classe}\\b`, 'i'), `classe ausente: ${classe}`);
   }
+  assert.match(html, /carrinho-item-adicionais/);
   assert.match(html, /aria-label=["']Diminuir quantidade/i);
   assert.match(html, /aria-label=["']Aumentar quantidade/i);
   assert.match(html, />\s*Remover\s*</i);
@@ -46,6 +47,8 @@ test('carrinho mantém remoção, erros associados e proteção visual contra en
   assert.match(js, /cart-subtotal/);
   assert.match(js, /cart-frete/);
   assert.match(js, /cart-total/);
+  assert.match(js, /adicionais_ids/);
+  assert.match(js, /identidadeItem/);
 });
 
 test('CSS do checkout prioriza leitura, toque, seleção perceptível e layout sem overflow', () => {

@@ -9,7 +9,7 @@ const { criarAutenticacao } = require('./config/autenticacao');
 const { criarPagamentos, urlCheckoutValida } = require('./services/pagamentos');
 const { criarInfinitePay } = require('./services/infinitepay');
 const { criarVisitantes, pedidosDoComprador, telefoneValido } = require('./services/visitantes');
-const { criarEntrega } = require('./services/entrega');
+const { criarEntrega, normalizarBairro } = require('./services/entrega');
 
 function criarApp({ db, secret = process.env.JWT_SECRET, pagamentoCliente, pagamentos: pagamentosTeste, entrega: entregaTeste } = {}) {
 validarProducao(secret);
@@ -43,12 +43,33 @@ const rota = (metodo, url, ...handlers) => app[metodo](url, ...handlers.map(hand
 
 const soAdmin = (req, res, next) => ADMIN_ROLES.includes(req.user.role) ? next() : res.status(403).json({ erro: 'Acesso exclusivo da administração.' });
 const soAdmin1 = (req, res, next) => req.user.role === 'admin1' ? next() : res.status(403).json({ erro: 'O fluxo de caixa é acessível somente pelo Admin 1 (dono geral).' });
-const entrega = entregaTeste || criarEntrega();
+const buscarTaxaBairro = async ({ cidade, uf, chaveNormalizada }) => {
+  const { data, error } = await supabase.from('delivery_bairro_taxas')
+    .select('nome,taxa,ativo')
+    .eq('cidade', cidade)
+    .eq('uf', uf)
+    .eq('chave_normalizada', chaveNormalizada)
+    .eq('ativo', true)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+const entrega = entregaTeste || criarEntrega({ buscarTaxaBairro });
 const pagamentos = pagamentosTeste || criarPagamentos({ db: supabase, payerEmail: process.env.MERCADOPAGO_PAYER_EMAIL });
 const infinitePay = pagamentosTeste ? null : criarInfinitePay({ db: supabase });
 const provedorPagamentoPadrao = String(process.env.PAYMENT_PROVIDER || 'infinitepay').trim().toLowerCase();
 const provedores = pagamentosTeste ? { infinitepay: pagamentosTeste, mercadopago_pix: pagamentosTeste } : { infinitepay: infinitePay, mercadopago_pix: pagamentos };
 const normalizarProvedor = valor => ({ mercadopago: 'mercadopago_pix', mercado_pago: 'mercadopago_pix', pix: 'mercadopago_pix', mercadopago_pix: 'mercadopago_pix', infinitepay: 'infinitepay' }[String(valor || '').trim().toLowerCase()] || null);
+const centavos = valor => Math.round(Number(valor) * 100);
+const reaisDeCentavos = valor => Number(valor) / 100;
+const adicionaisIdsNormalizados = valor => {
+  if (valor == null) return [];
+  if (!Array.isArray(valor)) throw new Error('Adicionais inválidos.');
+  const ids = valor.map(id => String(id)).filter(Boolean);
+  if (ids.length !== new Set(ids).size) throw new Error('Adicional duplicado.');
+  return ids.sort((a, b) => a.localeCompare(b));
+};
+const identidadeItem = (produtoId, adicionaisIds) => `${String(produtoId)}|${adicionaisIds.join(',')}`;
 const pagamentoPixPublico = pagamento => pagamento && ({ provider: 'mercadopago_pix', qr_code: pagamento.qr_code, qr_code_base64: pagamento.qr_code_base64, payment_id: pagamento.payment_id, order_id: pagamento.order_id, status: pagamento.status, expires_at: pagamento.expires_at });
 const pedidoPagamentoPixPublico = pedido => ({ id: pedido.id, numero_pedido: pedido.numero_pedido ?? null, valor: pedido.valor, status: pedido.status, pagamento: pedido.pagamento, pagamento_status: pedido.pagamento_status, pagamento_provedor: 'mercadopago_pix' });
 rota('post', '/api/webhooks/mercadopago', pagamentos.notificar);
@@ -74,20 +95,124 @@ rota('get', '/api/meu-perfil', autenticarCompra, async (req, res) => {
 rota('get', '/api/taxa-entrega', limiteEntrega, async (req, res) => { try { res.json(await entrega(req.query.cep, req.query)); } catch (error) { res.status(400).json({ erro: error.message }); } });
 rota('get', '/api/endereco', limiteEntrega, async (req, res) => { try { if (typeof entrega.consultarEndereco !== 'function') throw new Error('Consulta de CEP indisponível.'); res.json(await entrega.consultarEndereco(req.query.cep)); } catch (error) { res.status(400).json({ erro: error.message }); } });
 
-rota('get', '/api/produtos', async (req, res) => { const { data, error } = await supabase.from('products').select('id,nome,preco,categoria,descricao,imagem_url,isEspecial').order('nome'); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.json(data); });
+rota('get', '/api/produtos', async (req, res) => { const { data, error } = await supabase.from('products').select('id,nome,preco,categoria,descricao,imagem_url,isEspecial,ativo').eq('ativo', true).order('nome'); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.json(data); });
+rota('get', '/api/admin/produtos', autenticar, soAdmin, async (_req, res) => { const { data, error } = await supabase.from('products').select('id,nome,preco,categoria,descricao,imagem_url,isEspecial,ativo').order('nome'); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.json(data || []); });
+rota('get', '/api/produtos/:id/adicionais', async (req, res) => {
+  const produto = await supabase.from('products').select('id,ativo').eq('id', req.params.id).maybeSingle();
+  if (produto.error) return res.status(503).json({ erro: 'Não foi possível carregar os adicionais.' });
+  if (!produto.data || produto.data.ativo === false) return res.status(404).json({ erro: 'Produto não encontrado.' });
+  const relacoes = await supabase.from('produto_adicionais').select('adicional_id,ativo').eq('produto_id', req.params.id).eq('ativo', true);
+  if (relacoes.error) return res.status(400).json({ erro: 'Não foi possível carregar os adicionais.' });
+  const ids = [...new Set((relacoes.data || []).map(relacao => String(relacao.adicional_id)))];
+  if (!ids.length) return res.json([]);
+  const { data, error } = await supabase.from('adicionais').select('id,nome,preco').in('id', ids).eq('ativo', true).order('nome');
+  if (error) return res.status(400).json({ erro: 'Não foi possível carregar os adicionais.' });
+  res.json((data || []).filter(adicional => typeof adicional.nome === 'string' && Number.isFinite(Number(adicional.preco)) && Number(adicional.preco) >= 0));
+});
+rota('get', '/api/admin/adicionais', autenticar, soAdmin, async (_req, res) => {
+  const { data, error } = await supabase.from('adicionais').select('id,nome,preco,ativo').order('nome');
+  if (error) return res.status(503).json({ erro: 'Não foi possível carregar os adicionais.' });
+  res.json(data || []);
+});
+rota('post', '/api/admin/adicionais', autenticar, soAdmin1, async (req, res) => {
+  const { nome, preco, ativo = true } = req.body;
+  if (typeof nome !== 'string' || !nome.trim() || nome.trim().length > 120 || typeof preco !== 'number' || !Number.isFinite(preco) || preco < 0 || preco > 999999 || typeof ativo !== 'boolean') return res.status(400).json({ erro: 'Informe nome, preço válido e status.' });
+  const { data, error } = await supabase.from('adicionais').insert([{ nome: nome.trim(), preco: Math.round(preco * 100) / 100, ativo }]).select('id,nome,preco,ativo').single();
+  if (error) return res.status(error.code === '23505' ? 409 : 400).json({ erro: error.code === '23505' ? 'Já existe um adicional com esse nome.' : 'Não foi possível salvar o adicional.' });
+  res.status(201).json(data);
+});
+rota('patch', '/api/admin/adicionais/:id', autenticar, soAdmin1, async (req, res) => {
+  const alteracoes = {};
+  if (req.body.nome !== undefined) { if (typeof req.body.nome !== 'string' || !req.body.nome.trim() || req.body.nome.trim().length > 120) return res.status(400).json({ erro: 'Nome de adicional inválido.' }); alteracoes.nome = req.body.nome.trim(); }
+  if (req.body.preco !== undefined) { if (typeof req.body.preco !== 'number' || !Number.isFinite(req.body.preco) || req.body.preco < 0 || req.body.preco > 999999) return res.status(400).json({ erro: 'Preço de adicional inválido.' }); alteracoes.preco = Math.round(req.body.preco * 100) / 100; }
+  if (req.body.ativo !== undefined) { if (typeof req.body.ativo !== 'boolean') return res.status(400).json({ erro: 'Status inválido.' }); alteracoes.ativo = req.body.ativo; }
+  if (!Object.keys(alteracoes).length) return res.status(400).json({ erro: 'Nenhuma alteração informada.' });
+  const { data, error } = await supabase.from('adicionais').update(alteracoes).eq('id', req.params.id).select('id,nome,preco,ativo').single();
+  if (error) return res.status(error.code === '23505' ? 409 : 400).json({ erro: error.code === '23505' ? 'Já existe um adicional com esse nome.' : 'Não foi possível atualizar o adicional.' });
+  res.json(data);
+});
+rota('get', '/api/admin/produtos/:id/adicionais', autenticar, soAdmin, async (req, res) => {
+  const produto = await supabase.from('products').select('id').eq('id', req.params.id).maybeSingle();
+  if (produto.error) return res.status(503).json({ erro: 'Não foi possível carregar as associações.' });
+  if (!produto.data) return res.status(404).json({ erro: 'Produto não encontrado.' });
+  const [adicionais, relacoes] = await Promise.all([
+    supabase.from('adicionais').select('id,nome,preco,ativo').order('nome'),
+    supabase.from('produto_adicionais').select('adicional_id,ativo').eq('produto_id', req.params.id)
+  ]);
+  if (adicionais.error || relacoes.error) return res.status(503).json({ erro: 'Não foi possível carregar as associações.' });
+  const estado = new Map((relacoes.data || []).map(relacao => [String(relacao.adicional_id), relacao.ativo !== false]));
+  res.json((adicionais.data || []).map(adicional => ({ ...adicional, associado: estado.get(String(adicional.id)) === true })));
+});
+rota('put', '/api/admin/produtos/:id/adicionais', autenticar, soAdmin1, async (req, res) => {
+  const ids = req.body.adicional_ids;
+  if (!Array.isArray(ids) || ids.some(id => id == null) || new Set(ids.map(String)).size !== ids.length) return res.status(400).json({ erro: 'Lista de adicionais inválida.' });
+  const produto = await supabase.from('products').select('id').eq('id', req.params.id).maybeSingle();
+  if (produto.error) return res.status(503).json({ erro: 'Não foi possível atualizar as associações.' });
+  if (!produto.data) return res.status(404).json({ erro: 'Produto não encontrado.' });
+  const existentes = await supabase.from('produto_adicionais').select('adicional_id,ativo').eq('produto_id', req.params.id);
+  if (existentes.error) return res.status(503).json({ erro: 'Não foi possível atualizar as associações.' });
+  const adicionais = ids.length ? await supabase.from('adicionais').select('id').in('id', ids) : { data: [], error: null };
+  if (adicionais.error) return res.status(503).json({ erro: 'Não foi possível validar os adicionais.' });
+  if ((adicionais.data || []).length !== new Set(ids.map(String)).size) return res.status(400).json({ erro: 'Um adicional informado não existe.' });
+  const desejados = new Set(ids.map(String));
+  for (const relacao of existentes.data || []) {
+    const ativo = desejados.has(String(relacao.adicional_id));
+    if (relacao.ativo !== ativo) {
+      const atualizado = await supabase.from('produto_adicionais').update({ ativo }).eq('produto_id', req.params.id).eq('adicional_id', relacao.adicional_id);
+      if (atualizado.error) return res.status(400).json({ erro: 'Não foi possível atualizar as associações.' });
+    }
+  }
+  const existentesIds = new Set((existentes.data || []).map(relacao => String(relacao.adicional_id)));
+  const novos = ids.filter(id => !existentesIds.has(String(id))).map(adicional_id => ({ produto_id: req.params.id, adicional_id, ativo: true }));
+  if (novos.length) { const inseridos = await supabase.from('produto_adicionais').insert(novos); if (inseridos.error) return res.status(400).json({ erro: 'Não foi possível atualizar as associações.' }); }
+  res.json({ adicional_ids: ids });
+});
+rota('get', '/api/admin/taxas-entrega', autenticar, soAdmin, async (_req, res) => {
+  const { data, error } = await supabase.from('delivery_bairro_taxas').select('id,cidade,uf,nome,taxa,ativo').order('nome');
+  if (error) return res.status(503).json({ erro: 'Não foi possível carregar as taxas.' });
+  res.json(data || []);
+});
+rota('post', '/api/admin/taxas-entrega', autenticar, soAdmin1, async (req, res) => {
+  const { cidade, uf, nome, taxa, ativo = true } = req.body;
+  const chave = typeof nome === 'string' ? normalizarBairro(nome) : '';
+  if (typeof cidade !== 'string' || !cidade.trim() || cidade.trim().length > 120 || typeof uf !== 'string' || !/^[A-Za-z]{2}$/.test(uf.trim()) || !chave || typeof taxa !== 'number' || !Number.isFinite(taxa) || taxa < 0 || typeof ativo !== 'boolean') return res.status(400).json({ erro: 'Informe cidade, UF, bairro e taxa válida.' });
+  const { data, error } = await supabase.from('delivery_bairro_taxas').insert([{ cidade: cidade.trim(), uf: uf.trim().toUpperCase(), nome: nome.trim(), chave_normalizada: chave, taxa: Math.round(taxa * 100) / 100, ativo }]).select('id,cidade,uf,nome,taxa,ativo').single();
+  if (error) return res.status(error.code === '23505' ? 409 : 400).json({ erro: error.code === '23505' ? 'Já existe uma taxa para este bairro.' : 'Não foi possível salvar a taxa.' });
+  res.status(201).json(data);
+});
+rota('patch', '/api/admin/taxas-entrega/:id', autenticar, soAdmin1, async (req, res) => {
+  const alteracoes = {};
+  if (req.body.cidade !== undefined) { if (typeof req.body.cidade !== 'string' || !req.body.cidade.trim() || req.body.cidade.trim().length > 120) return res.status(400).json({ erro: 'Cidade inválida.' }); alteracoes.cidade = req.body.cidade.trim(); }
+  if (req.body.uf !== undefined) { if (typeof req.body.uf !== 'string' || !/^[A-Za-z]{2}$/.test(req.body.uf.trim())) return res.status(400).json({ erro: 'UF inválida.' }); alteracoes.uf = req.body.uf.trim().toUpperCase(); }
+  if (req.body.nome !== undefined) { if (typeof req.body.nome !== 'string' || !req.body.nome.trim() || !normalizarBairro(req.body.nome)) return res.status(400).json({ erro: 'Bairro inválido.' }); alteracoes.nome = req.body.nome.trim(); alteracoes.chave_normalizada = normalizarBairro(req.body.nome); }
+  if (req.body.taxa !== undefined) { if (typeof req.body.taxa !== 'number' || !Number.isFinite(req.body.taxa) || req.body.taxa < 0) return res.status(400).json({ erro: 'Taxa inválida.' }); alteracoes.taxa = Math.round(req.body.taxa * 100) / 100; }
+  if (req.body.ativo !== undefined) { if (typeof req.body.ativo !== 'boolean') return res.status(400).json({ erro: 'Status inválido.' }); alteracoes.ativo = req.body.ativo; }
+  if (!Object.keys(alteracoes).length) return res.status(400).json({ erro: 'Nenhuma alteração informada.' });
+  const { data, error } = await supabase.from('delivery_bairro_taxas').update(alteracoes).eq('id', req.params.id).select('id,cidade,uf,nome,taxa,ativo').single();
+  if (error) return res.status(error.code === '23505' ? 409 : 400).json({ erro: error.code === '23505' ? 'Já existe uma taxa para este bairro.' : 'Não foi possível atualizar a taxa.' });
+  res.json(data);
+});
+// A política existente permite que ambos os administradores mantenham produtos.
+// As novas regras comerciais (adicionais, associações e taxas) permanecem
+// restritas ao Admin 1.
 rota('post', '/api/produtos', autenticar, soAdmin, salvarProduto);
 rota('put', '/api/produtos/:id', autenticar, soAdmin, salvarProduto);
 async function salvarProduto(req, res) {
-  const { nome, preco, categoria, descricao, imagem_url, imagem, isEspecial } = req.body;
-  if (typeof nome !== 'string' || !nome.trim() || nome.trim().length < 3 || nome.trim().length > 100 || typeof preco !== 'number' || !Number.isFinite(preco) || preco < 0.01 || Number(preco) > 9999.99 || typeof categoria !== 'string' || !categoria.trim() || categoria.length > 80 || (descricao != null && (typeof descricao !== 'string' || descricao.length > 2000)) || (isEspecial !== undefined && typeof isEspecial !== 'boolean')) return res.status(400).json({ erro: 'Informe nome (3 a 100 caracteres), categoria e preço válido.' });
+  const { nome, preco, categoria, descricao, imagem_url, imagem, isEspecial, ativo } = req.body;
+  if (typeof nome !== 'string' || !nome.trim() || nome.trim().length < 3 || nome.trim().length > 100 || typeof preco !== 'number' || !Number.isFinite(preco) || preco < 0.01 || Number(preco) > 9999.99 || typeof categoria !== 'string' || !categoria.trim() || categoria.length > 80 || (descricao != null && (typeof descricao !== 'string' || descricao.length > 2000)) || (isEspecial !== undefined && typeof isEspecial !== 'boolean') || (ativo !== undefined && typeof ativo !== 'boolean')) return res.status(400).json({ erro: 'Informe nome (3 a 100 caracteres), categoria e preço válido.' });
   if ([imagem_url, imagem].some(url => url != null && (typeof url !== 'string' || !/^https?:\/\//i.test(url)))) return res.status(400).json({ erro: 'Informe uma URL de imagem HTTP ou HTTPS válida.' });
   const produto = { nome: nome.trim(), preco: Math.round(Number(preco) * 100) / 100, categoria: categoria.trim(), isEspecial: Boolean(isEspecial) };
+  // Produtos novos começam disponíveis; em edições, só altera o status
+  // quando ele foi explicitamente informado.
+  if (ativo !== undefined || !req.params.id) produto.ativo = ativo !== false;
   if (descricao !== undefined) produto.descricao = descricao?.trim() || null;
   if (imagem_url !== undefined || imagem !== undefined) produto.imagem_url = imagem_url || imagem || null;
   const consulta = req.params.id ? supabase.from('products').update(produto).eq('id', req.params.id) : supabase.from('products').insert([produto]);
   const { data, error } = await consulta.select().single(); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.status(req.params.id ? 200 : 201).json(data);
 }
-rota('delete', '/api/produtos/:id', autenticar, soAdmin, async (req, res) => { const { error } = await supabase.from('products').delete().eq('id', req.params.id); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.status(204).end(); });
+// Compatibilidade legada: DELETE nunca apaga mais o registro; desativa-o.
+// A interface administrativa usa PUT para deixar explícito o ciclo de vida.
+rota('delete', '/api/produtos/:id', autenticar, soAdmin, async (req, res) => { const { error } = await supabase.from('products').update({ ativo: false }).eq('id', req.params.id); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.status(204).end(); });
 rota('get', '/api/fluxo-caixa', autenticar, soAdmin1, async (req, res) => {
   const { inicio, fim } = req.query;
   if ((inicio !== undefined && !dataIsoValida(inicio)) || (fim !== undefined && !dataIsoValida(fim)) || (inicio && fim && inicio > fim)) return res.status(400).json({ erro: 'Período de caixa inválido.' });
@@ -119,6 +244,7 @@ rota('delete', '/api/fluxo-caixa/:id', autenticar, soAdmin1, async (req, res) =>
 rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req, res) => {
   if (!['cliente', 'visitante'].includes(req.user.role)) return res.status(403).json({ erro: 'Pedidos devem ser feitos pela conta de cliente.' });
   const { itens, observacao_geral, endereco, numero_casa, bairro, cep, pagamento, checkout_chave, cliente_nome, cliente_telefone } = req.body;
+  const subtotalEsperado = req.body.subtotal_esperado;
   let emailPedido = '';
   if (!emailPedido && req.user.role === 'cliente') {
     const { data: perfilEmail, error: erroPerfilEmail } = await supabase.from('profiles').select('email').eq('id', req.user.id).maybeSingle();
@@ -129,7 +255,12 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
   const provedorSolicitado = pagamentoOnline ? (normalizarProvedor(req.body.provedor_pagamento || req.body.payment_provider) || normalizarProvedor(provedorPagamentoPadrao) || 'infinitepay') : null;
   const pagamentosAtivos = pagamentoOnline ? provedores[provedorSolicitado] : null;
   if (typeof cliente_nome !== 'string' || cliente_nome.trim().length < 2 || cliente_nome.trim().length > 100 || !telefoneValido(cliente_telefone)) return res.status(400).json({ erro: 'Informe seu nome e telefone com DDD.' });
-  if (!Array.isArray(itens) || !itens.length || itens.length > 100 || itens.some(item => !item || !['string', 'number'].includes(typeof item.produto_id)) || new Set(itens.map(item => String(item.produto_id))).size !== itens.length) return res.status(400).json({ erro: 'Adicione ao menos um item ao carrinho.' });
+  if (!Array.isArray(itens) || !itens.length || itens.length > 100 || itens.some(item => !item || !['string', 'number'].includes(typeof item.produto_id))) return res.status(400).json({ erro: 'Adicione ao menos um item ao carrinho.' });
+  let identidades;
+  try {
+    identidades = itens.map(item => identidadeItem(item.produto_id, adicionaisIdsNormalizados(item.adicionais_ids)));
+  } catch (error) { return res.status(400).json({ erro: error.message }); }
+  if (new Set(identidades).size !== identidades.length) return res.status(400).json({ erro: 'Há itens iguais repetidos no carrinho.' });
   if ([endereco, numero_casa, bairro, cep].some(campo => typeof campo !== 'string' || !campo.trim() || campo.length > 250) || (observacao_geral != null && typeof observacao_geral !== 'string')) return res.status(400).json({ erro: 'Preencha rua, número, bairro e CEP para a entrega.' });
   if (!['site', 'entrega'].includes(pagamento)) return res.status(400).json({ erro: 'Forma de pagamento inválida.' });
   if (pagamentoOnline && !pagamentosAtivos?.disponivel) return res.status(503).json({ erro: 'Pagamento online indisponível. Tente novamente mais tarde.' });
@@ -142,11 +273,67 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
     ? confirmarPedidoEntrega(existente, res)
     : responderCheckout(existente, res, provedorSolicitado, pagamentosAtivos);
   let taxa; try { taxa = (await entrega(cep, { endereco, bairro, numero_casa })).taxa; } catch (error) { return res.status(400).json({ erro: error.message }); }
-  const ids = itens.map(item => item.produto_id); const { data: produtos, error: produtosErro } = await supabase.from('products').select('id,preco').in('id', ids);
+  const ids = itens.map(item => item.produto_id); const { data: produtos, error: produtosErro } = await supabase.from('products').select('id,nome,preco,ativo').in('id', ids).eq('ativo', true);
   if (produtosErro || produtos?.length !== new Set(ids).size) return res.status(400).json({ erro: 'Um produto do carrinho não está mais disponível.' });
-  const mapa = new Map(produtos.map(p => [String(p.id), p])); let subtotal = 0; let itensConfirmados;
-  try { itensConfirmados = itens.map(item => { const produto = mapa.get(String(item.produto_id)); const quantidade = item.quantidade; if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 50) throw new Error('Quantidade inválida.'); const preco = Number(produto?.preco); if (!Number.isFinite(preco) || preco <= 0) throw new Error('Preço de produto inválido.'); subtotal += Math.round(preco * 100) * quantidade; return { produto_id: produto.id, quantidade, preco_unitario: Number(produto.preco), observacao_item: String(item.observacao_item || '').slice(0, 300) }; }); } catch (error) { return res.status(400).json({ erro: error.message }); }
-  subtotal /= 100;
+  const mapa = new Map(produtos.map(p => [String(p.id), p]));
+  const todosAdicionais = itens.flatMap(item => { try { return adicionaisIdsNormalizados(item.adicionais_ids); } catch { return []; } });
+  const idsAdicionais = [...new Set(todosAdicionais)];
+  let adicionais = [];
+  let relacionamentos = [];
+  if (idsAdicionais.length) {
+    const [resultadoAdicionais, resultadoRelacionamentos] = await Promise.all([
+      supabase.from('adicionais').select('id,nome,preco,ativo').in('id', idsAdicionais),
+      supabase.from('produto_adicionais').select('produto_id,adicional_id,ativo').in('produto_id', ids)
+    ]);
+    if (resultadoAdicionais.error || resultadoRelacionamentos.error) return res.status(503).json({ erro: 'Os adicionais ainda não estão disponíveis para este pedido.' });
+    adicionais = resultadoAdicionais.data || [];
+    relacionamentos = resultadoRelacionamentos.data || [];
+  }
+  const mapaAdicionais = new Map(adicionais.map(item => [String(item.id), item]));
+  const mapaPermitidos = new Map();
+  for (const relacao of relacionamentos) {
+    if (relacao.ativo !== false) {
+      const chave = String(relacao.produto_id);
+      if (!mapaPermitidos.has(chave)) mapaPermitidos.set(chave, new Set());
+      mapaPermitidos.get(chave).add(String(relacao.adicional_id));
+    }
+  }
+  let subtotalCentavos = 0; let itensConfirmados;
+  try {
+    itensConfirmados = itens.map(item => {
+      const produto = mapa.get(String(item.produto_id));
+      const quantidade = item.quantidade;
+      if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 50) throw new Error('Quantidade inválida.');
+      const precoBaseCentavos = centavos(produto?.preco);
+      if (!Number.isInteger(precoBaseCentavos) || precoBaseCentavos <= 0) throw new Error('Preço de produto inválido.');
+      const idsDoItem = adicionaisIdsNormalizados(item.adicionais_ids);
+      const permitidos = mapaPermitidos.get(String(produto.id)) || new Set();
+      const snapshotAdicionais = idsDoItem.map(id => {
+        const adicional = mapaAdicionais.get(id);
+        if (!adicional || adicional.ativo !== true) throw new Error('Adicional inexistente ou inativo.');
+        if (!permitidos.has(id)) throw new Error('Adicional não permitido para este produto.');
+        const preco = centavos(adicional.preco);
+        if (!Number.isInteger(preco) || preco < 0) throw new Error('Preço de adicional inválido.');
+        return { id: adicional.id, nome: adicional.nome, preco: reaisDeCentavos(preco) };
+      });
+      const adicionaisCentavos = snapshotAdicionais.reduce((soma, adicional) => soma + centavos(adicional.preco), 0);
+      const unitarioCentavos = precoBaseCentavos + adicionaisCentavos;
+      const subtotalItemCentavos = unitarioCentavos * quantidade;
+      subtotalCentavos += subtotalItemCentavos;
+      return {
+        produto_id: produto.id,
+        quantidade,
+        produto_nome_snapshot: String(produto.nome || '').slice(0, 150),
+        preco_base_unitario: reaisDeCentavos(precoBaseCentavos),
+        adicionais_snapshot: snapshotAdicionais,
+        preco_adicionais_unitario: reaisDeCentavos(adicionaisCentavos),
+        preco_unitario: reaisDeCentavos(unitarioCentavos),
+        observacao_item: String(item.observacao_item || '').slice(0, 300)
+      };
+    });
+  } catch (error) { return res.status(400).json({ erro: error.message }); }
+  const subtotal = reaisDeCentavos(subtotalCentavos);
+  if (subtotalEsperado !== undefined && (typeof subtotalEsperado !== 'number' || !Number.isFinite(subtotalEsperado) || centavos(subtotalEsperado) !== subtotalCentavos)) return res.status(409).json({ erro: 'Os preços foram atualizados. Revise o carrinho.' });
   const { data: pedido, error } = await supabase.rpc('criar_pedido_com_itens', { p_pedido: { usuario_id: req.user.role === 'cliente' ? req.user.id : null, visitante_id: req.user.role === 'visitante' ? req.user.id : null, cliente_nome: cliente_nome.trim(), cliente_email: emailPedido || null, cliente_telefone: cliente_telefone.replace(/\D/g, ''), valor: Math.round((subtotal + taxa) * 100) / 100, subtotal, taxa_entrega: taxa, status: 'pendente', observacao_geral: observacao_geral?.slice(0, 500) || null, endereco: endereco.trim(), numero_casa: numero_casa.trim(), bairro: bairro.trim(), cep: String(cep).replace(/\D/g, ''), pagamento, checkout_chave, pagamento_status: 'pending' }, p_itens: itensConfirmados });
   if (error || !pedido) return res.status(503).json({ erro: 'Não foi possível salvar o pedido. Tente novamente.' });
   if (pagamento === 'entrega') return confirmarPedidoEntrega(pedido, res);

@@ -27,6 +27,20 @@ test('template do produto mantém seletores funcionais e ação textual explíci
   assert.match(html, /<article\b[^>]*class=["'][^"']*product-card/i);
   assert.match(html, /Adicionar ao pedido/i);
   assert.doesNotMatch(html, /style=["'][^"']*width\s*:\s*200px/i);
+  assert.match(html, /seletor-adicionais/);
+  assert.match(html, /lista-adicionais/);
+  assert.match(html, /btn-confirmar-adicionais/);
+});
+
+test('seleção de adicionais usa identidade determinística por combinação', () => {
+  const fonte = ler('js/carrinho.js')
+    .replace(/^import .*;$/gm, '')
+    .replace(/\bexport\s+(?=(?:const|function|async\s+function)\b)/g, '')
+    .concat('\n;globalThis.__identidade = identidadeItem;');
+  const contexto = { localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} }, document: { addEventListener: () => {} }, window: {}, Swal: { fire: () => {} } };
+  vm.runInNewContext(fonte, contexto);
+  assert.equal(contexto.__identidade(10, [{ id: 'b' }, { id: 'a' }]), contexto.__identidade(10, [{ id: 'a' }, { id: 'b' }]));
+  assert.notEqual(contexto.__identidade(10, [{ id: 'a' }]), contexto.__identidade(10, [{ id: 'b' }]));
 });
 
 test('cardápio reutiliza o carrinho existente e oferece feedback sem alerta temporário duplicado', () => {
@@ -85,6 +99,28 @@ test('adição continua persistindo no carrinho e emite a quantidade real para a
   assert.equal(eventos.at(-1).type, 'carrinho:atualizado');
   assert.equal(eventos.at(-1).detail.quantidadeTotal, 2);
   assert.equal(eventos.at(-1).detail.item.nome, produto.nome);
+});
+
+test('combinações iguais agregam e combinações diferentes permanecem separadas', () => {
+  const armazenado = new Map();
+  const fonte = ler('js/carrinho.js')
+    .replace(/^import .*;$/gm, '')
+    .replace(/\bexport\s+(?=(?:const|function|async\s+function)\b)/g, '')
+    .concat('\n;globalThis.__carrinhoCombos = { adicionarAoCarrinho, obterCarrinho };');
+  const contexto = {
+    localStorage: { getItem: chave => armazenado.get(chave) ?? null, setItem: (chave, valor) => armazenado.set(chave, valor), removeItem: () => {} },
+    document: { getElementById: () => null, addEventListener: () => {}, querySelector: () => null, querySelectorAll: () => [] },
+    window: { dispatchEvent: () => {}, addEventListener: () => {} }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } },
+    Swal: { fire: () => {} }, URLSearchParams, console
+  };
+  vm.runInNewContext(fonte, contexto);
+  const produto = { id: 10, nome: 'X-Bacon', preco: 20 };
+  contexto.__carrinhoCombos.adicionarAoCarrinho(produto, [{ id: 'b', nome: 'Ovo', preco: 3 }, { id: 'a', nome: 'Cheddar', preco: 5 }]);
+  contexto.__carrinhoCombos.adicionarAoCarrinho(produto, [{ id: 'a', nome: 'Cheddar', preco: 5 }, { id: 'b', nome: 'Ovo', preco: 3 }]);
+  contexto.__carrinhoCombos.adicionarAoCarrinho(produto, [{ id: 'c', nome: 'Catupiry', preco: 5 }]);
+  const linhas = contexto.__carrinhoCombos.obterCarrinho();
+  assert.equal(linhas.length, 2);
+  assert.equal(linhas.find(item => item.adicionais.some(adicional => adicional.id === 'a')).quantidade, 2);
 });
 
 test('filtros preservam categoria, produtos normais e ofertas especiais', () => {

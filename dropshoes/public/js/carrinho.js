@@ -4,7 +4,7 @@ import { api, enviar } from './api.js';
 let carrinho = [];
 try {
   const salvo = JSON.parse(localStorage.getItem('carrinho') || '[]');
-  if (Array.isArray(salvo)) carrinho = salvo.filter(item => item && item.id && typeof item.nome === 'string' && Number.isFinite(item.preco) && item.preco > 0 && Number.isInteger(item.quantidade) && item.quantidade > 0 && item.quantidade <= 50);
+  if (Array.isArray(salvo)) carrinho = salvo.filter(item => item && item.id && typeof item.nome === 'string' && Number.isFinite(item.preco) && item.preco > 0 && Number.isInteger(item.quantidade) && item.quantidade > 0 && item.quantidade <= 50).map(item => ({ ...item, adicionais: Array.isArray(item.adicionais) ? item.adicionais.filter(adicional => adicional?.id != null && typeof adicional.nome === 'string' && Number.isFinite(Number(adicional.preco)) && Number(adicional.preco) >= 0).map(adicional => ({ id: adicional.id, nome: adicional.nome, preco: Number(adicional.preco) })).sort((a, b) => String(a.id).localeCompare(String(b.id))) : [] }));
 } catch { localStorage.removeItem('carrinho'); }
 let valorFreteAtual = 0;
 let finalizando = false;
@@ -14,6 +14,7 @@ let consultaCepAnterior = '';
 let consultaCepEmAndamento = null;
 let cotacaoEmAndamento = null;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
+const precoUnitarioVisual = item => Number(item.preco || 0) + (item.adicionais || []).reduce((total, adicional) => total + Number(adicional.preco || 0), 0);
 function informarFrete(mensagem, erro = false) {
   const aviso = document.getElementById('info-frete');
   if (!aviso) return;
@@ -48,16 +49,24 @@ function limparErrosCheckout() {
 }
 export const obterCarrinho = () => carrinho.map(item => ({ ...item }));
 export function limparCarrinho() { carrinho = []; localStorage.removeItem('carrinho'); renderizarCarrinho(); emitirAtualizacao('limpar'); }
-export function adicionarAoCarrinho(produto) {
+export const identidadeItem = (produtoId, adicionais = []) => `${String(produtoId)}|${adicionais.map(adicional => String(adicional.id)).sort((a, b) => a.localeCompare(b)).join(',')}`;
+function adicionaisNormalizados(adicionais) {
+  if (!Array.isArray(adicionais)) return [];
+  const vistos = new Set();
+  return adicionais.filter(adicional => adicional?.id != null && typeof adicional.nome === 'string' && Number.isFinite(Number(adicional.preco)) && Number(adicional.preco) >= 0).map(adicional => ({ id: adicional.id, nome: adicional.nome, preco: Number(adicional.preco) })).filter(adicional => !vistos.has(String(adicional.id)) && vistos.add(String(adicional.id))).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+}
+export function adicionarAoCarrinho(produto, adicionais = []) {
   if (['admin1', 'admin2'].includes(localStorage.getItem('role'))) return false;
   if (!produto?.id || !produto.nome || !Number.isFinite(Number(produto.preco)) || Number(produto.preco) <= 0) return false;
-  const existente = carrinho.find(item => String(item.id) === String(produto.id));
+  const adicionaisSelecionados = adicionaisNormalizados(adicionais);
+  const identidade = identidadeItem(produto.id, adicionaisSelecionados);
+  const existente = carrinho.find(item => identidadeItem(item.id, item.adicionais || []) === identidade);
   if (existente?.quantidade >= 50) { Swal.fire({ icon: 'info', text: 'O limite é de 50 unidades por produto.' }); return false; }
-  existente ? existente.quantidade++ : carrinho.push({ id: produto.id, nome: produto.nome, preco: Number(produto.preco), quantidade: 1 });
-  const itemAtualizado = carrinho.find(item => String(item.id) === String(produto.id));
+  existente ? existente.quantidade++ : carrinho.push({ id: produto.id, nome: produto.nome, preco: Number(produto.preco), quantidade: 1, adicionais: adicionaisSelecionados });
+  const itemAtualizado = carrinho.find(item => identidadeItem(item.id, item.adicionais || []) === identidade);
   salvar(); renderizarCarrinho(); emitirAtualizacao('adicionar', itemAtualizado); return true;
 }
-const subtotal = () => carrinho.reduce((total, item) => total + Math.round(item.preco * 100) * item.quantidade, 0) / 100;
+const subtotal = () => carrinho.reduce((total, item) => total + Math.round(precoUnitarioVisual(item) * 100) * item.quantidade, 0) / 100;
 function atualizarResumo() {
   for (const [id, valor] of [['cart-subtotal', subtotal()], ['cart-frete', valorFreteAtual], ['cart-total', subtotal() + valorFreteAtual]]) {
     const el = document.getElementById(id); if (el) el.textContent = dinheiro(valor);
@@ -70,29 +79,34 @@ function renderizarCarrinho() {
   carrinho.forEach(item => {
     const clone = template.content.cloneNode(true);
     clone.querySelector('.carrinho-item-nome').textContent = item.nome;
-    clone.querySelector('.carrinho-item-detalhes').textContent = `${dinheiro(item.preco)} cada`;
+    clone.querySelector('.carrinho-item-detalhes').textContent = `${dinheiro(item.preco + (item.adicionais || []).reduce((total, adicional) => total + Number(adicional.preco || 0), 0))} cada`;
+    const adicionaisEl = clone.querySelector('.carrinho-item-adicionais');
+    const adicionaisTexto = (item.adicionais || []).map(adicional => `${adicional.nome} + ${dinheiro(adicional.preco)}`).join(' · ');
+    if (adicionaisEl) { adicionaisEl.textContent = adicionaisTexto; adicionaisEl.hidden = !adicionaisTexto; }
     clone.querySelector('.carrinho-item-qtd').textContent = item.quantidade;
-    clone.querySelector('.carrinho-item-total').textContent = dinheiro(item.preco * item.quantidade);
+    clone.querySelector('.carrinho-item-total').textContent = dinheiro(precoUnitarioVisual(item) * item.quantidade);
     clone.querySelector('.btn-qtd-mais').setAttribute('aria-label', `Aumentar quantidade de ${item.nome}`);
     clone.querySelector('.btn-qtd-menos').setAttribute('aria-label', `Diminuir quantidade de ${item.nome}`);
-    clone.querySelector('.btn-qtd-mais').onclick = () => mudar(item.id, 1);
-    clone.querySelector('.btn-qtd-menos').onclick = () => mudar(item.id, -1);
+    clone.querySelector('.btn-qtd-mais').onclick = () => mudar(item, 1);
+    clone.querySelector('.btn-qtd-menos').onclick = () => mudar(item, -1);
     clone.querySelector('.btn-remover-item').setAttribute('aria-label', `Remover ${item.nome} do carrinho`);
-    clone.querySelector('.btn-remover-item').onclick = () => removerItem(item.id);
+    clone.querySelector('.btn-remover-item').onclick = () => removerItem(item);
     container.append(clone);
   }); atualizarResumo();
 }
-function mudar(id, delta) {
+function mudar(referencia, delta) {
   if (finalizando) return;
-  const item = carrinho.find(p => String(p.id) === String(id));
+  const identidade = typeof referencia === 'object' ? identidadeItem(referencia.id, referencia.adicionais || []) : String(referencia);
+  const item = carrinho.find(p => identidadeItem(p.id, p.adicionais || []) === identidade);
   if (!item || item.quantidade + delta > 50) return;
-  item.quantidade += delta; carrinho = carrinho.filter(p => p.quantidade > 0); salvar(); renderizarCarrinho(); emitirAtualizacao('alterar', carrinho.find(p => String(p.id) === String(id)) || null);
+  item.quantidade += delta; carrinho = carrinho.filter(p => p.quantidade > 0); salvar(); renderizarCarrinho(); emitirAtualizacao('alterar', item.quantidade > 0 ? item : null);
 }
-function removerItem(id) {
+function removerItem(referencia) {
   if (finalizando) return;
-  const item = carrinho.find(p => String(p.id) === String(id));
+  const identidade = typeof referencia === 'object' ? identidadeItem(referencia.id, referencia.adicionais || []) : String(referencia);
+  const item = carrinho.find(p => identidadeItem(p.id, p.adicionais || []) === identidade);
   if (!item) return;
-  carrinho = carrinho.filter(p => String(p.id) !== String(id));
+  carrinho = carrinho.filter(p => identidadeItem(p.id, p.adicionais || []) !== identidade);
   salvar(); renderizarCarrinho(); emitirAtualizacao('remover', item);
 }
 function camposEntrega() {
@@ -120,7 +134,10 @@ export async function calcularFrete() {
     }
     cotacaoAnterior = { chave: JSON.stringify(camposEntrega()), dados };
     limparErroCampo('cep');
-    informarFrete(`Trajeto aproximado pelo CEP: ${Number(dados.distancia_km).toFixed(2).replace('.', ',')} km. ${valorFreteAtual === 0 ? 'Entrega grátis até 2 km.' : `Entrega: ${dinheiro(valorFreteAtual)}`}`);
+    const mensagemFrete = dados.tipo === 'bairro'
+      ? `Taxa fixa para ${dados.bairro || 'este bairro'}: ${dinheiro(valorFreteAtual)}`
+      : `Trajeto aproximado pelo CEP: ${Number(dados.distancia_km).toFixed(2).replace('.', ',')} km. ${valorFreteAtual === 0 ? 'Entrega grátis até 2 km.' : `Entrega: ${dinheiro(valorFreteAtual)}`}`;
+    informarFrete(mensagemFrete);
     atualizarResumo(); return true;
   } catch (erro) {
     if (versao === calculoAtual) informarFrete(erro.message, true);
@@ -150,7 +167,7 @@ export async function finalizarCompra() {
     if (!entrega.bairro) { marcarErroCampo('bairro', 'Confira o bairro.', true); return; }
     if (Object.values(entrega).some(valor => !valor)) { informarFrete('Confira os dados do endereço para calcular a entrega.', true); return; }
     // Visitantes compram sem conta: o próprio POST do pedido cria uma sessão técnica HttpOnly.
-    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, cliente_nome, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
+    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, subtotal_esperado: subtotal(), cliente_nome, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, adicionais_ids: (item.adicionais || []).map(adicional => adicional.id), observacao_item: item.observacao || '' })) };
     const resumo = new TextEncoder().encode(JSON.stringify(corpo));
     const assinatura = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', resumo)), b => b.toString(16).padStart(2, '0')).join('');
     let tentativa;

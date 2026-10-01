@@ -10,8 +10,16 @@ function coordenadas(lon, lat) {
   const longitude = Number(lon), latitude = Number(lat);
   return Number.isFinite(longitude) && Math.abs(longitude) <= 180 && Number.isFinite(latitude) && Math.abs(latitude) <= 90 ? [longitude, latitude] : null;
 }
+function normalizarBairro(valor) {
+  return String(valor ?? '')
+    .trim()
+    .toLocaleLowerCase('pt-BR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
 function textoSeguro(valor, limite = 120) { return String(valor || '').trim().replace(/\s+/g, ' ').slice(0, limite); }
-function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STORE_LONGITUDE, process.env.STORE_LATITUDE) || [-47.8211875, -21.1391875], precoKm = Number(process.env.DELIVERY_PRICE_PER_KM || 1.5), modo = process.env.DELIVERY_CHARGE_MODE || 'excedente', roteador = process.env.OSRM_BASE_URL || 'https://router.project-osrm.org', geocodificador = process.env.GEOCODER_BASE_URL || 'https://nominatim.openstreetmap.org', cidade = 'Ribeirão Preto', uf = 'SP' } = {}) {
+function criarEntrega({ consultar = fetch, buscarTaxaBairro = null, origem = coordenadas(process.env.STORE_LONGITUDE, process.env.STORE_LATITUDE) || [-47.8211875, -21.1391875], precoKm = Number(process.env.DELIVERY_PRICE_PER_KM || 1.5), modo = process.env.DELIVERY_CHARGE_MODE || 'excedente', roteador = process.env.OSRM_BASE_URL || 'https://router.project-osrm.org', geocodificador = process.env.GEOCODER_BASE_URL || 'https://nominatim.openstreetmap.org', cidade = 'Ribeirão Preto', uf = 'SP' } = {}) {
   const cache = new Map();
   const enderecos = new Map();
   async function json(url, opcoes = {}) {
@@ -49,16 +57,34 @@ function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STOR
     if (!/^\d{8}$/.test(numero)) throw new Error('CEP inválido. Informe 8 números.');
     if (!origem || !coordenadas(...origem)) throw new Error('O ponto de saída da loja ainda não foi configurado.');
     const enderecoCliente = String(enderecoInformado.endereco || '').trim().slice(0, 250);
-    const bairroCliente = String(enderecoInformado.bairro || '').trim().slice(0, 250);
     const numeroCasa = String(enderecoInformado.numero_casa || '').trim().slice(0, 30);
-    const chaveCache = `${numero}|${enderecoCliente.toLowerCase()}|${bairroCliente.toLowerCase()}|${numeroCasa.toLowerCase()}`;
-    const salvo = cache.get(chaveCache);
-    if (salvo && salvo.ate > Date.now()) return salvo.dados;
     const endereco = await consultarEndereco(numero);
+    // O bairro retornado pelo CEP é a fonte autoritativa para taxa fixa.
+    // O texto enviado pelo navegador não pode escolher uma tarifa mais barata.
+    const bairroOficial = textoSeguro(endereco.bairro);
+    const chaveCache = `${numero}|${enderecoCliente.toLowerCase()}|${normalizarBairro(bairroOficial)}|${numeroCasa.toLowerCase()}`;
+    const cacheAtual = cache.get(chaveCache);
+    if (cacheAtual && cacheAtual.ate > Date.now()) return cacheAtual.dados;
     const rua = textoSeguro(enderecoCliente || endereco.endereco);
-    const bairro = textoSeguro(bairroCliente || endereco.bairro);
+    const bairro = bairroOficial;
     const localidade = textoSeguro(endereco.cidade || cidade);
     const estado = textoSeguro(endereco.uf || uf, 2);
+    if (typeof buscarTaxaBairro === 'function') {
+      let fixa;
+      try {
+        fixa = await buscarTaxaBairro({ cidade: localidade, uf: estado, bairro, chaveNormalizada: normalizarBairro(bairro) });
+      } catch {
+        throw new Error('Não foi possível consultar a taxa de entrega. Tente novamente.');
+      }
+      if (fixa) {
+        const taxa = Number(fixa.taxa);
+        if (!Number.isFinite(taxa) || taxa < 0) throw new Error('Taxa de entrega inválida.');
+        const dados = { cep: numero, taxa: Math.round(taxa * 100) / 100, cidade: endereco.cidade, uf: endereco.uf, endereco: endereco.endereco, bairro, tipo: 'bairro', aproximado: false };
+        if (cache.size >= 500) cache.delete(cache.keys().next().value);
+        cache.set(chaveCache, { dados, ate: Date.now() + 15 * 60 * 1000 });
+        return dados;
+      }
+    }
     const estrategias = [
       { nome: 'rua_numero_bairro', partes: [rua, numeroCasa, bairro, localidade, estado, 'Brasil'] },
       { nome: 'rua_bairro', partes: [rua, bairro, localidade, estado, 'Brasil'] },
@@ -87,7 +113,7 @@ function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STOR
     const rota = await json(`${roteador.replace(/\/$/, '')}/route/v1/driving/${origem.join(',')};${destino.join(',')}?overview=false&steps=false`);
     if (rota.code !== 'Ok' || !rota.routes?.length) throw new Error('Não foi encontrado um trajeto para este CEP.');
     const metros = rota.routes[0].distance;
-    const dados = { cep: numero, taxa: calcularValorEntrega(metros, precoKm, modo), distancia_km: metros / 1000, gratis_ate_km: 2, cidade: endereco.cidade, uf: endereco.uf, endereco: endereco.endereco, bairro: endereco.bairro, aproximado: true };
+    const dados = { cep: numero, taxa: calcularValorEntrega(metros, precoKm, modo), distancia_km: metros / 1000, gratis_ate_km: 2, cidade: endereco.cidade, uf: endereco.uf, endereco: endereco.endereco, bairro, tipo: 'distancia', aproximado: true };
     if (cache.size >= 500) cache.delete(cache.keys().next().value);
     cache.set(chaveCache, { dados, ate: Date.now() + 15 * 60 * 1000 });
     return dados;
@@ -95,4 +121,4 @@ function criarEntrega({ consultar = fetch, origem = coordenadas(process.env.STOR
   cotar.consultarEndereco = consultarEndereco;
   return cotar;
 }
-module.exports = { criarEntrega, calcularValorEntrega };
+module.exports = { criarEntrega, calcularValorEntrega, normalizarBairro };

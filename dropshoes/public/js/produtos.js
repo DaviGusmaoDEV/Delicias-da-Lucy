@@ -3,10 +3,12 @@ import { adicionarAoCarrinho, obterCarrinho } from './carrinho.js';
 import { api, enviar } from './api.js';
 import { sessaoPronta } from './sessao.js';
 let admin = false;
+let podeEditarProdutos = false;
 let carregando = false;
 let produtos = [];
 let ultimaAtualizacao = 0;
 let temporizadorFeedback = null;
+const adicionaisCache = new Map();
 const INTERVALO_ATUALIZACAO = 30_000;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 function aviso(mensagem, estado = 'informacao') {
@@ -37,6 +39,48 @@ function informarProdutoAdicionado(item) {
   feedback.hidden = false;
   clearTimeout(temporizadorFeedback);
   temporizadorFeedback = setTimeout(() => { feedback.hidden = true; }, 10_000);
+}
+async function selecionarAdicionais(produto, card, acionador) {
+  const painel = card.querySelector('.seletor-adicionais');
+  const lista = card.querySelector('.lista-adicionais');
+  if (!painel || !lista) return adicionarAoCarrinho(produto);
+  let adicionais = adicionaisCache.get(String(produto.id));
+  if (!adicionais) {
+    painel.hidden = false;
+    lista.textContent = 'Carregando adicionais…';
+    try {
+      adicionais = await api(`/api/produtos/${encodeURIComponent(produto.id)}/adicionais`);
+      adicionaisCache.set(String(produto.id), adicionais);
+    } catch {
+      painel.hidden = true;
+      aviso('Não foi possível carregar os adicionais.', 'erro');
+      return false;
+    }
+  }
+  if (!adicionais.length) return adicionarAoCarrinho(produto);
+  painel.hidden = false;
+  lista.innerHTML = '';
+  adicionais.forEach(adicional => {
+    const id = `adicional-${String(produto.id).replace(/[^a-z0-9_-]/gi, '-')}-${String(adicional.id).replace(/[^a-z0-9_-]/gi, '-')}`;
+    const label = document.createElement('label'); label.className = 'opcao-adicional'; label.htmlFor = id;
+    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.id = id; checkbox.value = String(adicional.id); checkbox.dataset.nome = adicional.nome; checkbox.dataset.preco = String(adicional.preco);
+    const texto = document.createElement('span'); texto.textContent = `${adicional.nome} + ${dinheiro(adicional.preco)}`;
+    label.append(checkbox, texto); lista.append(label);
+  });
+  const atualizarPreco = () => {
+    const adicionaisSelecionados = [...lista.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, preco: Number(input.dataset.preco) }));
+    const total = Number(produto.preco) + adicionaisSelecionados.reduce((soma, adicional) => soma + adicional.preco, 0);
+    card.querySelector('.preco-selecao-total').textContent = `Total unitário: ${dinheiro(total)}`;
+  };
+  lista.querySelectorAll('input').forEach(input => input.addEventListener('change', atualizarPreco));
+  atualizarPreco();
+  card.querySelector('.btn-confirmar-adicionais').onclick = () => {
+    const selecionados = [...lista.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, preco: Number(input.dataset.preco) }));
+    const adicionado = adicionarAoCarrinho(produto, selecionados);
+    if (adicionado) { painel.hidden = true; acionador.focus(); }
+  };
+  card.querySelector('.btn-cancelar-adicionais').onclick = () => { painel.hidden = true; acionador.focus(); };
+  return true;
 }
 function configurarImagem(imagem, fallback, produto) {
   if (!imagem) return;
@@ -84,7 +128,7 @@ async function carregarProdutos(silencioso = false) {
   if (lista) lista.setAttribute('aria-busy', 'true');
   if (!silencioso) aviso('Carregando cardápio…');
   try {
-    const atualizados = await api('/api/produtos');
+    const atualizados = await api(admin ? '/api/admin/produtos' : '/api/produtos');
     if (!silencioso || JSON.stringify(atualizados) !== JSON.stringify(produtos)) {
       produtos = atualizados; renderizar();
     }
@@ -105,6 +149,7 @@ function renderizar() {
   aviso(`${visiveis.length} ${visiveis.length === 1 ? 'produto encontrado' : 'produtos encontrados'}.`, 'sucesso');
   visiveis.forEach(produto => {
     const clone = template.content.cloneNode(true); const imagem = clone.querySelector('.img-vitrine');
+    const card = clone.querySelector('.product-card');
     configurarImagem(imagem, clone.querySelector('.produto-sem-imagem'), produto);
     clone.querySelector('.titulo-vitrine').textContent = produto.nome;
     const descricao = clone.querySelector('.descricao-vitrine');
@@ -117,10 +162,11 @@ function renderizar() {
       destaque.style.display = produto.isEspecial ? (document.body.classList.contains('pagina-cardapio') ? 'inline-flex' : 'inline-block') : 'none';
       if (document.body.classList.contains('pagina-cardapio')) destaque.textContent = produto.isEspecial ? 'Oferta especial' : '';
     }
-    const botaoCarrinho = clone.querySelector('.btn-add-cart'); if (botaoCarrinho) { botaoCarrinho.hidden = admin; botaoCarrinho.onclick = () => adicionarAoCarrinho(produto); }
+    const botaoCarrinho = clone.querySelector('.btn-add-cart'); if (botaoCarrinho) { botaoCarrinho.hidden = admin; botaoCarrinho.onclick = () => selecionarAdicionais(produto, card, botaoCarrinho); }
     const editar = clone.querySelector('.btn-editar'); const excluir = clone.querySelector('.btn-excluir');
-    if (editar) { editar.hidden = !admin; editar.onclick = () => abrirModal(produto, Boolean(produto.isEspecial)); }
-    if (excluir) { excluir.hidden = !admin; excluir.onclick = () => excluirProduto(produto.id); }
+    if (editar) { editar.hidden = !podeEditarProdutos; editar.onclick = () => abrirModal(produto, Boolean(produto.isEspecial)); }
+    if (excluir) { excluir.hidden = !podeEditarProdutos; excluir.textContent = produto.ativo === false ? 'Reativar' : 'Desativar'; excluir.setAttribute('aria-label', `${produto.ativo === false ? 'Reativar' : 'Desativar'} ${produto.nome}`); excluir.onclick = () => alternarAtivo(produto); }
+    const status = clone.querySelector('.status-produto'); if (status) { status.hidden = !admin; status.textContent = produto.ativo === false ? 'Inativo' : 'Ativo'; status.dataset.estado = produto.ativo === false ? 'inativo' : 'ativo'; }
     lista.append(clone);
   });
 }
@@ -137,7 +183,7 @@ function dadosDoFormulario(especial) {
 }
 function abrirModal(produto = null, especial = false) {
   const sufixo = especial ? '-especial' : ''; const modal = document.getElementById(`modal-produto${sufixo}`); const form = document.getElementById(`form-produto${sufixo}`);
-  if (!admin || !modal || !form) return; form.reset();
+  if (!podeEditarProdutos || !modal || !form) return; form.reset();
   document.getElementById(`prod-id${sufixo}`).value = produto?.id || '';
   document.getElementById(`prod-nome${sufixo}`).value = produto?.nome || '';
   document.getElementById(`prod-preco${sufixo}`).value = produto ? dinheiro(produto.preco).replace('R$ ', '') : '';
@@ -147,7 +193,7 @@ function abrirModal(produto = null, especial = false) {
   modal.showModal();
 }
 async function salvarProduto(event, especial) {
-  event.preventDefault(); if (!admin) return;
+  event.preventDefault(); if (!podeEditarProdutos) return;
   const produto = dadosDoFormulario(especial); const erro = validarProduto(produto);
   if (erro) return aviso(erro);
   const botao = event.target.querySelector('[type="submit"]');
@@ -160,9 +206,10 @@ async function salvarProduto(event, especial) {
   } catch (erro) { aviso(erro.message); alert(erro.message); }
   finally { if (botao) botao.disabled = false; }
 }
-async function excluirProduto(id) {
-  if (!confirm('Excluir este produto do cardápio?')) return;
-  try { await api(`/api/produtos/${encodeURIComponent(id)}`, { method: 'DELETE' }); await carregarProdutos(); }
+async function alternarAtivo(produto) {
+  const ativo = produto.ativo !== false;
+  if (!confirm(`${ativo ? 'Desativar' : 'Reativar'} “${produto.nome}”?`)) return;
+  try { await enviar(`/api/produtos/${encodeURIComponent(produto.id)}`, 'PUT', { nome: produto.nome, preco: Number(produto.preco), categoria: produto.categoria || 'outros', descricao: produto.descricao || '', isEspecial: Boolean(produto.isEspecial), ativo: !ativo }); await carregarProdutos(); aviso(`Produto ${ativo ? 'desativado' : 'reativado'}.`); }
   catch (erro) { aviso(erro.message); }
 }
 document.addEventListener('DOMContentLoaded', async () => {
@@ -173,6 +220,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   const perfil = await sessaoPronta; if (!perfil) return;
   admin = ['admin1', 'admin2'].includes(perfil.role);
+  // A política histórica do catálogo permite manutenção por Admin 1 e Admin 2.
+  podeEditarProdutos = ['admin1', 'admin2'].includes(perfil.role);
   document.getElementById('filtro-categoria')?.addEventListener('change', renderizar);
   document.getElementById('filtro-tipo')?.addEventListener('change', renderizar);
   document.getElementById('abrirModalProduto')?.addEventListener('click', () => abrirModal());
