@@ -1,6 +1,9 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
+const Busboy = require('busboy');
+const sharp = require('sharp');
+const crypto = require('crypto');
 const { criarClienteSupabase } = require('./config/supabase');
 const { limitarAutenticacao } = require('./middleware/limite-autenticacao');
 const { protecoes, opcoesCookie, validarProducao } = require('./middleware/seguranca');
@@ -11,7 +14,7 @@ const { criarInfinitePay } = require('./services/infinitepay');
 const { criarVisitantes, pedidosDoComprador, telefoneValido } = require('./services/visitantes');
 const { criarEntrega, normalizarBairro } = require('./services/entrega');
 
-function criarApp({ db, secret = process.env.JWT_SECRET, pagamentoCliente, pagamentos: pagamentosTeste, entrega: entregaTeste } = {}) {
+function criarApp({ db, secret = process.env.JWT_SECRET, pagamentoCliente, pagamentos: pagamentosTeste, entrega: entregaTeste, storage: storageTeste } = {}) {
 validarProducao(secret);
 const app = express();
 const JWT_SECRET = secret;
@@ -43,6 +46,57 @@ const rota = (metodo, url, ...handlers) => app[metodo](url, ...handlers.map(hand
 
 const soAdmin = (req, res, next) => ADMIN_ROLES.includes(req.user.role) ? next() : res.status(403).json({ erro: 'Acesso exclusivo da administração.' });
 const soAdmin1 = (req, res, next) => req.user.role === 'admin1' ? next() : res.status(403).json({ erro: 'O fluxo de caixa é acessível somente pelo Admin 1 (dono geral).' });
+const IMAGENS_BUCKET = String(process.env.SUPABASE_PRODUCT_IMAGE_BUCKET || 'produtos').trim() || 'produtos';
+const IMAGEM_MAX_BYTES = 10 * 1024 * 1024;
+const IMAGENS_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const armazenamentoImagens = storageTeste || supabase?.storage;
+const erroImagem = (mensagem, status = 400) => Object.assign(new Error(mensagem), { status });
+function lerImagemMultipart(req) {
+  return new Promise((resolve, reject) => {
+    let parser;
+    try { parser = Busboy({ headers: req.headers, limits: { files: 1, fileSize: IMAGEM_MAX_BYTES } }); }
+    catch { return reject(erroImagem('Formato de envio de imagem inválido.')); }
+    let arquivo = null;
+    let arquivoExcedeuLimite = false;
+    let recebeuOutroArquivo = false;
+    parser.on('file', (_campo, stream, info) => {
+      if (arquivo) recebeuOutroArquivo = true;
+      const partes = [];
+      let tamanho = 0;
+      arquivo = { mime: info.mimeType, nome: info.filename, stream };
+      stream.on('data', parte => { tamanho += parte.length; partes.push(parte); });
+      stream.on('limit', () => { arquivoExcedeuLimite = true; });
+      stream.on('end', () => { arquivo.buffer = Buffer.concat(partes); arquivo.tamanho = tamanho; });
+    });
+    parser.on('error', () => reject(erroImagem('Não foi possível ler a imagem enviada.')));
+    parser.on('finish', () => {
+      if (arquivoExcedeuLimite || (arquivo && arquivo.tamanho > IMAGEM_MAX_BYTES)) return reject(erroImagem('Essa imagem é muito grande. Escolha uma imagem de até 10 MB.', 413));
+      if (recebeuOutroArquivo) return reject(erroImagem('Envie somente uma imagem por vez.'));
+      if (!arquivo || !arquivo.buffer?.length) return reject(erroImagem('Escolha uma imagem para enviar.'));
+      if (!IMAGENS_MIMES.has(String(arquivo.mime).toLowerCase())) return reject(erroImagem('Formato de imagem não suportado. Use JPG, PNG ou WebP.'));
+      resolve(arquivo);
+    });
+    req.pipe(parser);
+  });
+}
+async function prepararImagem(buffer, mime) {
+  try {
+    return await sharp(buffer, { failOn: 'error' }).rotate().resize({ width: 800, height: 800, fit: 'inside', withoutEnlargement: true }).webp({ quality: 75 }).toBuffer();
+  } catch { throw erroImagem('Não foi possível processar essa imagem.'); }
+}
+function caminhoStorage(url) {
+  if (typeof url !== 'string' || !url) return null;
+  const prefixo = `/storage/v1/object/public/${IMAGENS_BUCKET}/`;
+  try {
+    const urlObj = new URL(url);
+    const indice = urlObj.pathname.indexOf(prefixo);
+    return indice >= 0 ? decodeURIComponent(urlObj.pathname.slice(indice + prefixo.length)) : null;
+  } catch { return url.startsWith(`${IMAGENS_BUCKET}/`) ? url.slice(IMAGENS_BUCKET.length + 1) : null; }
+}
+function obterBucketImagens() {
+  if (!armazenamentoImagens || typeof armazenamentoImagens.from !== 'function') throw erroImagem('Armazenamento de imagens indisponível. Configure o bucket produtos.', 503);
+  return armazenamentoImagens.from(IMAGENS_BUCKET);
+}
 const buscarTaxaBairro = async ({ cidade, uf, chaveNormalizada }) => {
   const { data, error } = await supabase.from('delivery_bairro_taxas')
     .select('nome,taxa,ativo')
@@ -197,6 +251,53 @@ rota('patch', '/api/admin/taxas-entrega/:id', autenticar, soAdmin1, async (req, 
 // restritas ao Admin 1.
 rota('post', '/api/produtos', autenticar, soAdmin, salvarProduto);
 rota('put', '/api/produtos/:id', autenticar, soAdmin, salvarProduto);
+rota('post', '/api/admin/produtos/:id/imagem', autenticar, soAdmin, async (req, res) => {
+  const consulta = await supabase.from('products').select('id,imagem_url').eq('id', req.params.id).maybeSingle();
+  if (consulta.error) return res.status(503).json({ erro: 'Não foi possível carregar o produto.' });
+  if (!consulta.data) return res.status(404).json({ erro: 'Produto não encontrado.' });
+  let arquivo;
+  try { arquivo = await lerImagemMultipart(req); } catch (erro) { return res.status(erro.status || 400).json({ erro: erro.message }); }
+  let processada;
+  try { processada = await prepararImagem(arquivo.buffer, arquivo.mime); } catch (erro) { return res.status(erro.status || 400).json({ erro: erro.message }); }
+  const caminhoNovo = `${String(req.params.id)}/${crypto.randomUUID()}.webp`;
+  let bucket;
+  try { bucket = obterBucketImagens(); } catch (erro) { return res.status(erro.status || 503).json({ erro: erro.message }); }
+  let enviada;
+  try { enviada = await bucket.upload(caminhoNovo, processada, { contentType: 'image/webp', cacheControl: '31536000', upsert: false }); }
+  catch { return res.status(503).json({ erro: 'Não foi possível enviar a imagem.' }); }
+  if (enviada.error) return res.status(503).json({ erro: 'Não foi possível enviar a imagem.' });
+  let publico;
+  try { publico = bucket.getPublicUrl(caminhoNovo)?.data?.publicUrl; } catch { publico = null; }
+  if (!publico) { await bucket.remove([caminhoNovo]).catch(() => {}); return res.status(503).json({ erro: 'Não foi possível preparar a imagem.' }); }
+  let atualizado;
+  try { atualizado = await supabase.from('products').update({ imagem_url: publico }).eq('id', req.params.id).select('id,imagem_url').single(); }
+  catch { await bucket.remove([caminhoNovo]).catch(() => {}); return res.status(503).json({ erro: 'Não foi possível salvar a referência da imagem.' }); }
+  if (atualizado.error || !atualizado.data) {
+    await bucket.remove([caminhoNovo]).catch(() => {});
+    return res.status(400).json({ erro: 'Não foi possível salvar a referência da imagem.' });
+  }
+  const caminhoAntigo = caminhoStorage(consulta.data.imagem_url);
+  let aviso;
+  if (caminhoAntigo && caminhoAntigo !== caminhoNovo) {
+    try { const removida = await bucket.remove([caminhoAntigo]); if (removida.error) aviso = 'Produto atualizado, mas ocorreu um problema ao limpar a imagem antiga.'; }
+    catch { aviso = 'Produto atualizado, mas ocorreu um problema ao limpar a imagem antiga.'; }
+  }
+  res.json({ ...atualizado.data, ...(aviso ? { aviso } : {}) });
+});
+rota('delete', '/api/admin/produtos/:id/imagem', autenticar, soAdmin, async (req, res) => {
+  const consulta = await supabase.from('products').select('id,imagem_url').eq('id', req.params.id).maybeSingle();
+  if (consulta.error) return res.status(503).json({ erro: 'Não foi possível carregar o produto.' });
+  if (!consulta.data) return res.status(404).json({ erro: 'Produto não encontrado.' });
+  const atualizado = await supabase.from('products').update({ imagem_url: null }).eq('id', req.params.id).select('id,imagem_url').single();
+  if (atualizado.error || !atualizado.data) return res.status(400).json({ erro: 'Não foi possível remover a imagem.' });
+  const caminhoAntigo = caminhoStorage(consulta.data.imagem_url);
+  let aviso;
+  if (caminhoAntigo) {
+    try { const removida = await obterBucketImagens().remove([caminhoAntigo]); if (removida.error) aviso = 'Imagem removida do produto, mas o arquivo antigo precisa de limpeza manual.'; }
+    catch { aviso = 'Imagem removida do produto, mas o arquivo antigo precisa de limpeza manual.'; }
+  }
+  res.json({ ...atualizado.data, ...(aviso ? { aviso } : {}) });
+});
 async function salvarProduto(req, res) {
   const { nome, preco, categoria, descricao, imagem_url, imagem, isEspecial, ativo } = req.body;
   if (typeof nome !== 'string' || !nome.trim() || nome.trim().length < 3 || nome.trim().length > 100 || typeof preco !== 'number' || !Number.isFinite(preco) || preco < 0.01 || Number(preco) > 9999.99 || typeof categoria !== 'string' || !categoria.trim() || categoria.length > 80 || (descricao != null && (typeof descricao !== 'string' || descricao.length > 2000)) || (isEspecial !== undefined && typeof isEspecial !== 'boolean') || (ativo !== undefined && typeof ativo !== 'boolean')) return res.status(400).json({ erro: 'Informe nome (3 a 100 caracteres), categoria e preço válido.' });

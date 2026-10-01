@@ -45,7 +45,8 @@ function protecoes(app, env = process.env) {
     }
     if (!['GET', 'HEAD'].includes(req.method)) {
       if (req.get('sec-fetch-site') === 'cross-site' || (origem && !permitida)) return res.status(403).json({ erro: 'Origem não permitida.' });
-      if ((Number(req.get('content-length')) > 0 || req.get('transfer-encoding')) && !req.is('application/json')) return res.status(415).json({ erro: 'Envie os dados em JSON.' });
+      const multipartImagem = req.is('multipart/form-data') && /^\/admin\/produtos\/[^/]+\/imagem$/.test(req.path);
+      if ((Number(req.get('content-length')) > 0 || req.get('transfer-encoding')) && !req.is('application/json') && !multipartImagem) return res.status(415).json({ erro: 'Envie os dados em JSON.' });
     }
     next();
   });

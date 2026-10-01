@@ -156,6 +156,19 @@
                 <textarea id="prod-descricao" class="form-control" rows="3" maxlength="2000" placeholder="Ingredientes e detalhes do produto"></textarea>
             </div>
 
+            <fieldset class="form-group imagem-produto-editor">
+                <legend>Imagem do produto</legend>
+                <p class="ajuda-campo">JPG, PNG ou WebP de até 10 MB. A imagem será otimizada automaticamente.</p>
+                <div class="imagem-produto-preview" id="prod-imagem-preview-wrap" hidden>
+                    <img id="prod-imagem-preview" alt="Prévia da imagem do produto" loading="lazy">
+                    <span id="prod-imagem-sem-preview" class="produto-sem-imagem" hidden>Imagem não disponível</span>
+                </div>
+                <label for="prod-imagem">Escolher imagem</label>
+                <input type="file" id="prod-imagem" accept="image/jpeg,image/png,image/webp">
+                <p id="prod-imagem-info" class="ajuda-campo" aria-live="polite"></p>
+                <button type="button" class="btn btn-secondary" id="btn-remover-imagem" hidden>Remover imagem</button>
+            </fieldset>
+
             <div class="botoes-dialog">
                 <button type="submit" class="btn btn-success" id="btnSalvarProduto">Salvar Produto</button>
                 <button type="button" class="btn btn-cancelar" id="btn-fechar-modal">Cancelar</button>
@@ -195,6 +208,19 @@
                 <textarea id="prod-descricao-especial" class="form-control" rows="3" maxlength="2000" placeholder="Ingredientes e detalhes do produto"></textarea>
             </div>
 
+            <fieldset class="form-group imagem-produto-editor">
+                <legend>Imagem do produto</legend>
+                <p class="ajuda-campo">JPG, PNG ou WebP de até 10 MB. A imagem será otimizada automaticamente.</p>
+                <div class="imagem-produto-preview" id="prod-imagem-preview-wrap-especial" hidden>
+                    <img id="prod-imagem-preview-especial" alt="Prévia da imagem do produto" loading="lazy">
+                    <span id="prod-imagem-sem-preview-especial" class="produto-sem-imagem" hidden>Imagem não disponível</span>
+                </div>
+                <label for="prod-imagem-especial">Escolher imagem</label>
+                <input type="file" id="prod-imagem-especial" accept="image/jpeg,image/png,image/webp">
+                <p id="prod-imagem-info-especial" class="ajuda-campo" aria-live="polite"></p>
+                <button type="button" class="btn btn-secondary" id="btn-remover-imagem-especial" hidden>Remover imagem</button>
+            </fieldset>
+
             <div class="botoes-dialog">
                 <button type="submit" class="btn btn-success" id="btnSalvarProdutoEspecial">Salvar Especial</button>
                 <button type="button" class="btn btn-cancelar" id="btn-fechar-modal-especial">Cancelar</button>
@@ -207,7 +233,8 @@
         <div class="product-card">
             <div class="produto-imagem-wrapper">
                 <span class="badge-especial" style="display: none; background: #e67e22; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; position: absolute; top: 10px; left: 10px; z-index: 2;">PROMO / ESPECIAL</span>
-                <img src="" alt="" class="img-vitrine">
+                <img src="" alt="" class="img-vitrine" loading="lazy">
+                <span class="produto-sem-imagem" hidden><span class="material-symbols-outlined" aria-hidden="true">restaurant</span> Imagem não disponível</span>
             </div>
             <div class="product-info">
                 <h3 class="titulo-vitrine"></h3>

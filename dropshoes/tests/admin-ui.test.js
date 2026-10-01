@@ -23,6 +23,16 @@ test('ciclo de vida do produto usa status textual e não exclusão física na UI
   assert.doesNotMatch(js, /method:\s*['"]DELETE['"]/);
 });
 
+test('formulário de produto oferece prévia, troca e remoção segura de imagem', () => {
+  const html = ler('tela admin/produtos.html');
+  const js = ler('js/produtos.js');
+  for (const id of ['prod-imagem', 'prod-imagem-preview', 'btn-remover-imagem', 'prod-imagem-especial', 'prod-imagem-preview-especial', 'btn-remover-imagem-especial']) assert.match(html, new RegExp(`id=["']${id}["']`));
+  assert.match(html, /accept=["']image\/jpeg,image\/png,image\/webp["']/i);
+  assert.match(js, /\/api\/admin\/produtos\/\$\{encodeURIComponent\(id\)\}\/imagem/);
+  assert.match(js, /FormData/);
+  assert.match(js, /produto salvo, mas não foi possível enviar a imagem/i);
+});
+
 test('estilos do painel adaptam cards e controles para telas pequenas', () => {
   const css = ler('css/style.css');
   assert.match(css, /\.painel-regras-comerciais/);

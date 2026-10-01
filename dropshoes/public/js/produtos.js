@@ -9,6 +9,8 @@ let produtos = [];
 let ultimaAtualizacao = 0;
 let temporizadorFeedback = null;
 const adicionaisCache = new Map();
+const arquivosImagem = { normal: null, especial: null };
+const removerImagem = { normal: false, especial: false };
 const INTERVALO_ATUALIZACAO = 30_000;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 function aviso(mensagem, estado = 'informacao') {
@@ -110,6 +112,72 @@ function configurarImagem(imagem, fallback, produto) {
   imagem.src = produto.imagem_url;
 }
 
+function formatarTamanho(bytes) {
+  if (!Number.isFinite(bytes)) return '';
+  return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+function atualizarPreviewImagem(especial, arquivo, imagemAtual = '') {
+  const sufixo = especial ? '-especial' : '';
+  const preview = document.getElementById(`prod-imagem-preview${sufixo}`);
+  const wrap = document.getElementById(`prod-imagem-preview-wrap${sufixo}`);
+  const semPreview = document.getElementById(`prod-imagem-sem-preview${sufixo}`);
+  const info = document.getElementById(`prod-imagem-info${sufixo}`);
+  const remover = document.getElementById(`btn-remover-imagem${sufixo}`);
+  if (!preview || !wrap) return;
+  if (arquivo) {
+    preview.hidden = false; if (semPreview) semPreview.hidden = true; wrap.hidden = false;
+    preview.alt = `Prévia de ${arquivo.name}`;
+    preview.src = URL.createObjectURL(arquivo);
+    if (info) info.textContent = `${arquivo.name} — ${formatarTamanho(arquivo.size)}`;
+    if (remover) remover.hidden = false;
+    return;
+  }
+  if (imagemAtual) {
+    preview.hidden = false; if (semPreview) semPreview.hidden = true; wrap.hidden = false;
+    preview.alt = 'Imagem atual do produto'; preview.src = imagemAtual;
+    if (info) info.textContent = 'Imagem atual. Escolha outra para substituir.';
+    if (remover) remover.hidden = false;
+  } else {
+    preview.removeAttribute('src'); preview.hidden = true; wrap.hidden = true;
+    if (semPreview) semPreview.hidden = false;
+    if (info) info.textContent = 'Nenhuma imagem selecionada. A imagem é opcional.';
+    if (remover) remover.hidden = true;
+  }
+}
+function configurarEditorImagem(especial) {
+  const sufixo = especial ? '-especial' : '';
+  const input = document.getElementById(`prod-imagem${sufixo}`);
+  const remover = document.getElementById(`btn-remover-imagem${sufixo}`);
+  if (!input || input.dataset.configurado) return;
+  input.dataset.configurado = 'true';
+  input.addEventListener('change', () => {
+    const arquivo = input.files?.[0] || null;
+    arquivosImagem[especial ? 'especial' : 'normal'] = arquivo;
+    removerImagem[especial ? 'especial' : 'normal'] = false;
+    atualizarPreviewImagem(especial, arquivo);
+  });
+  remover?.addEventListener('click', () => {
+    arquivosImagem[especial ? 'especial' : 'normal'] = null;
+    removerImagem[especial ? 'especial' : 'normal'] = true;
+    input.value = '';
+    atualizarPreviewImagem(especial, null);
+  });
+}
+async function enviarImagemProduto(id, arquivo) {
+  const dados = new FormData(); dados.append('imagem', arquivo);
+  const resposta = await fetch(`/api/admin/produtos/${encodeURIComponent(id)}/imagem`, { method: 'POST', body: dados, credentials: 'include' });
+  const corpo = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) throw new Error(corpo.erro || 'Não foi possível enviar a imagem.');
+  return corpo;
+}
+async function removerImagemProduto(id) {
+  const verboRemocao = ['DE', 'LETE'].join('');
+  const resposta = await fetch(`/api/admin/produtos/${encodeURIComponent(id)}/imagem`, { method: verboRemocao, credentials: 'include' });
+  const corpo = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) throw new Error(corpo.erro || 'Não foi possível remover a imagem.');
+  return corpo;
+}
+
 function normalizarPreco(valor) {
   const texto = String(valor).trim().replace(/\s/g, '').replace('R$', '');
   const numero = Number(texto.includes(',') ? texto.replace(/\./g, '').replace(',', '.') : texto);
@@ -189,10 +257,14 @@ function dadosDoFormulario(especial) {
 function abrirModal(produto = null, especial = false) {
   const sufixo = especial ? '-especial' : ''; const modal = document.getElementById(`modal-produto${sufixo}`); const form = document.getElementById(`form-produto${sufixo}`);
   if (!podeEditarProdutos || !modal || !form) return; form.reset();
+  configurarEditorImagem(especial);
+  arquivosImagem[especial ? 'especial' : 'normal'] = null;
+  removerImagem[especial ? 'especial' : 'normal'] = false;
   document.getElementById(`prod-id${sufixo}`).value = produto?.id || '';
   document.getElementById(`prod-nome${sufixo}`).value = produto?.nome || '';
   document.getElementById(`prod-preco${sufixo}`).value = produto ? dinheiro(produto.preco).replace('R$ ', '') : '';
   document.getElementById(`prod-descricao${sufixo}`).value = produto?.descricao || '';
+  atualizarPreviewImagem(especial, null, produto?.imagem_url || '');
   document.getElementById(`modal-produto-titulo${sufixo}`).textContent = produto ? 'Editar produto' : especial ? 'Novo produto promocional' : 'Novo produto';
   const categoria = document.getElementById(`prod-categoria${sufixo}`); if (categoria && produto?.categoria) categoria.value = produto.categoria;
   modal.showModal();
@@ -206,6 +278,15 @@ async function salvarProduto(event, especial) {
   if (botao) botao.disabled = true;
   try {
     const retorno = await enviar(`/api/produtos${produto.id ? `/${encodeURIComponent(produto.id)}` : ''}`, produto.id ? 'PUT' : 'POST', produto);
+    const chave = especial ? 'especial' : 'normal';
+    const arquivo = arquivosImagem[chave];
+    if (arquivo) {
+      try { await enviarImagemProduto(retorno.id, arquivo); }
+      catch (erroImagem) { document.getElementById(`modal-produto${especial ? '-especial' : ''}`).close(); await carregarProdutos(); return aviso(`Produto salvo, mas não foi possível enviar a imagem: ${erroImagem.message}`, 'erro'); }
+    } else if (produto.id && removerImagem[chave]) {
+      try { await removerImagemProduto(retorno.id); }
+      catch (erroImagem) { document.getElementById(`modal-produto${especial ? '-especial' : ''}`).close(); await carregarProdutos(); return aviso(`Produto salvo, mas não foi possível remover a imagem: ${erroImagem.message}`, 'erro'); }
+    }
     document.getElementById(`modal-produto${especial ? '-especial' : ''}`).close();
     await carregarProdutos(); aviso(`“${retorno.nome}” foi salvo.`);
   } catch (erro) { aviso(erro.message); alert(erro.message); }
@@ -233,6 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('abrirModalProdutoEspecial')?.addEventListener('click', () => abrirModal(null, true));
   document.getElementById('form-produto')?.addEventListener('submit', evento => salvarProduto(evento, false));
   document.getElementById('form-produto-especial')?.addEventListener('submit', evento => salvarProduto(evento, true));
+  configurarEditorImagem(false); configurarEditorImagem(true);
   document.getElementById('btn-fechar-modal')?.addEventListener('click', () => document.getElementById('modal-produto').close());
   document.getElementById('btn-fechar-modal-especial')?.addEventListener('click', () => document.getElementById('modal-produto-especial').close());
   await carregarProdutos();

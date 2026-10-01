@@ -25,6 +25,7 @@ test('template do produto mantém seletores funcionais e ação textual explíci
     assert.match(html, new RegExp(`class=["'][^"']*\\b${classe}\\b`, 'i'), `classe .${classe} ausente`);
   }
   assert.match(html, /<article\b[^>]*class=["'][^"']*product-card/i);
+  assert.match(html, /<img[^>]+class=["'][^"']*img-vitrine[^"']*["'][^>]*loading=["']lazy["']/i);
   assert.match(html, /Adicionar ao pedido/i);
   assert.doesNotMatch(html, /style=["'][^"']*width\s*:\s*200px/i);
   assert.match(html, /seletor-adicionais/);
