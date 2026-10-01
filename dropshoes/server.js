@@ -285,6 +285,32 @@ rota('delete', '/api/pedidos/:id', autenticar, soAdmin1, async (req, res) => {
   res.sendStatus(204);
 });
 
+// Páginas administrativas também precisam de proteção no servidor. O frontend
+// continua validando a sessão para atualizar a interface, mas não deve ser a
+// única barreira quando alguém acessa uma URL direta.
+app.use((req, res, next) => {
+  let caminho;
+  try { caminho = decodeURIComponent(req.path); } catch { return res.redirect('/login'); }
+  const arquivoAdmin = caminho.startsWith('/tela admin/') && !caminho.endsWith('/login.html');
+  const rotaAdmin = caminho.startsWith('/admin/') && caminho !== '/admin/login';
+  if (!arquivoAdmin && !rotaAdmin) return next();
+  const exigeAdmin1 = caminho.includes('fluxo de caixa') || caminho === '/admin/fluxo-caixa';
+  let statusInterno = 200;
+  let autorizado = false;
+  const respostaInterna = {
+    status(valor) { statusInterno = valor; return this; },
+    json() { return this; }
+  };
+  return Promise.resolve(autenticar(req, respostaInterna, () => { autorizado = true; }))
+    .then(() => {
+      if (statusInterno >= 500) return res.status(503).send('Serviço temporariamente indisponível.');
+      if (!autorizado || !ADMIN_ROLES.includes(req.user?.role)) return res.redirect('/login');
+      if (exigeAdmin1 && req.user.role !== 'admin1') return res.redirect('/admin/principal');
+      return next();
+    })
+    .catch(next);
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 const page = (...parts) => (req, res, next) => res.sendFile(
   path.join(__dirname, 'public', ...parts), erro => { if (erro) next(erro); }

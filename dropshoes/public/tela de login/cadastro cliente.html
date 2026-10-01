@@ -8,16 +8,17 @@
     <script type="module" src="../js/cadastro.js" defer></script>
 </head>
 <body class="login-page" data-publica>
-    <main class="login-container">
+    <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
+    <main class="login-container" id="conteudo-principal" tabindex="-1">
         <form id="form-cadastro-cliente" class="card-login">
             <a href="../tela cliente/Produtos.html" class="logo">Delícias<span> da Lucy</span></a>
             <h1>Crie sua conta de cliente</h1>
             <p>Cadastre um e-mail ou telefone e uma senha para acompanhar seus pedidos em qualquer dispositivo.</p>
             <div class="form-group"><label for="nome">Nome</label><input id="nome" name="nome" class="form-control" autocomplete="name" minlength="2" maxlength="100" required></div>
             <div class="form-group"><label for="identificador">E-mail ou telefone com DDD</label><input id="identificador" name="identificador" class="form-control" autocomplete="username" maxlength="254" required></div>
-            <div class="form-group"><label for="senha">Senha</label><input id="senha" name="senha" type="password" class="form-control" autocomplete="new-password" minlength="8" maxlength="128" required></div>
+            <div class="form-group"><label for="senha">Senha</label><div class="campo-senha"><input id="senha" name="senha" type="password" class="form-control" autocomplete="new-password" minlength="8" maxlength="128" aria-describedby="senha-ajuda" required><button type="button" class="btn-mostrar-senha" data-mostrar-senha aria-controls="senha" aria-pressed="false">Mostrar senha</button></div><p id="senha-ajuda" class="ajuda-campo">Use de 8 a 128 caracteres.</p></div>
             <div class="form-group"><label for="cep">CEP (opcional)</label><input id="cep" name="cep" class="form-control" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}-?[0-9]{3}" maxlength="9"></div>
-            <button type="submit" class="btn btn-primary">Salvar e conhecer nossos produtos</button>
+            <button type="submit" class="btn btn-primary" data-loading-label="Criando conta...">Criar conta e ver o cardápio</button>
             <p><a href="../tela de login/login cliente.html">Já tenho conta? Entrar</a></p>
             <p><a href="../tela cliente/Produtos.html">Ver cardápio</a></p>
         </form>

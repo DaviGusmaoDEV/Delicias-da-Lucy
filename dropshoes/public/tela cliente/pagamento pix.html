@@ -10,31 +10,49 @@
   <script type="module" src="../js/pagamento-pix.js" defer></script>
 </head>
 <body data-acesso="cliente">
-  <main class="pix-pagina">
+  <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
+  <main class="pix-pagina" id="conteudo-principal" tabindex="-1">
     <nav class="pix-navegacao" aria-label="Navegação do pagamento">
-      <a href="meu perfil cliente.html">Meus pedidos</a>
+      <a href="meu perfil cliente.html#meus-pedidos">Meus pedidos</a>
       <a href="../tela de login/login cliente.html" data-sair>Sair</a>
     </nav>
     <section class="pix-cartao" aria-labelledby="pix-titulo">
-      <a class="pix-voltar" href="meu perfil cliente.html">← Acompanhar meus pedidos</a>
+      <a class="pix-voltar" href="meu perfil cliente.html#meus-pedidos">← Acompanhar meus pedidos</a>
       <p class="pix-kicker">Pagamento online</p>
       <h1 id="pix-titulo">Pagamento via Pix</h1>
-      <p>Pedido <strong id="pix-pedido">—</strong></p>
-      <p class="pix-total-label">Total</p>
+      <p class="pix-pedido-label">Pedido <strong id="pix-pedido">—</strong></p>
+      <p class="pix-total-label">Total a pagar</p>
       <strong id="pix-total" class="pix-total">R$ 0,00</strong>
-      <div id="pix-pendente" class="pix-pendente" role="status" aria-live="polite">Aguardando pagamento...</div>
+      <div id="pix-pendente" class="pix-pendente" role="status" aria-live="polite">Aguardando pagamento. Após pagar, aguarde nesta página enquanto confirmamos.</div>
       <div id="pix-conteudo" hidden>
-        <img id="pix-qr" class="pix-qr" alt="QR Code para pagamento Pix">
-        <p>Escaneie o QR Code com o aplicativo do seu banco.</p>
-        <button id="pix-copiar" class="btn-finalizar" type="button">Copiar código Pix</button>
+        <div class="pix-secao">
+          <h2 class="pix-subtitulo">Escaneie o QR Code</h2>
+          <figure class="pix-qr-figura">
+            <img id="pix-qr" class="pix-qr" alt="QR Code para pagamento Pix">
+            <figcaption>Abra o aplicativo do seu banco e escaneie este código.</figcaption>
+          </figure>
+        </div>
+        <div class="pix-secao pix-copia-secao">
+          <h2 class="pix-subtitulo">Pix Copia e Cola</h2>
+          <label class="pix-copia-label" for="pix-copia-cola">Código Pix</label>
+          <textarea id="pix-copia-cola" class="pix-copia-cola" rows="5" readonly spellcheck="false" aria-describedby="pix-copia-ajuda"></textarea>
+          <p id="pix-copia-ajuda" class="pix-ajuda">Se preferir, copie o código completo e cole no aplicativo do seu banco.</p>
+          <button id="pix-copiar" class="btn-finalizar" type="button">Copiar código Pix</button>
+        </div>
         <p id="pix-feedback" class="pix-feedback" aria-live="polite"></p>
         <p id="pix-expira" class="pix-expira"></p>
+        <ol class="pix-instrucoes">
+          <li>Abra o aplicativo do seu banco.</li>
+          <li>Escolha Pix e escaneie o QR Code ou cole o código acima.</li>
+          <li>Confirme o pagamento no banco.</li>
+          <li>Volte para esta página e aguarde a confirmação automática.</li>
+        </ol>
       </div>
-      <div id="pix-finalizado" class="pix-finalizado" hidden>
+      <div id="pix-finalizado" class="pix-finalizado" role="status" aria-live="polite" hidden>
         <span aria-hidden="true">✓</span>
         <h2 id="pix-finalizado-titulo">Pagamento aprovado!</h2>
         <p id="pix-finalizado-texto">Seu pedido foi recebido e já foi enviado para a loja.</p>
-        <a class="btn-finalizar pix-link" href="meu perfil cliente.html">Acompanhar meu pedido</a>
+        <a class="btn-finalizar pix-link" href="meu perfil cliente.html#meus-pedidos">Acompanhar meu pedido</a>
       </div>
       <button id="pix-novo" class="btn-calcular" type="button" hidden>Gerar novo Pix</button>
       <p id="pix-erro" class="pix-erro" role="alert" hidden></p>

@@ -4,10 +4,12 @@ export function mensagem(form, texto, sucesso = false) {
     if (!aviso) {
         aviso = document.createElement('p');
         aviso.dataset.mensagem = '';
-        aviso.setAttribute('role', 'status');
-        aviso.setAttribute('aria-live', 'polite');
         form.querySelector('button[type="submit"]').before(aviso);
     }
+    aviso.id = aviso.id || `${form.id || 'form'}-mensagem`;
+    aviso.setAttribute('role', sucesso ? 'status' : 'alert');
+    aviso.setAttribute('aria-live', sucesso ? 'polite' : 'assertive');
+    aviso.setAttribute('aria-atomic', 'true');
     aviso.textContent = texto;
     aviso.style.color = sucesso ? '#166534' : '#b91c1c';
 }
@@ -16,7 +18,7 @@ export async function enviarFormulario(form, url, valores) {
     const botao = form?.querySelector('button[type="submit"]');
     const texto = botao?.textContent;
     if (form) { form.dataset.enviando = 'true'; form.setAttribute('aria-busy', 'true'); }
-    if (botao) { botao.disabled = true; botao.textContent = 'Aguarde…'; }
+    if (botao) { botao.disabled = true; botao.textContent = botao.dataset.loadingLabel || 'Aguarde…'; }
     mensagem(form, '');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);

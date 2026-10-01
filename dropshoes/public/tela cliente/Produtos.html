@@ -9,39 +9,52 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="../js/produtos.js" defer></script>
     <script type="module" src="../js/sessao.js" defer></script>
+    <script type="module" src="../js/navegacao.js" defer></script>
 </head>
-<body data-acesso="cliente" data-publica>
+<body class="pagina-cardapio" data-acesso="cliente" data-publica>
+    <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
 
-    <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
+    <aside class="sidebar" id="sidebar" aria-labelledby="menu-principal-titulo">
+    <header class="sidebar-header">
         <a href="../tela cliente/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
-        <h2>Painel de Navegação</h2>
-    </div>
+        <h2 id="menu-principal-titulo" class="sr-only">Menu principal</h2>
+        <button class="menu-toggle" type="button" data-menu-toggle aria-controls="navegacao-principal" aria-expanded="false" aria-label="Abrir menu principal" hidden><span data-menu-label>Menu</span></button>
+    </header>
 
-    <nav class="sidebar-nav">
+    <nav class="sidebar-nav" id="navegacao-principal" aria-labelledby="menu-principal-titulo">
         <a href="../tela cliente/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
-        <a href="../tela cliente/Produtos.html" class="nav-item active"><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
-        <a href="../tela cliente/meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
-        <a href="../tela cliente/carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
+        <a href="../tela cliente/Produtos.html" class="nav-item active" aria-current="page"><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
+        <a href="../tela cliente/carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Meu carrinho <span class="nav-carrinho-contador" data-carrinho-contador aria-label="0 itens no carrinho">0</span></a>
+        <a href="../tela cliente/meu perfil cliente.html#meus-pedidos" class="nav-item"><span class="material-symbols-outlined">receipt_long</span> Meus pedidos</a>
+        <a href="../tela cliente/meu perfil cliente.html#meu-perfil" class="nav-item"><span class="material-symbols-outlined">person</span> Meu perfil</a>
     </nav>
 
-    <div class="sidebar-footer">
+    <footer class="sidebar-footer">
         <a href="../tela de login/login cliente.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
-    </div>
+    </footer>
     </aside>
 
     <div class="main-wrapper">
-        <main class="container">
+        <main class="container" id="conteudo-principal" tabindex="-1">
 
-            <header class="hero">
-                <h1>Aqui Estão todos os Produtos</h1>
-                <p>Aqui estão todos os nosso produtos. Saboreie o nosso <span class="Sabor">SABOR</span></p>
+            <header class="hero cardapio-cabecalho">
+                <p class="cardapio-saudacao">Delícias da Lucy</p>
+                <h1>Cardápio</h1>
+                <p>Escolha seus produtos e adicione ao pedido.</p>
             </header>
 
-            <section class="filtros-fluxo-caixa">
+            <a id="atalho-carrinho" class="atalho-carrinho" href="../tela cliente/carrino cliente.html" aria-label="Ver carrinho, 0 itens">
+                <span class="material-symbols-outlined" aria-hidden="true">shopping_cart</span>
+                <span>Ver carrinho</span>
+                <strong data-carrinho-resumo>0 itens</strong>
+            </a>
+
+            <section class="cardapio-filtros" aria-labelledby="titulo-filtros-cardapio">
+                <h2 id="titulo-filtros-cardapio">Encontre o que deseja</h2>
+                <div class="cardapio-filtros-grade">
                 <div class="form-group-inline">
                     <label for="filtro-categoria">Categoria</label>
-                    <select id="filtro-categoria" class="form-control" style="width: 200px;">
+                    <select id="filtro-categoria" class="form-control">
                         <option value="todos">Todos os Produtos</option>
                         <option value="pasteis-salgados">Pastéis Salgados</option>
                         <option value="pasteis-doces">Pastéis Doces</option>
@@ -51,18 +64,25 @@
                     </select>
                 </div>
                 <div class="form-group-inline">
-                    <label for="filtro-tipo">Tipo:</label>
+                    <label for="filtro-tipo">Tipo de produto</label>
                     <select id="filtro-tipo" class="form-control">
                         <option value="todos">Todos</option>
                         <option value="normal">Produtos normais</option>
                         <option value="promocional">Promocionais / Especiais</option>
                     </select>
                 </div>
+                </div>
             </section>
 
-            <section class="grid-produtos" id="lista-produtos">
-                </section>
-            <p id="mensagem-produto" role="status" aria-live="polite" class="ajuda-campo"></p>
+            <section class="cardapio-resultados" aria-labelledby="titulo-produtos-cardapio">
+                <div class="cardapio-resultados-cabecalho">
+                    <h2 id="titulo-produtos-cardapio">Produtos</h2>
+                    <p id="mensagem-produto" role="status" aria-live="polite" class="estado-cardapio">Carregando cardápio…</p>
+                </div>
+                <div class="grid-produtos" id="lista-produtos" aria-busy="true"></div>
+            </section>
+
+            <p id="feedback-carrinho" class="feedback-carrinho" role="status" aria-live="polite" aria-atomic="true" hidden></p>
 
             <footer class="card-footer">
                 <p>© 2026 Delicias Da Lucy. Cardápio.</p>
@@ -71,21 +91,22 @@
     </div>
 
     <template id="template-card-produto">
-        <div class="product-card">
+        <article class="product-card">
             <div class="produto-imagem-wrapper">
-                <span class="badge-especial" hidden>PROMO / ESPECIAL</span>
+                <span class="badge-especial" hidden>Oferta especial</span>
                 <img src="" alt="" class="img-vitrine">
+                <span class="produto-sem-imagem" hidden><span class="material-symbols-outlined" aria-hidden="true">restaurant</span> Imagem não disponível</span>
             </div>
             <div class="product-info">
                 <h3 class="titulo-vitrine"></h3>
                 <p class="descricao-vitrine"></p>
-                <p class="preco-vitrine"></p>
+                <p class="preco-vitrine"><span class="preco-rotulo">Preço</span><strong class="preco-atual"></strong></p>
 
-                <button type="button" class="btn btn-success btn-add-cart" style="width: 100%; gap: 8px; margin-bottom: 8px;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">shopping_cart</span> Adicionar ao Carrinho
+                <button type="button" class="btn btn-success btn-add-cart">
+                    <span class="material-symbols-outlined" aria-hidden="true">add_shopping_cart</span> Adicionar ao pedido
                 </button>
             </div>
-        </div>
+        </article>
     </template>
 
 

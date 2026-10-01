@@ -7,12 +7,13 @@
   <script type="module" src="../js/login.js" defer></script>
 </head>
 <body class="login-page">
-  <main class="login-container"><form id="form-login" class="card-login">
+  <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
+  <main class="login-container" id="conteudo-principal" tabindex="-1"><form id="form-login" class="card-login">
     <a href="../tela de login/login cliente.html" class="logo">Delicias<span> Da Lucy</span></a>
-    <h1>Entrar na minha conta</h1><p class="ajuda-campo">Use seu e-mail ou telefone e senha cadastrados. Você também pode comprar sem entrar.</p>
+    <h1>Bem-vindo</h1><p class="ajuda-campo">Entre para acompanhar seus pedidos. Você também pode comprar sem entrar.</p>
     <div class="form-group"><label for="identificador">E-mail ou telefone</label><input type="text" id="identificador" class="form-control" autocomplete="username" required></div>
-    <div class="form-group"><label for="senha">Senha</label><input type="password" id="senha" class="form-control" autocomplete="current-password" required></div>
-    <button type="submit" class="btn btn-primary">Entrar</button>
+    <div class="form-group"><label for="senha">Senha</label><div class="campo-senha"><input type="password" id="senha" class="form-control" autocomplete="current-password" required><button type="button" class="btn-mostrar-senha" data-mostrar-senha aria-controls="senha" aria-pressed="false">Mostrar senha</button></div></div>
+    <button type="submit" class="btn btn-primary" data-loading-label="Entrando...">Entrar</button>
     <p class="login-footer">Ainda não tem cadastro? <a href="../tela de login/cadastro cliente.html">Cadastrar como cliente</a></p>
     <p class="login-footer"><a href="../tela de login/login.html">Sou administrador</a></p>
     <p class="login-footer"><a href="../tela cliente/Produtos.html">Comprar sem entrar</a></p>

@@ -10,33 +10,37 @@
     <script type="module" src="../js/login.js" defer></script>
 </head>
 <body class="login-page">
+    <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
 
-    <div class="login-container">
+    <main class="login-container" id="conteudo-principal" tabindex="-1">
         <form id="form-login" data-acesso="admin" class="card-login">
             <a href="../tela de login/login cliente.html" class="logo">Delicias<span> Da Lucy</span></a>
-            <h2>Acessar Conta Administrativa</h2>
+            <h1>Acesso administrativo</h1>
 
             <div class="form-group">
+                <label for="identificador">E-mail ou telefone administrativo</label>
                 <div class="input-with-icon">
-                    <span class="material-symbols-outlined">badge</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">badge</span>
                     <input type="text" id="identificador" autocomplete="username" class="form-control" placeholder="E-mail ou telefone administrativo" required>
                 </div>
             </div>
 
             <div class="form-group">
+                <label for="senha">Senha</label>
                 <div class="input-with-icon">
-                    <span class="material-symbols-outlined">lock</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">lock</span>
                     <input type="password" id="senha" autocomplete="current-password" class="form-control" placeholder="Senha" required>
+                    <button type="button" class="btn-mostrar-senha" data-mostrar-senha aria-controls="senha" aria-pressed="false">Mostrar senha</button>
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary">Entrar</button>
+            <button type="submit" class="btn btn-primary" data-loading-label="Entrando...">Entrar no painel</button>
 
             <p class="login-footer">
                 Acesso exclusivo para administradores já cadastrados.<br><a href="../tela de login/login cliente.html">Entrar como cliente</a>
             </p>
         </form>
-    </div>
+    </main>
 
 </body>
 </html>

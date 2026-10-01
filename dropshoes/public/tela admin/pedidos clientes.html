@@ -10,16 +10,19 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="../js/sessao.js" defer></script>
+    <script type="module" src="../js/navegacao.js" defer></script>
 </head>
 <body data-acesso="admin">
+    <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
 
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
+    <aside class="sidebar" id="sidebar" aria-labelledby="menu-principal-titulo">
+        <header class="sidebar-header">
             <a href="../tela admin/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
-            <h2>Painel de Navegação</h2>
-        </div>
+            <h2 id="menu-principal-titulo" class="sr-only">Menu principal</h2>
+            <button class="menu-toggle" type="button" data-menu-toggle aria-controls="navegacao-principal" aria-expanded="false" aria-label="Abrir menu principal" hidden><span data-menu-label>Menu</span></button>
+        </header>
 
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" id="navegacao-principal" aria-labelledby="menu-principal-titulo">
             <a href="../tela admin/pedidos clientes.html" class="nav-item active" aria-current="page"><span class="material-symbols-outlined">receipt_long</span> Pedidos dos clientes</a>
             <a href="../tela admin/principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
             <a href="../tela admin/Dashboard.html" class="nav-item"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
@@ -29,14 +32,14 @@
             <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
         </nav>
 
-        <div class="sidebar-footer">
+        <footer class="sidebar-footer">
             <a href="../tela de login/login.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
-        </div>
+        </footer>
     </aside>
 
     <div class="main-wrapper">
 
-        <main class="container">
+        <main class="container" id="conteudo-principal" tabindex="-1">
             <header class="hero"><h1>Pedidos dos clientes</h1><p>Consulte todos os pedidos da data selecionada, no horário de Ribeirão Preto.</p></header>
             <form id="filtros-pedidos" class="filtros-pedidos">
                 <label>Data do pedido<input id="data-pedidos" type="date" class="form-control" aria-describedby="aviso-data-atual"></label>

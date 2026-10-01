@@ -10,33 +10,37 @@
     <script type="module" src="../js/login.js"></script>
 </head>
 <body class="login-page">
+    <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
 
-    <div class="login-container">
+    <main class="login-container" id="conteudo-principal" tabindex="-1">
         <form id="form-login" data-acesso="admin" class="card-login">
             <a href="../tela de login/login cliente.html" class="logo">Delicias<span> Da Lucy</span></a>
-            <h2>Acessar sua conta Administrativo</h2>
+            <h1>Acesso administrativo</h1>
 
             <div class="form-group">
-        <div class="input-with-icon">
-            <span class="material-symbols-outlined">badge</span>
-            <input type="email" id="email" autocomplete="email" placeholder="Seu e-mail" required>
-        </div>
-        </div>
+                <label for="identificador">E-mail ou telefone administrativo</label>
+                <div class="input-with-icon">
+                    <span class="material-symbols-outlined" aria-hidden="true">badge</span>
+                    <input type="text" id="identificador" autocomplete="username" class="form-control" placeholder="E-mail ou telefone administrativo" required>
+                </div>
+            </div>
 
             <div class="form-group">
-        <div class="input-with-icon">
-            <span class="material-symbols-outlined">lock</span>
-            <input type="password" id="senha" autocomplete="current-password" required class="form-control" placeholder="Senha">
-        </div>
-        </div>
+                <label for="senha">Senha</label>
+                <div class="input-with-icon">
+                    <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                    <input type="password" id="senha" autocomplete="current-password" required class="form-control" placeholder="Senha">
+                    <button type="button" class="btn-mostrar-senha" data-mostrar-senha aria-controls="senha" aria-pressed="false">Mostrar senha</button>
+                </div>
+            </div>
 
-            <button type="submit" class="btn btn-primary">Entrar</button>
+            <button type="submit" class="btn btn-primary" data-loading-label="Entrando...">Entrar no painel</button>
 
             <p class="login-footer">
                 Acesso exclusivo para administradores já cadastrados.<br><a href="../tela de login/login cliente.html">Entrar como cliente</a>
             </p>
         </form>
-    </div>
+    </main>
 
 </body>
 </html>

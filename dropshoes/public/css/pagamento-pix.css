@@ -1,18 +1,199 @@
-.pix-pagina{min-height:100svh;display:grid;place-items:center;padding:24px 16px;background:var(--background-color,#fff8f0)}
-.pix-cartao{width:min(100%,480px);padding:clamp(20px,5vw,40px);text-align:center;background:#fff;border:1px solid var(--border-color,#eadfd4);border-radius:20px;box-shadow:0 10px 30px #5e34121a}
-.pix-voltar{display:block;margin-bottom:28px;color:inherit;text-align:left}.pix-kicker,.pix-total-label{margin:0;color:#777;font-size:.9rem}.pix-cartao h1{margin:.4rem 0 1rem}.pix-total{display:block;margin:.25rem 0 1.5rem;font-size:2rem}.pix-pendente{margin-bottom:18px;color:#8a5b00}.pix-qr{display:block;width:min(100%,280px);height:auto;aspect-ratio:1;margin:12px auto;border-radius:10px}.pix-cartao p{line-height:1.5}.pix-cartao button,.pix-link{width:100%;min-height:48px}.pix-feedback{min-height:1.5em;color:#287a3d}.pix-expira{font-size:.85rem;color:#777}.pix-finalizado span{display:block;color:#287a3d;font-size:3rem}.pix-finalizado h2{margin:.25rem 0}.pix-erro{padding:12px;border-radius:8px;background:#fff0f0;color:#a11}.pix-novo{margin-top:16px}@media (max-width:360px){.pix-pagina{padding:12px 8px}.pix-cartao{padding:20px 14px}.pix-total{font-size:1.75rem}}
+.pix-pagina {
+  min-height: 100svh;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 1rem;
+  padding: clamp(1rem, 4vw, 2rem);
+  background: var(--background-color, #fff8f0);
+}
+
+.pix-cartao {
+  width: min(100%, 38rem);
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  text-align: center;
+  background: var(--surface-color, #fff);
+  border: 1px solid var(--border-color, #eadfd4);
+  border-radius: var(--radius-lg, 1.25rem);
+  box-shadow: var(--shadow-md, 0 0.5rem 1.5rem rgb(75 48 31 / 10%));
+}
+
 .pix-navegacao {
-  width: min(100%, 460px);
+  width: min(100%, 38rem);
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin: 0 auto 16px;
+  gap: 1rem;
 }
-.pix-navegacao a {
-  min-height: 44px;
+
+.pix-navegacao a,
+.pix-voltar {
+  min-height: 2.75rem;
   display: inline-flex;
   align-items: center;
-  color: inherit;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm, 0.5rem);
+}
+
+.pix-voltar {
+  margin-bottom: 1.25rem;
+  color: var(--text-secondary, #5c4636);
   font-weight: 700;
 }
-.pix-navegacao a:last-child { color: #9f1239; }
+
+.pix-kicker {
+  margin: 0 0 0.4rem;
+  color: var(--brand-dark, #8f3f00);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.pix-cartao h1 {
+  margin-bottom: 0.75rem;
+  font-size: clamp(1.65rem, 4vw, 2.15rem);
+}
+
+.pix-pedido-label {
+  margin-bottom: 1.25rem;
+  color: var(--text-secondary, #5c4636);
+  font-size: 1.05rem;
+}
+
+.pix-pedido-label strong { color: var(--text-primary, #2d211a); }
+
+.pix-total-label {
+  margin: 0;
+  color: var(--text-secondary, #5c4636);
+  font-weight: 700;
+}
+
+.pix-total {
+  display: block;
+  margin: 0.15rem 0 1.25rem;
+  color: var(--brand-dark, #8f3f00);
+  font-size: clamp(2rem, 8vw, 3rem);
+  line-height: 1.1;
+}
+
+.pix-pendente {
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  color: var(--text-primary, #2d211a);
+  background: var(--surface-muted, #fff3e7);
+  border: 1px solid var(--border-color, #eadfd4);
+  border-radius: var(--radius-md, 0.75rem);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.pix-secao {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color, #eadfd4);
+}
+
+.pix-subtitulo { margin: 0 0 0.75rem; font-size: 1.25rem; }
+.pix-qr-figura { margin: 0; }
+
+.pix-qr {
+  display: block;
+  width: min(100%, 17.5rem);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  margin: 0 auto 0.75rem;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid var(--border-color, #eadfd4);
+  border-radius: var(--radius-md, 0.75rem);
+}
+
+.pix-qr-figura figcaption,
+.pix-ajuda {
+  color: var(--text-secondary, #5c4636);
+  line-height: 1.5;
+}
+
+.pix-copia-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  text-align: left;
+  font-weight: 700;
+}
+
+.pix-copia-cola {
+  width: 100%;
+  min-height: 7.5rem;
+  display: block;
+  resize: vertical;
+  padding: 0.85rem;
+  color: var(--text-primary, #2d211a);
+  background: var(--surface-muted, #fffaf5);
+  border: 2px solid var(--border-color, #d9c5b5);
+  border-radius: var(--radius-sm, 0.5rem);
+  font: 0.95rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.pix-copia-cola:focus-visible {
+  border-color: var(--focus-color, #005fcc);
+  outline: 3px solid color-mix(in srgb, var(--focus-color, #005fcc) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.pix-ajuda { margin: 0.5rem 0 1rem; text-align: left; font-size: 0.95rem; }
+
+.pix-cartao button,
+.pix-link { width: 100%; min-height: 3rem; }
+
+.pix-novo { margin-top: 1rem; }
+
+.pix-feedback {
+  min-height: 1.75rem;
+  margin: 0.75rem 0 0;
+  color: var(--text-primary, #2d211a);
+  font-weight: 700;
+}
+
+.pix-expira { margin: 0.75rem 0 0; color: var(--text-secondary, #5c4636); font-size: 0.95rem; }
+
+.pix-instrucoes {
+  margin: 1.5rem 0 0;
+  padding: 1rem 1rem 1rem 2.25rem;
+  color: var(--text-primary, #2d211a);
+  background: var(--surface-muted, #fffaf5);
+  border-radius: var(--radius-md, 0.75rem);
+  text-align: left;
+  line-height: 1.6;
+}
+
+.pix-instrucoes li + li { margin-top: 0.5rem; }
+
+.pix-finalizado {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  background: var(--success-surface, #edf8ef);
+  border: 1px solid var(--success-color, #267a3b);
+  border-radius: var(--radius-md, 0.75rem);
+}
+
+.pix-finalizado > span { display: block; color: var(--success-color, #267a3b); font-size: 2.5rem; line-height: 1; }
+.pix-finalizado h2 { margin: 0.75rem 0 0.5rem; font-size: 1.4rem; }
+.pix-finalizado p { margin-bottom: 1rem; }
+
+.pix-erro {
+  margin-top: 1rem;
+  padding: 0.85rem;
+  color: var(--error-text, #8a1c1c);
+  background: var(--error-surface, #fff0f0);
+  border: 1px solid var(--error-color, #b3261e);
+  border-radius: var(--radius-sm, 0.5rem);
+  font-weight: 700;
+}
+
+@media (max-width: 30rem) {
+  .pix-pagina { padding: 0.75rem; }
+  .pix-cartao { padding: 1rem; }
+  .pix-navegacao { align-items: stretch; flex-direction: column; }
+  .pix-navegacao a { justify-content: center; }
+}

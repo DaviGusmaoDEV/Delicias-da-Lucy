@@ -1,6 +1,18 @@
 import { mensagem, enviarFormulario } from './formularios.js';
 
 const form = document.getElementById('form-login');
+
+document.querySelectorAll('[data-mostrar-senha]').forEach(botao => {
+    const alvo = document.getElementById(botao.getAttribute('aria-controls'));
+    if (!alvo) return;
+    botao.addEventListener('click', () => {
+        const visivel = alvo.type === 'text';
+        alvo.type = visivel ? 'password' : 'text';
+        botao.textContent = visivel ? 'Mostrar senha' : 'Ocultar senha';
+        botao.setAttribute('aria-pressed', String(!visivel));
+    });
+});
+
 const emailCadastrado = sessionStorage.getItem('cadastroRealizado');
 if (form && emailCadastrado && form.dataset.acesso !== 'admin') {
     form.querySelector('#identificador').value = emailCadastrado;

@@ -20,6 +20,7 @@ test('limite de autenticação bloqueia excesso e libera após a janela', () => 
 function arquivos(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? arquivos(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
 }
+const escaparFragmento = valor => valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 test('páginas não possuem links locais, scripts ou imports quebrados', () => {
   const raiz = path.resolve(__dirname, '../public');
   const rotas = new Set(['/', '/login', '/login-cliente', '/cadastro', '/cadastro-cliente', '/admin/principal', '/admin/dashboard', '/admin/produtos', '/admin/fluxo-caixa', '/admin/meu-perfil', '/cliente/principal', '/cliente/produtos', '/cliente/carrinho', '/cliente/meu-perfil', '/vendor/sweetalert2.js', '/vendor/sweetalert2.esm.js']);
@@ -29,11 +30,16 @@ test('páginas não possuem links locais, scripts ou imports quebrados', () => {
     const referencias = arquivo.endsWith('.html') ? [...conteudo.matchAll(/(?:src|href)="([^"]+)"/g)] : [...conteudo.matchAll(/(?:import\s+[^;]*?from\s*)['"]([^'"]+)['"]/g)];
     for (const [, referencia] of referencias) {
       if (/^(?:https?:|data:|mailto:|tel:|#)/.test(referencia) || rotas.has(referencia)) continue;
-      const relativo = decodeURIComponent(referencia.split('?')[0]);
+      const [referenciaSemFragmento, fragmento] = referencia.split('#', 2);
+      const relativo = decodeURIComponent(referenciaSemFragmento.split('?')[0]);
       const destino = relativo.startsWith('/') ? path.join(raiz, relativo) : path.resolve(path.dirname(arquivo), relativo);
       assert.ok(fs.existsSync(destino), `${arquivo}: ${referencia}`);
       // Também detecta diferenças de maiúsculas/minúsculas que falham em servidores Linux.
       assert.ok(fs.readdirSync(path.dirname(destino)).includes(path.basename(destino)), `${arquivo}: capitalização incorreta em ${referencia}`);
+      if (fragmento && destino.endsWith('.html')) {
+        const destinoHtml = fs.readFileSync(destino, 'utf8');
+        assert.match(destinoHtml, new RegExp(`\\bid=["']${escaparFragmento(fragmento)}["']`, 'i'), `${arquivo}: destino #${fragmento} não existe em ${referencia}`);
+      }
     }
   }
 });

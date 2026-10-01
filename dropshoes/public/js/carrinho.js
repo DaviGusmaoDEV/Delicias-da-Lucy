@@ -23,15 +23,39 @@ function informarFrete(mensagem, erro = false) {
 }
 const cepComFormatoValido = cep => /^\d{8}$/.test(String(cep || '').replace(/\D/g, ''));
 const salvar = () => localStorage.setItem('carrinho', JSON.stringify(carrinho));
+const quantidadeTotal = () => carrinho.reduce((total, item) => total + item.quantidade, 0);
+function emitirAtualizacao(acao, item = null) {
+  window.dispatchEvent(new CustomEvent('carrinho:atualizado', {
+    detail: { acao, item: item ? { ...item } : null, quantidadeTotal: quantidadeTotal() }
+  }));
+}
+function limparErroCampo(id) {
+  const campo = document.getElementById(id);
+  const erro = document.getElementById(`erro-${id}`);
+  if (campo) campo.setAttribute('aria-invalid', 'false');
+  if (erro) { erro.textContent = ''; erro.hidden = true; }
+}
+function marcarErroCampo(id, mensagem, focar = false) {
+  const campo = document.getElementById(id);
+  const erro = document.getElementById(`erro-${id}`);
+  if (campo) campo.setAttribute('aria-invalid', 'true');
+  if (erro) { erro.textContent = mensagem; erro.hidden = false; }
+  if (focar) campo?.focus();
+}
+function limparErrosCheckout() {
+  document.querySelectorAll('[aria-invalid="true"]').forEach(campo => campo.setAttribute('aria-invalid', 'false'));
+  document.querySelectorAll('.form-error').forEach(erro => { erro.textContent = ''; erro.hidden = true; });
+}
 export const obterCarrinho = () => carrinho.map(item => ({ ...item }));
-export function limparCarrinho() { carrinho = []; localStorage.removeItem('carrinho'); renderizarCarrinho(); }
+export function limparCarrinho() { carrinho = []; localStorage.removeItem('carrinho'); renderizarCarrinho(); emitirAtualizacao('limpar'); }
 export function adicionarAoCarrinho(produto) {
-  if (['admin1', 'admin2'].includes(localStorage.getItem('role'))) return;
-  if (!produto?.id || !produto.nome || !Number.isFinite(Number(produto.preco)) || Number(produto.preco) <= 0) return;
+  if (['admin1', 'admin2'].includes(localStorage.getItem('role'))) return false;
+  if (!produto?.id || !produto.nome || !Number.isFinite(Number(produto.preco)) || Number(produto.preco) <= 0) return false;
   const existente = carrinho.find(item => String(item.id) === String(produto.id));
-  if (existente?.quantidade >= 50) return Swal.fire({ icon: 'info', text: 'O limite é de 50 unidades por produto.' });
+  if (existente?.quantidade >= 50) { Swal.fire({ icon: 'info', text: 'O limite é de 50 unidades por produto.' }); return false; }
   existente ? existente.quantidade++ : carrinho.push({ id: produto.id, nome: produto.nome, preco: Number(produto.preco), quantidade: 1 });
-  salvar(); Swal.fire({ icon: 'success', title: 'Adicionado ao carrinho', timer: 1200, showConfirmButton: false }); renderizarCarrinho();
+  const itemAtualizado = carrinho.find(item => String(item.id) === String(produto.id));
+  salvar(); renderizarCarrinho(); emitirAtualizacao('adicionar', itemAtualizado); return true;
 }
 const subtotal = () => carrinho.reduce((total, item) => total + Math.round(item.preco * 100) * item.quantidade, 0) / 100;
 function atualizarResumo() {
@@ -40,7 +64,7 @@ function atualizarResumo() {
   }
 }
 function renderizarCarrinho() {
-  const container = document.getElementById('itens-carrinho'); const vazio = document.getElementById('carrinho-vazio-mensagem'); const template = document.getElementById('template-item-carrinho');
+  const container = document.getElementById('itens-carrinho'); const vazioMensagem = document.getElementById('carrinho-vazio-mensagem'); const vazio = vazioMensagem?.closest('.carrinho-vazio') || vazioMensagem; const template = document.getElementById('template-item-carrinho');
   if (!container || !template) return;
   container.innerHTML = ''; if (vazio) vazio.hidden = carrinho.length > 0;
   carrinho.forEach(item => {
@@ -49,8 +73,12 @@ function renderizarCarrinho() {
     clone.querySelector('.carrinho-item-detalhes').textContent = `${dinheiro(item.preco)} cada`;
     clone.querySelector('.carrinho-item-qtd').textContent = item.quantidade;
     clone.querySelector('.carrinho-item-total').textContent = dinheiro(item.preco * item.quantidade);
+    clone.querySelector('.btn-qtd-mais').setAttribute('aria-label', `Aumentar quantidade de ${item.nome}`);
+    clone.querySelector('.btn-qtd-menos').setAttribute('aria-label', `Diminuir quantidade de ${item.nome}`);
     clone.querySelector('.btn-qtd-mais').onclick = () => mudar(item.id, 1);
     clone.querySelector('.btn-qtd-menos').onclick = () => mudar(item.id, -1);
+    clone.querySelector('.btn-remover-item').setAttribute('aria-label', `Remover ${item.nome} do carrinho`);
+    clone.querySelector('.btn-remover-item').onclick = () => removerItem(item.id);
     container.append(clone);
   }); atualizarResumo();
 }
@@ -58,7 +86,14 @@ function mudar(id, delta) {
   if (finalizando) return;
   const item = carrinho.find(p => String(p.id) === String(id));
   if (!item || item.quantidade + delta > 50) return;
-  item.quantidade += delta; carrinho = carrinho.filter(p => p.quantidade > 0); salvar(); renderizarCarrinho();
+  item.quantidade += delta; carrinho = carrinho.filter(p => p.quantidade > 0); salvar(); renderizarCarrinho(); emitirAtualizacao('alterar', carrinho.find(p => String(p.id) === String(id)) || null);
+}
+function removerItem(id) {
+  if (finalizando) return;
+  const item = carrinho.find(p => String(p.id) === String(id));
+  if (!item) return;
+  carrinho = carrinho.filter(p => String(p.id) !== String(id));
+  salvar(); renderizarCarrinho(); emitirAtualizacao('remover', item);
 }
 function camposEntrega() {
   return Object.fromEntries([['endereco', 'endereco'], ['numero_casa', 'numero-casa'], ['bairro', 'bairro'], ['cep', 'cep']].map(([chave, id]) => [chave, document.getElementById(id)?.value.trim() || '']));
@@ -84,6 +119,7 @@ export async function calcularFrete() {
       if (input && !input.value.trim()) input.value = dados[campo] || '';
     }
     cotacaoAnterior = { chave: JSON.stringify(camposEntrega()), dados };
+    limparErroCampo('cep');
     informarFrete(`Trajeto aproximado pelo CEP: ${Number(dados.distancia_km).toFixed(2).replace('.', ',')} km. ${valorFreteAtual === 0 ? 'Entrega grátis até 2 km.' : `Entrega: ${dinheiro(valorFreteAtual)}`}`);
     atualizarResumo(); return true;
   } catch (erro) {
@@ -95,19 +131,24 @@ export async function calcularFrete() {
 }
 export async function finalizarCompra() {
   if (finalizando) return;
+  limparErrosCheckout();
   if (!carrinho.length) return Swal.fire({ icon: 'info', title: 'Carrinho vazio', text: 'Escolha os produtos antes de continuar.' });
   const cliente_nome = document.getElementById('cliente-nome')?.value.trim() || '';
   const cliente_telefone = document.getElementById('cliente-telefone')?.value.trim() || '';
   const provedor_pagamento = document.querySelector('input[name="provedor-pagamento"]:checked')?.value || 'infinitepay';
   const pagamento = provedor_pagamento === 'entrega' ? 'entrega' : 'site';
-  if (cliente_nome.length < 2 || !/^(?:55)?\d{10,11}$/.test(cliente_telefone.replace(/[\s()+-]/g, ''))) return Swal.fire({ icon: 'info', text: 'Preencha nome e telefone com DDD.' });
+  if (cliente_nome.length < 2) { marcarErroCampo('cliente-nome', 'Informe seu nome completo.', true); return; }
+  if (!/^(?:55)?\d{10,11}$/.test(cliente_telefone.replace(/[\s()+-]/g, ''))) { marcarErroCampo('cliente-telefone', 'Informe um telefone válido com DDD.', true); return; }
   const enderecoInicial = camposEntrega();
-  if (!enderecoInicial.numero_casa || !enderecoInicial.cep) return Swal.fire({ icon: 'info', title: 'Complete o endereço', text: 'Informe o número da casa e o CEP para calcular a entrega.' });
-  const botao = document.querySelector('.btn-finalizar'); finalizando = true; if (botao) botao.disabled = true;
+  if (!enderecoInicial.numero_casa) { marcarErroCampo('numero-casa', 'Informe o número da casa.', true); return; }
+  if (!enderecoInicial.cep) { marcarErroCampo('cep', 'Informe o CEP para calcular a entrega.', true); return; }
+  const botao = document.querySelector('.btn-finalizar'); const textoBotao = botao?.textContent || ''; finalizando = true; if (botao) { botao.disabled = true; botao.setAttribute('aria-busy', 'true'); botao.textContent = 'Processando pedido…'; }
   try {
     if (!(await atualizarEntrega())) return;
     const entrega = camposEntrega();
-    if (Object.values(entrega).some(valor => !valor)) throw new Error('Confira rua, número, bairro e CEP para calcular a entrega.');
+    if (!entrega.endereco) { marcarErroCampo('endereco', 'Confira a rua ou avenida.', true); return; }
+    if (!entrega.bairro) { marcarErroCampo('bairro', 'Confira o bairro.', true); return; }
+    if (Object.values(entrega).some(valor => !valor)) { informarFrete('Confira os dados do endereço para calcular a entrega.', true); return; }
     // Visitantes compram sem conta: o próprio POST do pedido cria uma sessão técnica HttpOnly.
     const corpo = { ...entrega, taxa_entrega: valorFreteAtual, cliente_nome, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, observacao_item: item.observacao || '' })) };
     const resumo = new TextEncoder().encode(JSON.stringify(corpo));
@@ -130,7 +171,7 @@ export async function finalizarCompra() {
       window.location.assign(dados.payment_url);
     }
   } catch (erro) { await Swal.fire({ icon: 'error', title: 'Não foi possível finalizar', text: erro.message }); }
-  finally { finalizando = false; if (botao) botao.disabled = false; }
+  finally { finalizando = false; if (botao) { botao.disabled = false; botao.removeAttribute('aria-busy'); botao.textContent = textoBotao; } }
 }
 async function preencherEnderecoPeloCep() {
   const cep = document.getElementById('cep')?.value.trim();
@@ -149,6 +190,7 @@ async function preencherEnderecoPeloCep() {
     return true;
   } catch (erro) {
     informarFrete(erro.message, true);
+    marcarErroCampo('cep', erro.message, false);
     return false;
   } finally { consultaCepEmAndamento = null; }
   })();
@@ -158,6 +200,7 @@ async function atualizarEntrega() {
   const cep = document.getElementById('cep')?.value.trim() || '';
   if (!cepComFormatoValido(cep)) {
     informarFrete(cep ? 'CEP inválido. Informe os 8 números para calcular a entrega.' : 'Informe o CEP para calcular a entrega.', true);
+    marcarErroCampo('cep', cep ? 'Informe um CEP válido com 8 números.' : 'Informe o CEP.', false);
     return false;
   }
   if (!(await preencherEnderecoPeloCep())) return false;
@@ -181,5 +224,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('input[name="provedor-pagamento"]').forEach(opcao => opcao.addEventListener('change', atualizarTextoPagamento));
   atualizarTextoPagamento();
   document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) atualizarEntrega(); });
-  document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; cotacaoAnterior = null; cotacaoEmAndamento = null; consultaCepAnterior = ''; valorFreteAtual = 0; atualizarResumo(); informarFrete('Calcule a entrega para o novo CEP.'); });
+  document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; cotacaoAnterior = null; cotacaoEmAndamento = null; consultaCepAnterior = ''; valorFreteAtual = 0; limparErroCampo('cep'); atualizarResumo(); informarFrete('Calcule a entrega para o novo CEP.'); });
 });

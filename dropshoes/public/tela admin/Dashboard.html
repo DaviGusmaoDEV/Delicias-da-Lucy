@@ -9,11 +9,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="../js/sessao.js" defer></script>
     <script type="module" src="../js/dashboard-admin.js" defer></script>
+    <script type="module" src="../js/navegacao.js" defer></script>
 </head>
 <body data-acesso="admin">
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header"><a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a><h2>Painel de Navegação</h2></div>
-        <nav class="sidebar-nav">
+    <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
+    <aside class="sidebar" id="sidebar" aria-labelledby="menu-principal-titulo">
+        <header class="sidebar-header"><a href="principal.html" class="logo">Delicias<span> Da Lucy</span></a><h2 id="menu-principal-titulo" class="sr-only">Menu principal</h2><button class="menu-toggle" type="button" data-menu-toggle aria-controls="navegacao-principal" aria-expanded="false" aria-label="Abrir menu principal" hidden><span data-menu-label>Menu</span></button></header>
+        <nav class="sidebar-nav" id="navegacao-principal" aria-labelledby="menu-principal-titulo">
             <a href="pedidos clientes.html" class="nav-item"><span class="material-symbols-outlined">receipt_long</span> Pedidos dos clientes</a>
             <a href="principal.html" class="nav-item"><span class="material-symbols-outlined">home</span> Início</a>
             <a href="Dashboard.html" class="nav-item active" aria-current="page"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
@@ -21,9 +23,9 @@
             <a href="produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
             <a href="meu perfil.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
         </nav>
-        <div class="sidebar-footer"><a href="../tela de login/login.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a></div>
+        <footer class="sidebar-footer"><a href="../tela de login/login.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a></footer>
     </aside>
-    <div class="main-wrapper"><main class="container">
+    <div class="main-wrapper"><main class="container" id="conteudo-principal" tabindex="-1">
         <header class="hero"><h1>Dashboard</h1><p>Resumo das vendas, pagamentos e movimentações financeiras da loja.</p></header>
         <section class="dashboard-filtro" aria-label="Filtro de período"><label for="dashboard-periodo">Movimentações</label><select id="dashboard-periodo" class="form-control"><option value="dia">Hoje</option><option value="semana">Últimos 7 dias</option><option value="mes">Mês atual</option><option value="personalizado">Data específica</option></select><input id="dashboard-data" type="date" class="form-control" aria-label="Data específica" hidden></section>
         <section class="cards-resumo-mensal" aria-label="Resumo de hoje">

@@ -1,4 +1,4 @@
-import { adicionarAoCarrinho } from './carrinho.js';
+import { adicionarAoCarrinho, obterCarrinho } from './carrinho.js';
 
 import { api, enviar } from './api.js';
 import { sessaoPronta } from './sessao.js';
@@ -6,9 +6,60 @@ let admin = false;
 let carregando = false;
 let produtos = [];
 let ultimaAtualizacao = 0;
+let temporizadorFeedback = null;
 const INTERVALO_ATUALIZACAO = 30_000;
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
-const aviso = mensagem => { const area = document.getElementById('mensagem-produto'); if (area) area.textContent = mensagem; };
+function aviso(mensagem, estado = 'informacao') {
+  const area = document.getElementById('mensagem-produto');
+  if (!area) return;
+  area.textContent = mensagem;
+  area.dataset.estado = estado;
+  area.setAttribute('role', estado === 'erro' ? 'alert' : 'status');
+}
+function quantidadeNoCarrinho() {
+  return obterCarrinho().reduce((total, item) => total + item.quantidade, 0);
+}
+function atualizarIndicadoresCarrinho() {
+  const quantidade = quantidadeNoCarrinho();
+  const resumo = `${quantidade} ${quantidade === 1 ? 'item' : 'itens'}`;
+  document.querySelectorAll('[data-carrinho-contador]').forEach(contador => {
+    contador.textContent = quantidade;
+    contador.setAttribute('aria-label', `${resumo} no carrinho`);
+  });
+  document.querySelectorAll('[data-carrinho-resumo]').forEach(contador => { contador.textContent = resumo; });
+  document.getElementById('atalho-carrinho')?.setAttribute('aria-label', `Ver carrinho, ${resumo}`);
+}
+function informarProdutoAdicionado(item) {
+  const feedback = document.getElementById('feedback-carrinho');
+  if (!feedback) return;
+  const unidades = `${item.quantidade} ${item.quantidade === 1 ? 'unidade' : 'unidades'}`;
+  feedback.textContent = `${item.nome} adicionado ao carrinho. Agora há ${unidades} deste produto. Você pode continuar escolhendo.`;
+  feedback.hidden = false;
+  clearTimeout(temporizadorFeedback);
+  temporizadorFeedback = setTimeout(() => { feedback.hidden = true; }, 10_000);
+}
+function configurarImagem(imagem, fallback, produto) {
+  if (!imagem) return;
+  const mostrarFallback = () => {
+    imagem.hidden = true;
+    imagem.removeAttribute('src');
+    if (fallback) {
+      fallback.hidden = false;
+      fallback.setAttribute('aria-label', `Imagem não disponível para ${produto.nome}`);
+    }
+  };
+  if (!produto.imagem_url && !fallback) {
+    imagem.src = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=400';
+    imagem.alt = `Foto ilustrativa de ${produto.nome}`;
+    return;
+  }
+  if (!produto.imagem_url) { mostrarFallback(); return; }
+  imagem.hidden = false;
+  if (fallback) fallback.hidden = true;
+  imagem.alt = `Foto de ${produto.nome}`;
+  imagem.addEventListener('error', mostrarFallback, { once: true });
+  imagem.src = produto.imagem_url;
+}
 
 function normalizarPreco(valor) {
   const texto = String(valor).trim().replace(/\s/g, '').replace('R$', '');
@@ -21,34 +72,51 @@ function validarProduto({ nome, preco, categoria }) {
   if (!categoria) return 'Escolha uma categoria.';
   return '';
 }
+function filtrarProdutos(lista, categoria, tipo) {
+  return lista.filter(produto =>
+    (categoria === 'todos' || (produto.categoria || 'outros') === categoria) &&
+    (tipo === 'todos' || (tipo === 'promocional' ? produto.isEspecial === true : !produto.isEspecial)));
+}
 async function carregarProdutos(silencioso = false) {
   if (carregando) return;
   carregando = true;
+  const lista = document.getElementById('lista-produtos');
+  if (lista) lista.setAttribute('aria-busy', 'true');
   if (!silencioso) aviso('Carregando cardápio…');
   try {
     const atualizados = await api('/api/produtos');
     if (!silencioso || JSON.stringify(atualizados) !== JSON.stringify(produtos)) {
-      produtos = atualizados; renderizar(); aviso(`${produtos.length} produto(s) no cardápio.`);
+      produtos = atualizados; renderizar();
     }
     ultimaAtualizacao = Date.now();
-  } catch (erro) { aviso(erro.message); }
-  finally { carregando = false; }
+  } catch (erro) {
+    if (!produtos.length && lista) lista.innerHTML = '';
+    aviso('Não foi possível carregar o cardápio. Tente novamente em instantes.', 'erro');
+  }
+  finally { carregando = false; if (lista) lista.setAttribute('aria-busy', 'false'); }
 }
 function renderizar() {
   const lista = document.getElementById('lista-produtos'); const template = document.getElementById('template-card-produto'); const filtro = document.getElementById('filtro-categoria')?.value || 'todos';
   if (!lista || !template) return; lista.innerHTML = '';
   const tipo = document.getElementById('filtro-tipo')?.value || 'todos';
-  const visiveis = produtos.filter(produto =>
-    (filtro === 'todos' || (produto.categoria || 'outros') === filtro) &&
-    (tipo === 'todos' || (tipo === 'promocional' ? produto.isEspecial === true : !produto.isEspecial)));
-  if (!visiveis.length) { lista.innerHTML = '<p>Nenhum produto para os filtros selecionados.</p>'; return; }
+  const visiveis = filtrarProdutos(produtos, filtro, tipo);
+  if (!produtos.length) { aviso('O cardápio está sem produtos no momento.', 'vazio'); return; }
+  if (!visiveis.length) { aviso('Nenhum produto encontrado com esses filtros. Tente outra opção.', 'vazio'); return; }
+  aviso(`${visiveis.length} ${visiveis.length === 1 ? 'produto encontrado' : 'produtos encontrados'}.`, 'sucesso');
   visiveis.forEach(produto => {
     const clone = template.content.cloneNode(true); const imagem = clone.querySelector('.img-vitrine');
-    if (imagem) { imagem.src = produto.imagem_url || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=400'; imagem.alt = `Foto de ${produto.nome}`; }
+    configurarImagem(imagem, clone.querySelector('.produto-sem-imagem'), produto);
     clone.querySelector('.titulo-vitrine').textContent = produto.nome;
-    clone.querySelector('.descricao-vitrine').textContent = produto.descricao || '';
-    clone.querySelector('.preco-vitrine').textContent = dinheiro(produto.preco);
-    const destaque = clone.querySelector('.badge-especial'); if (destaque) { destaque.hidden = !produto.isEspecial; destaque.style.display = produto.isEspecial ? 'inline-block' : 'none'; }
+    const descricao = clone.querySelector('.descricao-vitrine');
+    if (descricao) descricao.textContent = produto.descricao || (document.body.classList.contains('pagina-cardapio') ? 'Sem descrição adicional.' : '');
+    const precoAtual = clone.querySelector('.preco-atual') || clone.querySelector('.preco-vitrine');
+    if (precoAtual) precoAtual.textContent = dinheiro(produto.preco);
+    const rotuloPreco = clone.querySelector('.preco-rotulo'); if (rotuloPreco) rotuloPreco.textContent = produto.isEspecial ? 'Preço da oferta' : 'Preço';
+    const destaque = clone.querySelector('.badge-especial'); if (destaque) {
+      destaque.hidden = !produto.isEspecial;
+      destaque.style.display = produto.isEspecial ? (document.body.classList.contains('pagina-cardapio') ? 'inline-flex' : 'inline-block') : 'none';
+      if (document.body.classList.contains('pagina-cardapio')) destaque.textContent = produto.isEspecial ? 'Oferta especial' : '';
+    }
     const botaoCarrinho = clone.querySelector('.btn-add-cart'); if (botaoCarrinho) { botaoCarrinho.hidden = admin; botaoCarrinho.onclick = () => adicionarAoCarrinho(produto); }
     const editar = clone.querySelector('.btn-editar'); const excluir = clone.querySelector('.btn-excluir');
     if (editar) { editar.hidden = !admin; editar.onclick = () => abrirModal(produto, Boolean(produto.isEspecial)); }
@@ -98,6 +166,11 @@ async function excluirProduto(id) {
   catch (erro) { aviso(erro.message); }
 }
 document.addEventListener('DOMContentLoaded', async () => {
+  atualizarIndicadoresCarrinho();
+  window.addEventListener('carrinho:atualizado', evento => {
+    atualizarIndicadoresCarrinho();
+    if (evento.detail?.acao === 'adicionar' && evento.detail.item?.nome) informarProdutoAdicionado(evento.detail.item);
+  });
   const perfil = await sessaoPronta; if (!perfil) return;
   admin = ['admin1', 'admin2'].includes(perfil.role);
   document.getElementById('filtro-categoria')?.addEventListener('change', renderizar);

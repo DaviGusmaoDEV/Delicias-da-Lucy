@@ -2,39 +2,44 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Delicias Da Lucy | Home</title>
     <link rel="stylesheet" href="../css/style.css">
     <!-- Google Icons corrigido para funcionar de verdade no seu projeto -->
      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="../js/sessao.js"></script>
+    <script type="module" src="../js/navegacao.js" defer></script>
 </head>
 <body data-acesso="cliente" data-publica>
+    <a class="skip-link" href="#conteudo-principal">Ir para o conteúdo principal</a>
 
     <!-- 1. BARRA LATERAL (Independente e fixa na lateral) -->
-    <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
+    <aside class="sidebar" id="sidebar" aria-labelledby="menu-principal-titulo">
+    <header class="sidebar-header">
         <a href="../tela cliente/principal.html" class="logo">Delicias<span> Da Lucy</span></a>
-        <h2>Painel de Navegação</h2>
-    </div>
+        <h2 id="menu-principal-titulo" class="sr-only">Menu principal</h2>
+        <button class="menu-toggle" type="button" data-menu-toggle aria-controls="navegacao-principal" aria-expanded="false" aria-label="Abrir menu principal" hidden><span data-menu-label>Menu</span></button>
+    </header>
 
-     <nav class="sidebar-nav">
-        <a href="../tela cliente/principal.html" class="nav-item active"><span class="material-symbols-outlined">home</span> Início</a>
+     <nav class="sidebar-nav" id="navegacao-principal" aria-labelledby="menu-principal-titulo">
+        <a href="../tela cliente/principal.html" class="nav-item active" aria-current="page"><span class="material-symbols-outlined">home</span> Início</a>
         <a href="../tela cliente/Produtos.html" class="nav-item"><span class="material-symbols-outlined">inventory_2</span> Cardápio</a>
-        <a href="../tela cliente/meu perfil cliente.html" class="nav-item"><span class="material-symbols-outlined">person</span> Meu Perfil</a>
-        <a href="../tela cliente/carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Carrinho</a>
+        <a href="../tela cliente/carrino cliente.html" class="nav-item"><span class="material-symbols-outlined">shopping_cart</span> Meu carrinho</a>
+        <a href="../tela cliente/meu perfil cliente.html#meus-pedidos" class="nav-item"><span class="material-symbols-outlined">receipt_long</span> Meus pedidos</a>
+        <a href="../tela cliente/meu perfil cliente.html#meu-perfil" class="nav-item"><span class="material-symbols-outlined">person</span> Meu perfil</a>
     </nav>
 
-    <div class="sidebar-footer">
+    <footer class="sidebar-footer">
         <a href="../tela de login/login cliente.html" class="nav-item" data-sair><span class="material-symbols-outlined">logout</span> Sair</a>
-    </div>
+    </footer>
     </aside>
 
     <!-- 2. O ENVELOPE PRINCIPAL (Garante que o conteúdo fique ao lado da Sidebar) -->
     <div class="main-wrapper">
 
         <!-- Conteúdo da Página -->
-        <main class="container">
+        <main class="container" id="conteudo-principal" tabindex="-1">
             <div class="main-content">
                 <h1>Bem-vindo ao Delicas da Lucy</h1>
                 <p>Aqui você pode acessar todas as funcionalidades do seu painel de controle.</p>
