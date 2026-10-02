@@ -43,3 +43,11 @@ test('perfil apresenta detalhes, estados e ações com texto acessível', () => 
   assert.match(css, /grid-template-columns:\s*1fr/);
   assert.doesNotMatch(html, /<table\b/i);
 });
+
+test('perfil diferencia o tipo de pagamento na entrega sem inventar histórico', () => {
+  assert.match(js, /tipo_pagamento_entrega/);
+  assert.match(js, /Pagar na entrega/);
+  assert.match(js, /Dinheiro/);
+  assert.match(js, /Cartão/);
+  assert.match(js, /Pagar na entrega\$\{tipo \?/);
+});

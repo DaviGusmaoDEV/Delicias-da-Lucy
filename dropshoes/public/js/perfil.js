@@ -34,7 +34,10 @@ function adicionarInformacao(container, rotulo, valor, classe = '') {
 
 function detalhesPagamento(pedido) {
   if (pedido.pagamento === 'site') return textoPagamento(pedido.pagamento_status);
-  if (pedido.pagamento === 'entrega') return 'Pagamento na entrega — será cobrado quando receber o pedido.';
+  if (pedido.pagamento === 'entrega') {
+    const tipo = { dinheiro: 'Dinheiro', cartao: 'Cartão' }[pedido.tipo_pagamento_entrega];
+    return `Pagar na entrega${tipo ? ` • ${tipo}` : ''}`;
+  }
   return null;
 }
 

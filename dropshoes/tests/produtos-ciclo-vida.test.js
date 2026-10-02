@@ -41,7 +41,7 @@ test('ciclo de vida: público só lista ativos e DELETE legado apenas desativa',
   db.tabelas.products.find(item => item.id === 'p1').ativo = false;
   const pedido = await req('/api/pedidos', 'POST', {
     cliente_nome: 'Cliente Ciclo', cliente_telefone: '16999991234', itens: [{ produto_id: 'p1', quantidade: 1 }],
-    endereco: 'Rua Teste', numero_casa: '1', bairro: 'Centro', cep: '14000-000', pagamento: 'entrega',
+    endereco: 'Rua Teste', numero_casa: '1', bairro: 'Centro', cep: '14000-000', pagamento: 'entrega', tipo_pagamento_entrega: 'dinheiro',
     checkout_chave: '00000000-0000-4000-8000-000000000099'
   }, cliente);
   assert.equal(pedido.status, 400);

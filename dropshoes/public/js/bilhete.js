@@ -3,7 +3,8 @@ const dinheiro = valor => Number(valor || 0).toLocaleString('pt-BR', { style: 'c
 const rotuloPedido = pedido => Number.isSafeInteger(Number(pedido?.numero_pedido)) && Number(pedido.numero_pedido) > 0 ? `Pedido N${pedido.numero_pedido}` : 'Pedido histórico';
 export function bilhetePedido(pedido) {
   const itens = (pedido.itens_pedido || []).map(item => `<li><b>${esc(item.quantidade)}x ${esc(item.products?.nome || 'Item')}</b><br>${esc(dinheiro(item.preco_unitario * item.quantidade))}${item.observacao_item ? `<br>Obs.: ${esc(item.observacao_item)}` : ''}</li>`).join('');
-  const pagamento = pedido.pagamento === 'entrega' ? 'PAGAMENTO NA ENTREGA' : pedido.pagamento_status === 'approved' ? `PAGO — ${pedido.pagamento_provedor === 'mercadopago_pix' ? 'Pix — Mercado Pago' : 'InfinitePay'}` : 'PAGAMENTO NÃO CONFIRMADO';
+  const tipoEntrega = { dinheiro: 'DINHEIRO', cartao: 'CARTÃO' }[pedido.tipo_pagamento_entrega];
+  const pagamento = pedido.pagamento === 'entrega' ? `PAGAMENTO NA ENTREGA${tipoEntrega ? ` — ${tipoEntrega}` : ''}` : pedido.pagamento_status === 'approved' ? `PAGO — ${pedido.pagamento_provedor === 'mercadopago_pix' ? 'Pix — Mercado Pago' : 'InfinitePay'}` : 'PAGAMENTO NÃO CONFIRMADO';
   return `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${esc(rotuloPedido(pedido))}</title><style>
   @page{size:80mm auto;margin:4mm}*{box-sizing:border-box}body{width:72mm;margin:0 auto;font:13px monospace;color:#000}h1{font-size:19px;text-align:center}h2{font-size:15px}section{border-top:1px dashed;padding:8px 0}p{margin:5px 0;overflow-wrap:anywhere}ul{list-style:none;padding:0}li{margin-bottom:10px;break-inside:avoid}footer{text-align:center;margin:12px 0}
   </style></head><body><h1>DELÍCIAS DA LUCY</h1><h2>${esc(rotuloPedido(pedido))}</h2>

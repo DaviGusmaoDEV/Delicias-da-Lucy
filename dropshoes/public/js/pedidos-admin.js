@@ -18,7 +18,10 @@ const STATUS = {
 const STATUS_PAGAMENTO = { pending: 'Pagamento pendente', approved: 'Pagamento aprovado', in_process: 'Pagamento em processamento', authorized: 'Pagamento autorizado', rejected: 'Pagamento recusado', cancelled: 'Pagamento cancelado', refunded: 'Pagamento reembolsado', charged_back: 'Pagamento estornado' };
 const esc = valor => String(valor ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
 function descricaoPagamento(pedido) {
-  if (pedido.pagamento === 'entrega') return { classe: 'pagamento-entrega', texto: 'Pagamento na entrega — pendente de recebimento' };
+  if (pedido.pagamento === 'entrega') {
+    const tipo = { dinheiro: 'Dinheiro', cartao: 'Cartão' }[pedido.tipo_pagamento_entrega];
+    return { classe: 'pagamento-entrega', texto: `Forma: Pagar na entrega${tipo ? ` — Tipo: ${tipo}` : ''} — Status: ${STATUS_PAGAMENTO[pedido.pagamento_status] || 'Pagamento pendente'}` };
+  }
   const pix = pedido.pagamento_provedor === 'mercadopago_pix';
   const provedor = pix ? 'Pix — Mercado Pago' : pedido.pagamento_provedor === 'infinitepay' || String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Pagamento online';
   return { classe: pix ? 'pagamento-pix' : 'pagamento-infinitepay', texto: `${STATUS_PAGAMENTO[pedido.pagamento_status] || `Status do pagamento: ${pedido.pagamento_status || 'indisponível'}`} — ${provedor}` };

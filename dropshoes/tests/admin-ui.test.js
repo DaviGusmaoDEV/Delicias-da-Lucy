@@ -14,6 +14,13 @@ test('painel de regras comerciais possui formulários acessíveis e API separada
   assert.match(js, /perfil\.role === 'admin1'/);
 });
 
+test('Admin exibe forma, tipo e status de pagamento separadamente', () => {
+  const js = ler('js/pedidos-admin.js');
+  assert.match(js, /tipo_pagamento_entrega/);
+  assert.match(js, /Tipo:/);
+  assert.match(js, /Status:/);
+});
+
 test('ciclo de vida do produto usa status textual e não exclusão física na UI', () => {
   const html = ler('tela admin/produtos.html');
   const js = ler('js/produtos.js');

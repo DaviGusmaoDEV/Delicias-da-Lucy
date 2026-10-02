@@ -92,14 +92,25 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal((await req('/api/pedidos', 'POST', pedido, token)).body.pedido.id, id);
   assert.equal(chamadasCheckout, 1);
   assert.equal(db.tabelas.pedidos.length, 1);
-  const pedidoEntrega = { ...pedido, pagamento: 'entrega', checkout_chave: '00000000-0000-4000-8000-000000000002' };
+  const pedidoEntrega = { ...pedido, pagamento: 'entrega', tipo_pagamento_entrega: 'dinheiro', checkout_chave: '00000000-0000-4000-8000-000000000002' };
   const entregaCriada = await req('/api/pedidos', 'POST', pedidoEntrega, token);
   assert.equal(entregaCriada.status, 201);
   assert.equal(entregaCriada.body.pedido.numero_pedido, 2);
   assert.equal(entregaCriada.body.pedido.pagamento, 'entrega');
   assert.equal(entregaCriada.body.pedido.pagamento_status, 'pending');
+  assert.equal(entregaCriada.body.pedido.tipo_pagamento_entrega, 'dinheiro');
   assert.equal(entregaCriada.body.payment_url, undefined);
   assert.equal(chamadasCheckout, 1);
+  for (const [tipo, chave] of [[undefined, '00000000-0000-4000-8000-000000000007'], ['pix', '00000000-0000-4000-8000-000000000008'], ['qualquer', '00000000-0000-4000-8000-000000000009']]) {
+    const invalido = { ...pedidoEntrega, checkout_chave: chave, tipo_pagamento_entrega: tipo };
+    assert.equal((await req('/api/pedidos', 'POST', invalido, token)).status, 400);
+  }
+  const cartao = await req('/api/pedidos', 'POST', { ...pedidoEntrega, tipo_pagamento_entrega: 'cartao', checkout_chave: '00000000-0000-4000-8000-000000000010' }, token);
+  assert.equal(cartao.status, 201);
+  assert.equal(cartao.body.pedido.tipo_pagamento_entrega, 'cartao');
+  const onlineComTipo = await req('/api/pedidos', 'POST', { ...pedido, tipo_pagamento_entrega: 'dinheiro', checkout_chave: '00000000-0000-4000-8000-000000000011' }, token);
+  assert.equal(onlineComTipo.status, 201);
+  assert.equal(onlineComTipo.body.pedido.tipo_pagamento_entrega, null);
   assert.equal((await req(`/api/pedidos/${entregaCriada.body.pedido.id}/status`, 'PATCH', { status: 'aceito' }, admin1)).status, 200);
   const entregaCancelavel = await req('/api/pedidos', 'POST', { ...pedidoEntrega, checkout_chave: '00000000-0000-4000-8000-000000000004' }, token);
   for (const status of ['aceito', 'em_preparo', 'pronto_entrega']) assert.equal((await req(`/api/pedidos/${entregaCancelavel.body.pedido.id}/status`, 'PATCH', { status }, admin1)).status, 200);
@@ -112,7 +123,7 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal(entregaLegada.body.tipo_pagamento, 'entrega');
   assert.equal(entregaLegada.body.pedido.pagamento, 'entrega');
   assert.equal(db.tabelas.pedidos.find(p => p.id === entregaLegada.body.pedido.id).pagamento, 'entrega');
-  assert.equal(chamadasCheckout, 1);
+  assert.equal(chamadasCheckout, 2);
   db.rpcPagamentoLegado = false;
   assert.equal((await req('/api/pedidos', 'POST', { ...pedido, pagamento: 'whatsapp' }, token)).status, 400);
   assert.equal((await req(`/api/pedidos/${id}/status`, 'PATCH', { status: 'aceito' }, admin1)).status, 409);
@@ -132,7 +143,7 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   const receitaEntrega = db.tabelas.fluxo_caixa.filter(item => item.pedido_id === entregaCriada.body.pedido.id && item.tipo === 'receita');
   assert.equal(receitaEntrega.length, 1);
   assert.equal(receitaEntrega[0].valor, entregaCriada.body.pedido.valor);
-  assert.equal((await req('/api/meus-pedidos', 'GET', undefined, token)).body.length, 4);
+  assert.equal((await req('/api/meus-pedidos', 'GET', undefined, token)).body.length, 6);
   db.tabelas.pedidos.push({ id: 'cancelado-sem-receita', status: 'cancelado', pagamento: 'entrega', pagamento_status: 'pending', valor: 12 });
   db.tabelas.itens_pedido.push({ id: 'item-cancelado', pedido_id: 'cancelado-sem-receita', produto_id: 'p1', quantidade: 1, preco_unitario: 12 });
   assert.equal((await req('/api/pedidos/cancelado-sem-receita', 'DELETE', undefined, admin1)).status, 204);

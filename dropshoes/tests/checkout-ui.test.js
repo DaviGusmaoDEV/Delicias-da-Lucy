@@ -23,6 +23,19 @@ test('checkout preserva IDs, resumo, campos obrigatórios e providers existentes
   assert.match(html, /id=["']btn-finalizar-pedido["']/i);
 });
 
+test('checkout oferece tipo de pagamento acessível somente para entrega', () => {
+  const html = ler('tela cliente/carrino cliente.html');
+  assert.match(html, /id=["']tipo-pagamento-entrega["'][^>]*hidden/);
+  assert.match(html, /Como você deseja pagar na entrega\?/);
+  assert.match(html, /name=["']tipo-pagamento-entrega["'][^>]*value=["']dinheiro["']/);
+  assert.match(html, /name=["']tipo-pagamento-entrega["'][^>]*value=["']cartao["']/);
+  assert.match(html, /id=["']tipo-pagamento-entrega["'][^>]*tabindex=["']-1["']/);
+  const js = ler('js/carrinho.js');
+  assert.match(js, /Escolha se o pagamento na entrega será em dinheiro ou cartão/);
+  assert.match(js, /tipo_pagamento_entrega/);
+  assert.match(js, /opcao\.checked = false/);
+});
+
 test('template do checkout oferece quantidade, subtotal do item e remoção com nomes contextuais', () => {
   const html = ler('tela cliente/carrino cliente.html');
   for (const classe of ['carrinho-item-nome', 'carrinho-item-detalhes', 'carrinho-item-qtd', 'carrinho-item-total', 'btn-qtd-menos', 'btn-qtd-mais', 'btn-remover-item']) {
@@ -57,6 +70,8 @@ test('CSS do checkout prioriza leitura, toque, seleção perceptível e layout s
   assert.match(css, /\.pagina-carrinho\s+\.btn-controle-qtd\s*\{[^}]*width:\s*48px[^}]*min-height:\s*48px/s);
   assert.match(css, /\.pagina-carrinho\s+\.btn-remover-item\s*\{[^}]*min-height:\s*44px/s);
   assert.match(css, /\.pagina-carrinho\s+\.opcao-pagamento-pix:has\(input:checked\)/);
+  assert.match(css, /\.pagina-carrinho\s+\.opcao-tipo-pagamento:has\(input:checked\)/);
+  assert.match(css, /\.pagina-carrinho\s+\.tipo-pagamento-entrega\[hidden\]/);
   assert.match(css, /\.pagina-carrinho\s+\.resumo-linha\.total\s+strong/);
   assert.match(css, /\.pagina-carrinho\s+\.btn-finalizar\s*\{[^}]*min-height:\s*56px/s);
   assert.match(css, /\.pagina-carrinho\s+\.form-control\[aria-invalid="true"\]/);

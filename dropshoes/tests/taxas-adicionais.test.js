@@ -73,7 +73,7 @@ test('pedido reconstrói adicionais, ignora preços enviados e aceita produto re
   assert.equal(login.status, 200);
   const token = login.body.token;
   const corpo = {
-    cliente_nome: 'Cliente', cliente_telefone: '16999991234', endereco: 'Rua Teste', numero_casa: '10', bairro: 'Ipiranga', cep: '14000-000', pagamento: 'entrega',
+    cliente_nome: 'Cliente', cliente_telefone: '16999991234', endereco: 'Rua Teste', numero_casa: '10', bairro: 'Ipiranga', cep: '14000-000', pagamento: 'entrega', tipo_pagamento_entrega: 'dinheiro',
     checkout_chave: '00000000-0000-4000-8000-000000009001', taxa_entrega: 0, subtotal: 0, valor: 0,
     itens: [
       { produto_id: 'p1', quantidade: 2, adicionais_ids: ['a1', 'a2'], preco_unitario: 0.01 },
@@ -105,7 +105,7 @@ test('adicional inexistente, inativo, não associado e duplicado são rejeitados
   assert.equal(cadastro.status, 201);
   const login = await fetch(base + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ identificador: 'adicionais2@example.test', senha: 'senha-segura' }) });
   const token = (await login.json()).token;
-  const basePedido = { cliente_nome: 'Cliente', cliente_telefone: '16999991234', endereco: 'Rua', numero_casa: '1', bairro: 'Centro', cep: '14000-000', pagamento: 'entrega', itens: [{ produto_id: 'p1', quantidade: 1 }], taxa_entrega: 0 };
+  const basePedido = { cliente_nome: 'Cliente', cliente_telefone: '16999991234', endereco: 'Rua', numero_casa: '1', bairro: 'Centro', cep: '14000-000', pagamento: 'entrega', tipo_pagamento_entrega: 'dinheiro', itens: [{ produto_id: 'p1', quantidade: 1 }], taxa_entrega: 0 };
   for (const adicionais_ids of [['missing'], ['off'], ['a1', 'a1']]) {
     assert.equal(await req({ ...basePedido, adicionais_ids: undefined, itens: [{ produto_id: 'p1', quantidade: 1, adicionais_ids }], checkout_chave: `00000000-0000-4000-8000-000000009${String(adicionais_ids.length).padStart(2, '0')}` }, token), 400);
   }

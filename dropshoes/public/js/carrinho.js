@@ -47,6 +47,17 @@ function limparErrosCheckout() {
   document.querySelectorAll('[aria-invalid="true"]').forEach(campo => campo.setAttribute('aria-invalid', 'false'));
   document.querySelectorAll('.form-error').forEach(erro => { erro.textContent = ''; erro.hidden = true; });
 }
+function atualizarTipoPagamentoEntrega() {
+  const provedor = document.querySelector('input[name="provedor-pagamento"]:checked')?.value;
+  const area = document.getElementById('tipo-pagamento-entrega');
+  const ativo = provedor === 'entrega';
+  if (area) area.hidden = !ativo;
+  if (!ativo) {
+    document.querySelectorAll('input[name="tipo-pagamento-entrega"]').forEach(opcao => { opcao.checked = false; });
+    const erro = document.getElementById('erro-tipo-pagamento-entrega');
+    if (erro) { erro.textContent = ''; erro.hidden = true; }
+  }
+}
 export const obterCarrinho = () => carrinho.map(item => ({ ...item }));
 export function limparCarrinho() { carrinho = []; localStorage.removeItem('carrinho'); renderizarCarrinho(); emitirAtualizacao('limpar'); }
 export const identidadeItem = (produtoId, adicionais = []) => `${String(produtoId)}|${adicionais.map(adicional => String(adicional.id)).sort((a, b) => a.localeCompare(b)).join(',')}`;
@@ -154,6 +165,13 @@ export async function finalizarCompra() {
   const cliente_telefone = document.getElementById('cliente-telefone')?.value.trim() || '';
   const provedor_pagamento = document.querySelector('input[name="provedor-pagamento"]:checked')?.value || 'infinitepay';
   const pagamento = provedor_pagamento === 'entrega' ? 'entrega' : 'site';
+  const tipo_pagamento_entrega = pagamento === 'entrega' ? document.querySelector('input[name="tipo-pagamento-entrega"]:checked')?.value : undefined;
+  if (pagamento === 'entrega' && !tipo_pagamento_entrega) {
+    const erro = document.getElementById('erro-tipo-pagamento-entrega');
+    if (erro) { erro.textContent = 'Escolha se o pagamento na entrega será em dinheiro ou cartão.'; erro.hidden = false; }
+    document.getElementById('tipo-pagamento-entrega')?.focus({ preventScroll: false });
+    return;
+  }
   if (cliente_nome.length < 2) { marcarErroCampo('cliente-nome', 'Informe seu nome completo.', true); return; }
   if (!/^(?:55)?\d{10,11}$/.test(cliente_telefone.replace(/[\s()+-]/g, ''))) { marcarErroCampo('cliente-telefone', 'Informe um telefone válido com DDD.', true); return; }
   const enderecoInicial = camposEntrega();
@@ -167,7 +185,7 @@ export async function finalizarCompra() {
     if (!entrega.bairro) { marcarErroCampo('bairro', 'Confira o bairro.', true); return; }
     if (Object.values(entrega).some(valor => !valor)) { informarFrete('Confira os dados do endereço para calcular a entrega.', true); return; }
     // Visitantes compram sem conta: o próprio POST do pedido cria uma sessão técnica HttpOnly.
-    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, subtotal_esperado: subtotal(), cliente_nome, cliente_telefone, provedor_pagamento, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, adicionais_ids: (item.adicionais || []).map(adicional => adicional.id), observacao_item: item.observacao || '' })) };
+    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, subtotal_esperado: subtotal(), cliente_nome, cliente_telefone, provedor_pagamento, ...(tipo_pagamento_entrega ? { tipo_pagamento_entrega } : {}), observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, adicionais_ids: (item.adicionais || []).map(adicional => adicional.id), observacao_item: item.observacao || '' })) };
     const resumo = new TextEncoder().encode(JSON.stringify(corpo));
     const assinatura = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', resumo)), b => b.toString(16).padStart(2, '0')).join('');
     let tentativa;
@@ -237,6 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const provedor = document.querySelector('input[name="provedor-pagamento"]:checked')?.value;
     const botaoPagamento = document.getElementById('btn-finalizar-pedido');
     if (botaoPagamento) botaoPagamento.textContent = provedor === 'entrega' ? 'Realizar pedido' : provedor === 'infinitepay' ? 'Continuar para InfinitePay' : 'Pagamento via pix';
+    atualizarTipoPagamentoEntrega();
   };
   document.querySelectorAll('input[name="provedor-pagamento"]').forEach(opcao => opcao.addEventListener('change', atualizarTextoPagamento));
   atualizarTextoPagamento();

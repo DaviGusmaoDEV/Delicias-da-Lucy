@@ -93,6 +93,12 @@
                     <label class="opcao-pagamento-pix"><input type="radio" name="provedor-pagamento" value="mercadopago_pix" aria-describedby="descricao-pagamento-pix" checked> <strong>Pix</strong><small id="descricao-pagamento-pix">Você receberá o QR Code para pagar.</small></label>
                     <label class="opcao-pagamento-inf"><input type="radio" name="provedor-pagamento" value="infinitepay" aria-describedby="descricao-pagamento-inf"> <strong>InfinitePay</strong><small id="descricao-pagamento-inf">Você seguirá para o checkout seguro da InfinitePay.</small></label>
                     <label class="opcao-pagamento-retirada"><input type="radio" name="provedor-pagamento" value="entrega" aria-describedby="descricao-pagamento-entrega"> <strong>Pagar na entrega</strong><small id="descricao-pagamento-entrega">Pague quando receber o pedido.</small></label>
+                    <fieldset id="tipo-pagamento-entrega" class="tipo-pagamento-entrega" hidden tabindex="-1" aria-describedby="erro-tipo-pagamento-entrega">
+                        <legend>Como você deseja pagar na entrega?</legend>
+                        <label class="opcao-tipo-pagamento"><input type="radio" name="tipo-pagamento-entrega" value="dinheiro"> <span>Dinheiro</span></label>
+                        <label class="opcao-tipo-pagamento"><input type="radio" name="tipo-pagamento-entrega" value="cartao"> <span>Cartão</span></label>
+                        <p id="erro-tipo-pagamento-entrega" class="form-error" role="alert" hidden></p>
+                    </fieldset>
                 </fieldset>
 
                 <div class="resumo-carrinho">
