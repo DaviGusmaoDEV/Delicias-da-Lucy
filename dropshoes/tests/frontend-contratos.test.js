@@ -45,8 +45,12 @@ const contratos = [
   },
   {
     arquivo: 'tela admin/produtos.html', acesso: 'admin',
-    ids: ['filtro-categoria', 'filtro-tipo', 'abrirModalProduto', 'abrirModalProdutoEspecial', 'lista-produtos', 'mensagem-produto', 'modal-produto', 'form-produto', 'modal-produto-especial', 'form-produto-especial', 'template-card-produto'],
+    ids: ['pesquisa-produto', 'filtro-categoria', 'filtro-status', 'filtro-tipo', 'abrirModalProduto', 'abrirModalProdutoEspecial', 'lista-produtos', 'mensagem-produto', 'modal-produto', 'form-produto', 'modal-produto-especial', 'form-produto-especial', 'template-card-produto'],
     classes: ['img-vitrine', 'titulo-vitrine', 'descricao-vitrine', 'preco-vitrine', 'badge-especial', 'btn-editar', 'btn-excluir']
+  },
+  {
+    arquivo: 'tela admin/regras comerciais.html', acesso: 'admin',
+    ids: ['painel-adicionais', 'painel-taxas', 'lista-adicionais-admin', 'lista-taxas-admin', 'modal-aplicar-adicional', 'lista-associacoes-produtos', 'contador-associacoes']
   },
   {
     arquivo: 'tela admin/meu perfil.html', acesso: 'admin',
@@ -87,7 +91,7 @@ test('formulários de autenticação preservam os contratos de login e cadastro'
 test('navegação preserva os gatilhos de sessão e autorização', () => {
   const paginas = [
     'tela cliente/principal.html', 'tela cliente/Produtos.html', 'tela cliente/carrino cliente.html', 'tela cliente/meu perfil cliente.html',
-    'tela admin/principal.html', 'tela admin/Dashboard.html', 'tela admin/pedidos clientes.html', 'tela admin/fluxo de caixa.html', 'tela admin/produtos.html', 'tela admin/meu perfil.html'
+    'tela admin/principal.html', 'tela admin/Dashboard.html', 'tela admin/pedidos clientes.html', 'tela admin/fluxo de caixa.html', 'tela admin/produtos.html', 'tela admin/regras comerciais.html', 'tela admin/meu perfil.html'
   ];
   for (const arquivo of paginas) {
     const html = ler(arquivo);

@@ -26,7 +26,7 @@ test('páginas administrativas diretas exigem sessão administrativa no servidor
 
 test('matriz de autorização diferencia visitante, cliente, admin2 e admin1', async t => {
   const base = await servidor(t);
-  const paginas = ['/admin/principal', '/admin/dashboard', '/admin/pedidos clientes.html', '/admin/produtos', '/admin/meu-perfil'];
+  const paginas = ['/admin/principal', '/admin/dashboard', '/admin/pedidos clientes.html', '/admin/produtos', '/admin/regras-comerciais', '/admin/meu-perfil'];
   const caixa = '/admin/fluxo-caixa';
   for (const caminho of [...paginas, caixa]) {
     const resposta = await fetch(`${base}${caminho}`, { redirect: 'manual' });

@@ -4,14 +4,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ler = arquivo => fs.readFileSync(path.resolve(__dirname, '../public', arquivo), 'utf8');
 
-test('painel de regras comerciais possui formulários acessíveis e API separada', () => {
-  const html = ler('tela admin/produtos.html');
-  assert.match(html, /id=["']painel-regras-comerciais["']/);
-  for (const id of ['form-novo-adicional', 'lista-adicionais-admin', 'regra-produto', 'lista-associacoes-admin', 'salvar-associacoes', 'form-nova-taxa', 'lista-taxas-admin']) assert.match(html, new RegExp(`(?:id|for)=["']${id}["']`));
+test('regras comerciais possui página própria, abas e associação em massa', () => {
+  const html = ler('tela admin/regras comerciais.html');
+  for (const id of ['painel-adicionais', 'painel-taxas', 'form-novo-adicional', 'lista-adicionais-admin', 'lista-associacoes-produtos', 'salvar-associacoes-produtos', 'form-nova-taxa', 'lista-taxas-admin', 'modal-aplicar-adicional']) assert.match(html, new RegExp(`(?:id|for)=["']${id}["']`));
+  assert.match(html, /Itens adicionais/);
+  assert.match(html, /Taxas de entrega/);
+  assert.doesNotMatch(ler('tela admin/produtos.html'), /lista-adicionais-admin|lista-taxas-admin|form-novo-adicional|form-nova-taxa/);
   assert.match(html, /admin-regras\.js/);
   const js = ler('js/admin-regras.js');
-  for (const endpoint of ['/api/admin/adicionais', '/api/admin/taxas-entrega', '/api/admin/produtos', '/api/admin/produtos/']) assert.match(js, new RegExp(endpoint.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const endpoint of ['/api/admin/adicionais', '/api/admin/taxas-entrega', '/api/admin/produtos', '/api/admin/adicionais/']) assert.match(js, new RegExp(endpoint.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(js, /perfil\.role === 'admin1'/);
+  assert.match(js, /selecionar-resultados/);
+  assert.match(js, /produtosVisiveis/);
+  assert.match(js, /produto_ids/);
 });
 
 test('Admin exibe forma, tipo e status de pagamento separadamente', () => {

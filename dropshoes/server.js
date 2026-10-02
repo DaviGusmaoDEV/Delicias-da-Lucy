@@ -164,9 +164,15 @@ rota('get', '/api/produtos/:id/adicionais', async (req, res) => {
   res.json((data || []).filter(adicional => typeof adicional.nome === 'string' && Number.isFinite(Number(adicional.preco)) && Number(adicional.preco) >= 0));
 });
 rota('get', '/api/admin/adicionais', autenticar, soAdmin, async (_req, res) => {
-  const { data, error } = await supabase.from('adicionais').select('id,nome,preco,ativo').order('nome');
-  if (error) return res.status(503).json({ erro: 'Não foi possível carregar os adicionais.' });
-  res.json(data || []);
+  const [adicionais, relacoes] = await Promise.all([
+    supabase.from('adicionais').select('id,nome,preco,ativo').order('nome'),
+    supabase.from('produto_adicionais').select('adicional_id').eq('ativo', true)
+  ]);
+  const { data, error } = adicionais;
+  if (error || relacoes.error) return res.status(503).json({ erro: 'Não foi possível carregar os adicionais.' });
+  const contagens = new Map();
+  for (const relacao of relacoes.data || []) contagens.set(String(relacao.adicional_id), (contagens.get(String(relacao.adicional_id)) || 0) + 1);
+  res.json((data || []).map(adicional => ({ ...adicional, produtos_associados: contagens.get(String(adicional.id)) || 0 })));
 });
 rota('post', '/api/admin/adicionais', autenticar, soAdmin1, async (req, res) => {
   const { nome, preco, ativo = true } = req.body;
@@ -197,6 +203,14 @@ rota('get', '/api/admin/produtos/:id/adicionais', autenticar, soAdmin, async (re
   const estado = new Map((relacoes.data || []).map(relacao => [String(relacao.adicional_id), relacao.ativo !== false]));
   res.json((adicionais.data || []).map(adicional => ({ ...adicional, associado: estado.get(String(adicional.id)) === true })));
 });
+rota('get', '/api/admin/adicionais/:id/produtos', autenticar, soAdmin, async (req, res) => {
+  const adicional = await supabase.from('adicionais').select('id').eq('id', req.params.id).maybeSingle();
+  if (adicional.error) return res.status(503).json({ erro: 'Não foi possível carregar as associações.' });
+  if (!adicional.data) return res.status(404).json({ erro: 'Adicional não encontrado.' });
+  const relacoes = await supabase.from('produto_adicionais').select('produto_id,ativo').eq('adicional_id', req.params.id);
+  if (relacoes.error) return res.status(503).json({ erro: 'Não foi possível carregar as associações.' });
+  res.json({ produto_ids: (relacoes.data || []).filter(relacao => relacao.ativo !== false).map(relacao => String(relacao.produto_id)) });
+});
 rota('put', '/api/admin/produtos/:id/adicionais', autenticar, soAdmin1, async (req, res) => {
   const ids = req.body.adicional_ids;
   if (!Array.isArray(ids) || ids.some(id => id == null) || new Set(ids.map(String)).size !== ids.length) return res.status(400).json({ erro: 'Lista de adicionais inválida.' });
@@ -220,6 +234,44 @@ rota('put', '/api/admin/produtos/:id/adicionais', autenticar, soAdmin1, async (r
   const novos = ids.filter(id => !existentesIds.has(String(id))).map(adicional_id => ({ produto_id: req.params.id, adicional_id, ativo: true }));
   if (novos.length) { const inseridos = await supabase.from('produto_adicionais').insert(novos); if (inseridos.error) return res.status(400).json({ erro: 'Não foi possível atualizar as associações.' }); }
   res.json({ adicional_ids: ids });
+});
+rota('put', '/api/admin/adicionais/:id/produtos', autenticar, soAdmin1, async (req, res) => {
+  const ids = req.body.produto_ids;
+  if (!Array.isArray(ids) || ids.some(id => id == null) || new Set(ids.map(String)).size !== ids.length) return res.status(400).json({ erro: 'Lista de produtos inválida.' });
+  const adicional = await supabase.from('adicionais').select('id').eq('id', req.params.id).maybeSingle();
+  if (adicional.error) return res.status(503).json({ erro: 'Não foi possível validar o adicional.' });
+  if (!adicional.data) return res.status(404).json({ erro: 'Adicional não encontrado.' });
+  const produtos = ids.length ? await supabase.from('products').select('id').in('id', ids) : { data: [], error: null };
+  if (produtos.error) return res.status(503).json({ erro: 'Não foi possível validar os produtos.' });
+  if ((produtos.data || []).length !== new Set(ids.map(String)).size) return res.status(400).json({ erro: 'Um produto informado não existe.' });
+  const existentes = await supabase.from('produto_adicionais').select('produto_id,ativo').eq('adicional_id', req.params.id);
+  if (existentes.error) return res.status(503).json({ erro: 'Não foi possível carregar as associações.' });
+  const desejados = new Set(ids.map(String));
+  const alterados = [];
+  const inseridos = [];
+  try {
+    for (const relacao of existentes.data || []) {
+      const ativo = desejados.has(String(relacao.produto_id));
+      if (relacao.ativo !== ativo) {
+        const atualizado = await supabase.from('produto_adicionais').update({ ativo }).eq('produto_id', relacao.produto_id).eq('adicional_id', req.params.id);
+        if (atualizado.error) throw atualizado.error;
+        alterados.push({ produto_id: relacao.produto_id, ativo: relacao.ativo !== false });
+      }
+    }
+    const existentesIds = new Set((existentes.data || []).map(relacao => String(relacao.produto_id)));
+    const novos = ids.filter(id => !existentesIds.has(String(id))).map(produto_id => ({ produto_id, adicional_id: req.params.id, ativo: true }));
+    if (novos.length) {
+      const resultado = await supabase.from('produto_adicionais').insert(novos);
+      if (resultado.error) throw resultado.error;
+      inseridos.push(...novos);
+    }
+  } catch {
+    // Compensa alterações já aplicadas para que uma falha não deixe a seleção pela metade.
+    for (const relacao of alterados) await supabase.from('produto_adicionais').update({ ativo: relacao.ativo }).eq('produto_id', relacao.produto_id).eq('adicional_id', req.params.id);
+    for (const relacao of inseridos) await supabase.from('produto_adicionais').delete().eq('produto_id', relacao.produto_id).eq('adicional_id', req.params.id);
+    return res.status(400).json({ erro: 'Não foi possível atualizar as associações.' });
+  }
+  res.json({ produto_ids: ids });
 });
 rota('get', '/api/admin/taxas-entrega', autenticar, soAdmin, async (_req, res) => {
   const { data, error } = await supabase.from('delivery_bairro_taxas').select('id,cidade,uf,nome,taxa,ativo').order('nome');
@@ -623,7 +675,7 @@ entrada(['/login', '/login.html', '/admin/login'], 'login.html');
 entrada(['/login-cliente', '/login-cliente.html', encodeURI('/login cliente.html'), '/cliente/login'], 'login cliente.html');
 // O cadastro público cria somente clientes; administradores usam contas existentes.
 entrada(['/cadastro', '/cadastro-cliente', '/cliente/cadastro', '/cadastro.html', '/cadastro-cliente.html', encodeURI('/cadastro cliente.html')], 'cadastro cliente.html');
-rota('get', '/admin/principal', page('tela admin', 'principal.html')); rota('get', '/admin/dashboard', page('tela admin', 'Dashboard.html')); rota('get', '/admin/produtos', page('tela admin', 'produtos.html')); rota('get', '/admin/fluxo-caixa', page('tela admin', 'fluxo de caixa.html')); rota('get', '/admin/meu-perfil', page('tela admin', 'meu perfil.html')); rota('get', '/cliente/principal', page('tela cliente', 'principal.html')); rota('get', '/cliente/produtos', page('tela cliente', 'Produtos.html')); rota('get', '/cliente/carrinho', page('tela cliente', 'carrino cliente.html')); rota('get', '/cliente/meu-perfil', page('tela cliente', 'meu perfil cliente.html'));
+rota('get', '/admin/principal', page('tela admin', 'principal.html')); rota('get', '/admin/dashboard', page('tela admin', 'Dashboard.html')); rota('get', '/admin/produtos', page('tela admin', 'produtos.html')); rota('get', '/admin/regras-comerciais', page('tela admin', 'regras comerciais.html')); rota('get', '/admin/fluxo-caixa', page('tela admin', 'fluxo de caixa.html')); rota('get', '/admin/meu-perfil', page('tela admin', 'meu perfil.html')); rota('get', '/cliente/principal', page('tela cliente', 'principal.html')); rota('get', '/cliente/produtos', page('tela cliente', 'Produtos.html')); rota('get', '/cliente/carrinho', page('tela cliente', 'carrino cliente.html')); rota('get', '/cliente/meu-perfil', page('tela cliente', 'meu perfil cliente.html'));
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 app.use((erro, req, res, next) => {
   if (res.headersSent) return next(erro);

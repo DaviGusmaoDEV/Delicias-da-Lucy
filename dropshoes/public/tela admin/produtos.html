@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delicias Da Lucy | Catálogo de Produtos</title>
+    <title>Delicias Da Lucy | Meus Produtos</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="../js/produtos.js" defer></script>
-    <script type="module" src="../js/admin-regras.js" defer></script>
     <script type="module" src="../js/sessao.js" defer></script>
     <script type="module" src="../js/navegacao.js" defer></script>
 </head>
@@ -28,6 +27,7 @@
             <a href="../tela admin/Dashboard.html" class="nav-item"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
             <a href="../tela admin/fluxo de caixa.html" class="nav-item " data-caixa><span class="material-symbols-outlined">payments</span> Fluxo de Caixa</a>
             <a href="../tela admin/produtos.html" class="nav-item active" aria-current="page"><span class="material-symbols-outlined">inventory_2</span> Meus Produtos</a>
+            <a href="../tela admin/regras comerciais.html" class="nav-item"><span class="material-symbols-outlined">tune</span> Regras Comerciais</a>
             <a href="../tela admin/meu perfil.html" class="nav-item "><span class="material-symbols-outlined">person</span> Meu Perfil</a>
             <a href="../tela de login/login.html" class="nav-item"><span class="material-symbols-outlined">login</span> Login</a>
         </nav>
@@ -41,30 +41,37 @@
         <main class="container" id="conteudo-principal" tabindex="-1">
 
             <header class="hero">
-                <h1>Catálogo de Produtos</h1>
-                <p>Gerencie o cardápio, adicione novas receitas e altere informações do catálogo em tempo real.</p>
+                <h1>Meus Produtos</h1>
+                <p>Cadastre, edite e acompanhe os produtos do cardápio.</p>
             </header>
 
             <section class="filtros-fluxo-caixa">
+                <div class="form-group-inline pesquisa-admin">
+                    <label for="pesquisa-produto">Pesquisar produto:</label>
+                    <input id="pesquisa-produto" class="form-control" type="search" placeholder="Pesquisar produto..." autocomplete="off">
+                </div>
                 <div class="form-group-inline">
                     <label for="filtro-categoria">Categoria:</label>
                     <select id="filtro-categoria" class="form-control select-filtro">
-                        <option value="todos">Modo Geral (Todos)</option>
-                        <option value="pasteis-salgados">Pastéis Salgados</option>
-                        <option value="pasteis-doces">Pastéis Doces</option>
-                        <option value="panquecas-salgadas">Panquecas Salgadas</option>
-                        <option value="panquecas-doces">Panquecas Doces</option>
-                        <option value="outros">Outros</option>
+                        <option value="todos">Todas</option>
                     </select>
                 </div>
 
                 <div class="botoes-acoes-wrapper" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-success btn-adicionar" id="abrirModalProduto">
-                        + Adicionar Produto
+                    <button class="btn btn-success btn-adicionar" id="abrirModalProduto" type="button">
+                        + Novo produto
                     </button>
-                    <button class="produtos-especiais btn" id="abrirModalProdutoEspecial" style="background: var(--warning, #f39c12); color: white;">
+                    <button class="produtos-especiais btn" id="abrirModalProdutoEspecial" type="button" style="background: var(--warning, #f39c12); color: white;">
                         + Promocional / Especial
                     </button>
+                </div>
+                <div class="form-group-inline">
+                    <label for="filtro-status">Status:</label>
+                    <select id="filtro-status" class="form-control">
+                        <option value="todos">Todos</option>
+                        <option value="ativos">Ativos</option>
+                        <option value="inativos">Inativos</option>
+                    </select>
                 </div>
                 <div class="form-group-inline">
                     <label for="filtro-tipo">Tipo:</label>
@@ -78,45 +85,6 @@
 
             <section class="grid-produtos" id="lista-produtos"></section>
             <p id="mensagem-produto" role="status" aria-live="polite" class="ajuda-campo"></p>
-
-            <section id="painel-regras-comerciais" class="painel-regras-comerciais" aria-labelledby="titulo-regras-comerciais">
-                <header class="hero">
-                    <h2 id="titulo-regras-comerciais">Regras comerciais</h2>
-                    <p>Administre adicionais, associações e taxas de entrega. Admin 2 possui acesso somente para consulta.</p>
-                </header>
-                <p id="mensagem-regras" class="ajuda-campo" role="status" aria-live="polite" hidden></p>
-
-                <section class="regras-secao" aria-labelledby="titulo-adicionais-admin">
-                    <h3 id="titulo-adicionais-admin">Adicionais</h3>
-                    <form id="form-novo-adicional" class="regras-form" data-admin1-only>
-                        <label>Nome<input name="nome" required maxlength="120"></label>
-                        <label>Preço<input name="preco" inputmode="decimal" placeholder="0,00" required></label>
-                        <label class="checkbox-admin"><input name="ativo" type="checkbox" checked> Ativo</label>
-                        <button class="btn btn-primary" type="submit">Cadastrar adicional</button>
-                    </form>
-                    <div id="lista-adicionais-admin" class="lista-regras" aria-live="polite"></div>
-                </section>
-
-                <section class="regras-secao" aria-labelledby="titulo-associacoes-admin">
-                    <h3 id="titulo-associacoes-admin">Adicionais disponíveis por produto</h3>
-                    <label for="regra-produto">Produto</label>
-                    <select id="regra-produto" class="form-control"></select>
-                    <div id="lista-associacoes-admin" class="lista-associacoes-admin"></div>
-                    <button id="salvar-associacoes" class="btn btn-primary" type="button" data-admin1-only>Salvar associações</button>
-                </section>
-
-                <section class="regras-secao" aria-labelledby="titulo-taxas-admin">
-                    <h3 id="titulo-taxas-admin">Taxas de entrega</h3>
-                    <form id="form-nova-taxa" class="regras-form" data-admin1-only>
-                        <label>Bairro<input name="nome" required maxlength="120"></label>
-                        <label>Cidade<input name="cidade" value="Ribeirão Preto" required maxlength="120"></label>
-                        <label>UF<input name="uf" value="SP" maxlength="2" required></label>
-                        <label>Taxa<input name="taxa" inputmode="decimal" placeholder="0,00" required></label>
-                        <button class="btn btn-primary" type="submit">Cadastrar taxa</button>
-                    </form>
-                    <div id="lista-taxas-admin" class="lista-regras" aria-live="polite"></div>
-                </section>
-            </section>
 
             <footer class="card-footer">
                 <p>© 2026 Delicias Da Lucy. Painel Administrativo</p>

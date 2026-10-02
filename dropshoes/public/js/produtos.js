@@ -189,10 +189,21 @@ function validarProduto({ nome, preco, categoria }) {
   if (!categoria) return 'Escolha uma categoria.';
   return '';
 }
-function filtrarProdutos(lista, categoria, tipo) {
+function filtrarProdutos(lista, categoria, statusOuTipo, busca = '', tipo = 'todos') {
+  const legado = arguments.length <= 3;
+  const status = legado ? 'todos' : statusOuTipo;
+  if (legado) tipo = statusOuTipo;
+  const termo = String(busca || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
   return lista.filter(produto =>
     (categoria === 'todos' || (produto.categoria || 'outros') === categoria) &&
-    (tipo === 'todos' || (tipo === 'promocional' ? produto.isEspecial === true : !produto.isEspecial)));
+    (status === 'todos' || (status === 'ativos' ? produto.ativo !== false : produto.ativo === false)) &&
+    (tipo === 'todos' || (tipo === 'promocional' ? produto.isEspecial === true : !produto.isEspecial)) &&
+    (!termo || String(produto.nome || '').toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').includes(termo)));
+}
+function atualizarCategorias() {
+  const select = document.getElementById('filtro-categoria'); if (!select) return;
+  const atual = select.value; const categorias = [...new Set(produtos.map(produto => produto.categoria || 'outros'))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  select.replaceChildren(new Option('Todas', 'todos'), ...categorias.map(categoria => new Option(categoria, categoria))); select.value = categorias.includes(atual) ? atual : 'todos';
 }
 async function carregarProdutos(silencioso = false) {
   if (carregando) return;
@@ -203,7 +214,7 @@ async function carregarProdutos(silencioso = false) {
   try {
     const atualizados = await api(admin ? '/api/admin/produtos' : '/api/produtos');
     if (!silencioso || JSON.stringify(atualizados) !== JSON.stringify(produtos)) {
-      produtos = atualizados; renderizar();
+      produtos = atualizados; atualizarCategorias(); renderizar();
     }
     ultimaAtualizacao = Date.now();
   } catch (erro) {
@@ -215,8 +226,9 @@ async function carregarProdutos(silencioso = false) {
 function renderizar() {
   const lista = document.getElementById('lista-produtos'); const template = document.getElementById('template-card-produto'); const filtro = document.getElementById('filtro-categoria')?.value || 'todos';
   if (!lista || !template) return; lista.innerHTML = '';
+  const status = document.getElementById('filtro-status')?.value || 'todos';
   const tipo = document.getElementById('filtro-tipo')?.value || 'todos';
-  const visiveis = filtrarProdutos(produtos, filtro, tipo);
+  const visiveis = filtrarProdutos(produtos, filtro, status, document.getElementById('pesquisa-produto')?.value, tipo);
   if (!produtos.length) { aviso('O cardápio está sem produtos no momento.', 'vazio'); return; }
   if (!visiveis.length) { aviso('Nenhum produto encontrado com esses filtros. Tente outra opção.', 'vazio'); return; }
   aviso(`${visiveis.length} ${visiveis.length === 1 ? 'produto encontrado' : 'produtos encontrados'}.`, 'sucesso');
@@ -309,7 +321,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // A política histórica do catálogo permite manutenção por Admin 1 e Admin 2.
   podeEditarProdutos = ['admin1', 'admin2'].includes(perfil.role);
   document.getElementById('filtro-categoria')?.addEventListener('change', renderizar);
+  document.getElementById('filtro-status')?.addEventListener('change', renderizar);
   document.getElementById('filtro-tipo')?.addEventListener('change', renderizar);
+  document.getElementById('pesquisa-produto')?.addEventListener('input', renderizar);
   document.getElementById('abrirModalProduto')?.addEventListener('click', () => abrirModal());
   document.getElementById('abrirModalProdutoEspecial')?.addEventListener('click', () => abrirModal(null, true));
   document.getElementById('form-produto')?.addEventListener('submit', evento => salvarProduto(evento, false));

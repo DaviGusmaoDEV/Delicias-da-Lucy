@@ -3,97 +3,41 @@ import { sessaoPronta } from './sessao.js';
 
 const dinheiro = valor => `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`;
 const moeda = valor => { const numero = Number(String(valor).replace(/\./g, '').replace(',', '.')); return Number.isFinite(numero) ? numero : NaN; };
-const aviso = mensagem => { const area = document.getElementById('mensagem-regras'); if (area) { area.textContent = mensagem; area.hidden = false; } };
-let podeEditar = false;
-let produtos = [];
+const normalizar = valor => String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
+let podeEditar = false; let produtos = []; let adicionalAtual = null; let selecoes = new Set(); let modalAnterior = null;
+const aviso = (mensagem, erro = false) => { const area = document.getElementById('mensagem-regras'); if (area) { area.textContent = mensagem; area.dataset.tipo = erro ? 'erro' : 'sucesso'; area.hidden = false; } };
+const erroModal = mensagem => { const area = document.getElementById('erro-associacoes'); if (area) { area.textContent = mensagem; area.hidden = false; } };
+const limparErroModal = () => { const area = document.getElementById('erro-associacoes'); if (area) { area.textContent = ''; area.hidden = true; } };
 
 function montarLinhaAdicional(adicional) {
   const linha = document.createElement('article'); linha.className = 'regra-card';
-  linha.innerHTML = `<div><strong></strong><span class="regra-status"></span></div><span class="regra-preco"></span><div class="regra-acoes"><button type="button" class="btn btn-secondary btn-editar-regra">Editar</button><button type="button" class="btn btn-danger btn-toggle-regra"></button></div>`;
-  linha.querySelector('strong').textContent = adicional.nome;
-  linha.querySelector('.regra-preco').textContent = dinheiro(adicional.preco);
-  linha.querySelector('.regra-status').textContent = adicional.ativo ? 'Ativo' : 'Inativo';
-  linha.querySelector('.regra-status').dataset.estado = adicional.ativo ? 'ativo' : 'inativo';
-  linha.querySelector('.btn-editar-regra').disabled = !podeEditar;
-  linha.querySelector('.btn-toggle-regra').textContent = adicional.ativo ? 'Desativar' : 'Ativar';
-  linha.querySelector('.btn-toggle-regra').disabled = !podeEditar;
-  linha.querySelector('.btn-editar-regra').onclick = async () => {
-    const nome = window.prompt('Nome do adicional:', adicional.nome); if (nome === null) return;
-    const precoTexto = window.prompt('Preço (ex.: 5,00):', String(adicional.preco).replace('.', ',')); if (precoTexto === null) return;
-    try { await enviar(`/api/admin/adicionais/${encodeURIComponent(adicional.id)}`, 'PATCH', { nome, preco: moeda(precoTexto) }); aviso('Adicional atualizado.'); carregarAdicionais(); } catch (erro) { aviso(erro.message); }
-  };
-  linha.querySelector('.btn-toggle-regra').onclick = async () => {
-    if (!window.confirm(`${adicional.ativo ? 'Desativar' : 'Ativar'} este adicional?`)) return;
-    try { await enviar(`/api/admin/adicionais/${encodeURIComponent(adicional.id)}`, 'PATCH', { ativo: !adicional.ativo }); aviso(`Adicional ${adicional.ativo ? 'desativado' : 'ativado'}.`); carregarAdicionais(); } catch (erro) { aviso(erro.message); }
-  };
-  return linha;
+  linha.innerHTML = '<div><strong></strong><span class="regra-status"></span><small class="regra-contagem"></small></div><span class="regra-preco"></span><div class="regra-acoes"><button type="button" class="btn btn-secondary btn-editar-regra">Editar</button><button type="button" class="btn btn-outline btn-aplicar-regra">Aplicar a produtos</button><button type="button" class="btn btn-danger btn-toggle-regra"></button></div>';
+  linha.querySelector('strong').textContent = adicional.nome; linha.querySelector('.regra-preco').textContent = dinheiro(adicional.preco); linha.querySelector('.regra-status').textContent = adicional.ativo ? 'Ativo' : 'Inativo'; linha.querySelector('.regra-status').dataset.estado = adicional.ativo ? 'ativo' : 'inativo';
+  linha.querySelector('.regra-contagem').textContent = adicional.produtos_associados ? `Aplicado em ${adicional.produtos_associados} ${adicional.produtos_associados === 1 ? 'produto' : 'produtos'}` : 'Nenhum produto associado';
+  const editar = linha.querySelector('.btn-editar-regra'); const aplicar = linha.querySelector('.btn-aplicar-regra'); const alternar = linha.querySelector('.btn-toggle-regra'); editar.disabled = alternar.disabled = !podeEditar; aplicar.disabled = false; alternar.textContent = adicional.ativo ? 'Desativar' : 'Ativar';
+  editar.onclick = async () => { const nome = window.prompt('Nome do adicional:', adicional.nome); if (nome === null) return; const preco = window.prompt('Preço (ex.: 5,00):', String(adicional.preco).replace('.', ',')); if (preco === null) return; try { await enviar(`/api/admin/adicionais/${encodeURIComponent(adicional.id)}`, 'PATCH', { nome, preco: moeda(preco) }); aviso('Adicional atualizado.'); await carregarAdicionais(); } catch (erro) { aviso(erro.message, true); } };
+  alternar.onclick = async () => { if (!window.confirm(`${adicional.ativo ? 'Desativar' : 'Ativar'} este adicional?`)) return; try { await enviar(`/api/admin/adicionais/${encodeURIComponent(adicional.id)}`, 'PATCH', { ativo: !adicional.ativo }); aviso(`Adicional ${adicional.ativo ? 'desativado' : 'ativado'}.`); await carregarAdicionais(); } catch (erro) { aviso(erro.message, true); } };
+  aplicar.onclick = () => abrirModalAssociacoes(adicional); return linha;
 }
-async function carregarAdicionais() {
-  const lista = document.getElementById('lista-adicionais-admin'); if (!lista) return;
-  try { const adicionais = await api('/api/admin/adicionais'); lista.replaceChildren(...adicionais.map(montarLinhaAdicional)); } catch (erro) { aviso(erro.message); }
-}
-function montarLinhaTaxa(taxa) {
-  const linha = document.createElement('article'); linha.className = 'regra-card';
-  linha.innerHTML = `<div><strong></strong><small></small><span class="regra-status"></span></div><span class="regra-preco"></span><div class="regra-acoes"><button type="button" class="btn btn-secondary btn-editar-regra">Editar</button><button type="button" class="btn btn-danger btn-toggle-regra"></button></div>`;
-  linha.querySelector('strong').textContent = taxa.nome;
-  linha.querySelector('small').textContent = `${taxa.cidade}/${taxa.uf}`;
-  linha.querySelector('.regra-preco').textContent = dinheiro(taxa.taxa);
-  linha.querySelector('.regra-status').textContent = taxa.ativo ? 'Ativo' : 'Inativo';
-  linha.querySelector('.regra-status').dataset.estado = taxa.ativo ? 'ativo' : 'inativo';
-  linha.querySelector('.btn-editar-regra').disabled = !podeEditar;
-  linha.querySelector('.btn-toggle-regra').textContent = taxa.ativo ? 'Desativar' : 'Ativar'; linha.querySelector('.btn-toggle-regra').disabled = !podeEditar;
-  linha.querySelector('.btn-editar-regra').onclick = async () => {
-    const nome = window.prompt('Bairro:', taxa.nome); if (nome === null) return;
-    const precoTexto = window.prompt('Taxa (ex.: 7,00):', String(taxa.taxa).replace('.', ',')); if (precoTexto === null) return;
-    try { await enviar(`/api/admin/taxas-entrega/${encodeURIComponent(taxa.id)}`, 'PATCH', { nome, taxa: moeda(precoTexto) }); aviso('Taxa de entrega atualizada.'); carregarTaxas(); } catch (erro) { aviso(erro.message); }
-  };
-  linha.querySelector('.btn-toggle-regra').onclick = async () => {
-    if (!window.confirm(`${taxa.ativo ? 'Desativar' : 'Ativar'} esta taxa?`)) return;
-    try { await enviar(`/api/admin/taxas-entrega/${encodeURIComponent(taxa.id)}`, 'PATCH', { ativo: !taxa.ativo }); aviso(`Taxa ${taxa.ativo ? 'desativada' : 'ativada'}.`); carregarTaxas(); } catch (erro) { aviso(erro.message); }
-  };
-  return linha;
-}
-async function carregarTaxas() {
-  const lista = document.getElementById('lista-taxas-admin'); if (!lista) return;
-  try { const taxas = await api('/api/admin/taxas-entrega'); lista.replaceChildren(...taxas.map(montarLinhaTaxa)); } catch (erro) { aviso(erro.message); }
-}
-async function carregarAssociacoes() {
-  const produtoId = document.getElementById('regra-produto')?.value; const lista = document.getElementById('lista-associacoes-admin'); if (!produtoId || !lista) return;
-  try {
-    const adicionais = await api(`/api/admin/produtos/${encodeURIComponent(produtoId)}/adicionais`);
-    lista.replaceChildren(...adicionais.map(adicional => {
-      const label = document.createElement('label'); label.className = 'opcao-adicional-admin';
-      const input = document.createElement('input'); input.type = 'checkbox'; input.value = adicional.id; input.checked = adicional.associado; input.disabled = !podeEditar;
-      const texto = document.createElement('span'); texto.textContent = `${adicional.nome} + ${dinheiro(adicional.preco)}${adicional.ativo ? '' : ' (inativo)'}`;
-      label.append(input, texto); return label;
-    }));
-  } catch (erro) { aviso(erro.message); }
-}
-async function carregarProdutosAdmin() {
-  produtos = await api('/api/admin/produtos');
-  const select = document.getElementById('regra-produto'); if (!select) return;
-  select.replaceChildren(...produtos.map(produto => { const option = document.createElement('option'); option.value = produto.id; option.textContent = produto.nome; return option; }));
-  await carregarAssociacoes();
-}
-document.addEventListener('DOMContentLoaded', async () => {
-  if (!document.getElementById('painel-regras-comerciais')) return;
-  const perfil = await sessaoPronta; if (!perfil) return;
-  podeEditar = perfil.role === 'admin1';
-  document.querySelectorAll('[data-admin1-only]').forEach(elemento => { elemento.hidden = !podeEditar; });
-  try { await carregarProdutosAdmin(); await carregarAdicionais(); await carregarTaxas(); } catch (erro) { aviso(erro.message); }
-  document.getElementById('regra-produto')?.addEventListener('change', carregarAssociacoes);
-  document.getElementById('salvar-associacoes')?.addEventListener('click', async () => {
-    if (!podeEditar) return;
-    const produtoId = document.getElementById('regra-produto').value;
-    const adicional_ids = [...document.querySelectorAll('#lista-associacoes-admin input:checked')].map(input => input.value);
-    try { await enviar(`/api/admin/produtos/${encodeURIComponent(produtoId)}/adicionais`, 'PUT', { adicional_ids }); aviso('Adicionais do produto atualizados.'); await carregarAssociacoes(); } catch (erro) { aviso(erro.message); }
-  });
-  document.getElementById('form-novo-adicional')?.addEventListener('submit', async evento => {
-    evento.preventDefault(); if (!podeEditar) return;
-    const form = evento.currentTarget; try { await enviar('/api/admin/adicionais', 'POST', { nome: form.nome.value, preco: moeda(form.preco.value), ativo: form.ativo.checked }); form.reset(); form.ativo.checked = true; aviso('Adicional criado.'); await carregarAdicionais(); } catch (erro) { aviso(erro.message); }
-  });
-  document.getElementById('form-nova-taxa')?.addEventListener('submit', async evento => {
-    evento.preventDefault(); if (!podeEditar) return;
-    const form = evento.currentTarget; try { await enviar('/api/admin/taxas-entrega', 'POST', { nome: form.nome.value, cidade: form.cidade.value, uf: form.uf.value, taxa: moeda(form.taxa.value), ativo: true }); form.reset(); aviso('Taxa de entrega criada.'); await carregarTaxas(); } catch (erro) { aviso(erro.message); }
-  });
+async function carregarAdicionais() { const lista = document.getElementById('lista-adicionais-admin'); if (!lista) return; lista.setAttribute('aria-busy', 'true'); lista.textContent = 'Carregando adicionais…'; try { const adicionais = await api('/api/admin/adicionais'); lista.replaceChildren(...adicionais.map(montarLinhaAdicional)); } catch (erro) { lista.textContent = erro.message; aviso(erro.message, true); } finally { lista.setAttribute('aria-busy', 'false'); } }
+function montarLinhaTaxa(taxa) { const linha = document.createElement('article'); linha.className = 'regra-card'; linha.innerHTML = '<div><strong></strong><small></small><span class="regra-status"></span></div><span class="regra-preco"></span><div class="regra-acoes"><button type="button" class="btn btn-secondary btn-editar-regra">Editar</button><button type="button" class="btn btn-danger btn-toggle-regra"></button></div>'; linha.querySelector('strong').textContent = taxa.nome; linha.querySelector('small').textContent = `${taxa.cidade}/${taxa.uf}`; linha.querySelector('.regra-preco').textContent = dinheiro(taxa.taxa); linha.querySelector('.regra-status').textContent = taxa.ativo ? 'Ativa' : 'Inativa'; linha.querySelector('.regra-status').dataset.estado = taxa.ativo ? 'ativo' : 'inativo'; const editar = linha.querySelector('.btn-editar-regra'); const alternar = linha.querySelector('.btn-toggle-regra'); editar.disabled = alternar.disabled = !podeEditar; alternar.textContent = taxa.ativo ? 'Desativar' : 'Ativar'; editar.onclick = async () => { const nome = window.prompt('Bairro:', taxa.nome); if (nome === null) return; const preco = window.prompt('Taxa (ex.: 7,00):', String(taxa.taxa).replace('.', ',')); if (preco === null) return; try { await enviar(`/api/admin/taxas-entrega/${encodeURIComponent(taxa.id)}`, 'PATCH', { nome, taxa: moeda(preco) }); aviso('Taxa de entrega atualizada.'); await carregarTaxas(); } catch (erro) { aviso(erro.message, true); } }; alternar.onclick = async () => { if (!window.confirm(`${taxa.ativo ? 'Desativar' : 'Ativar'} esta taxa?`)) return; try { await enviar(`/api/admin/taxas-entrega/${encodeURIComponent(taxa.id)}`, 'PATCH', { ativo: !taxa.ativo }); aviso(`Taxa ${taxa.ativo ? 'desativada' : 'ativada'}.`); await carregarTaxas(); } catch (erro) { aviso(erro.message, true); } }; return linha; }
+async function carregarTaxas() { const lista = document.getElementById('lista-taxas-admin'); if (!lista) return; lista.setAttribute('aria-busy', 'true'); lista.textContent = 'Carregando taxas…'; try { const taxas = await api('/api/admin/taxas-entrega'); const filtro = normalizar(document.getElementById('pesquisa-taxa')?.value); lista.replaceChildren(...taxas.filter(taxa => normalizar(taxa.nome).includes(filtro)).map(montarLinhaTaxa)); } catch (erro) { lista.textContent = erro.message; aviso(erro.message, true); } finally { lista.setAttribute('aria-busy', 'false'); } }
+function categoriasReais(lista) { return [...new Map(lista.map(item => [item.categoria || 'outros', item.categoria || 'outros'])).values()].sort((a, b) => a.localeCompare(b, 'pt-BR')); }
+function produtosVisiveis() { const busca = normalizar(document.getElementById('pesquisa-associacoes')?.value); const categoria = document.getElementById('filtro-associacoes-categoria')?.value || 'todos'; return produtos.filter(produto => (!busca || normalizar(produto.nome).includes(busca)) && (categoria === 'todos' || (produto.categoria || 'outros') === categoria)); }
+function atualizarContador() { const contador = document.getElementById('contador-associacoes'); if (contador) contador.textContent = `${selecoes.size} ${selecoes.size === 1 ? 'produto selecionado' : 'produtos selecionados'}`; }
+function atualizarControlesVisiveis() { const visiveis = produtosVisiveis().map(item => String(item.id)); const controle = document.getElementById('selecionar-resultados'); if (controle) { controle.checked = visiveis.length > 0 && visiveis.every(id => selecoes.has(id)); controle.indeterminate = visiveis.some(id => selecoes.has(id)) && !controle.checked; controle.disabled = !podeEditar || !visiveis.length; } }
+function renderizarAssociacoes() { const lista = document.getElementById('lista-associacoes-produtos'); if (!lista) return; const grupos = new Map(); produtosVisiveis().forEach(produto => { const categoria = produto.categoria || 'outros'; if (!grupos.has(categoria)) grupos.set(categoria, []); grupos.get(categoria).push(produto); }); lista.replaceChildren(...[...grupos.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR')).map(([categoria, itens]) => { const grupo = document.createElement('section'); grupo.className = 'grupo-associacoes'; const titulo = document.createElement('h3'); titulo.textContent = categoria; grupo.append(titulo, ...itens.map(produto => { const label = document.createElement('label'); label.className = 'opcao-produto-associacao'; const input = document.createElement('input'); input.type = 'checkbox'; input.value = produto.id; input.checked = selecoes.has(String(produto.id)); input.disabled = !podeEditar; const texto = document.createElement('span'); texto.textContent = `${produto.nome}${produto.ativo === false ? ' — Inativo' : ''}`; label.append(input, texto); input.addEventListener('change', () => { input.checked ? selecoes.add(String(input.value)) : selecoes.delete(String(input.value)); atualizarControlesVisiveis(); atualizarContador(); }); return label; })); return grupo; })); atualizarControlesVisiveis(); atualizarContador(); }
+async function abrirModalAssociacoes(adicional) { adicionalAtual = adicional; modalAnterior = document.activeElement; limparErroModal(); document.getElementById('modal-aplicar-titulo').textContent = `Aplicar a produtos — ${adicional.nome}`; try { const associacoes = await api(`/api/admin/adicionais/${encodeURIComponent(adicional.id)}/produtos`); selecoes = new Set(associacoes.produto_ids.map(String)); } catch (erro) { erroModal(erro.message); return; } document.getElementById('pesquisa-associacoes').value = ''; document.getElementById('filtro-associacoes-categoria').value = 'todos'; renderizarAssociacoes(); const modal = document.getElementById('modal-aplicar-adicional'); modal.showModal(); document.getElementById('pesquisa-associacoes').focus(); }
+async function carregarProdutosAdmin() { produtos = await api('/api/admin/produtos'); const filtro = document.getElementById('filtro-associacoes-categoria'); if (filtro) filtro.replaceChildren(new Option('Todos', 'todos'), ...categoriasReais(produtos).map(categoria => new Option(categoria, categoria))); }
+function fecharModal() { const modal = document.getElementById('modal-aplicar-adicional'); if (modal?.open) modal.close(); if (modalAnterior?.focus) modalAnterior.focus(); modalAnterior = null; adicionalAtual = null; }
+document.addEventListener('DOMContentLoaded', async () => { if (!document.getElementById('painel-adicionais')) return; const perfil = await sessaoPronta; if (!perfil) return; podeEditar = perfil.role === 'admin1'; document.querySelectorAll('[data-admin1-only]').forEach(elemento => { elemento.disabled = !podeEditar; if (elemento.tagName === 'FORM') elemento.hidden = !podeEditar; }); try { await carregarProdutosAdmin(); await carregarAdicionais(); await carregarTaxas(); } catch (erro) { aviso(erro.message, true); }
+  document.getElementById('pesquisa-taxa')?.addEventListener('input', carregarTaxas); document.getElementById('pesquisa-associacoes')?.addEventListener('input', renderizarAssociacoes); document.getElementById('filtro-associacoes-categoria')?.addEventListener('change', renderizarAssociacoes);
+  document.getElementById('selecionar-resultados')?.addEventListener('change', evento => { if (!podeEditar) return; produtosVisiveis().forEach(produto => evento.currentTarget.checked ? selecoes.add(String(produto.id)) : selecoes.delete(String(produto.id))); renderizarAssociacoes(); });
+  document.getElementById('salvar-associacoes-produtos')?.addEventListener('click', async evento => { if (!podeEditar || !adicionalAtual) return; const botao = evento.currentTarget; botao.disabled = true; limparErroModal(); try { await enviar(`/api/admin/adicionais/${encodeURIComponent(adicionalAtual.id)}/produtos`, 'PUT', { produto_ids: [...selecoes] }); aviso('Produtos associados com sucesso.'); fecharModal(); await carregarAdicionais(); } catch (erro) { erroModal(erro.message); } finally { botao.disabled = false; } });
+  document.getElementById('fechar-modal-associacoes')?.addEventListener('click', fecharModal); document.getElementById('cancelar-associacoes')?.addEventListener('click', fecharModal); document.getElementById('modal-aplicar-adicional')?.addEventListener('cancel', evento => { evento.preventDefault(); fecharModal(); });
+  document.getElementById('abrir-form-adicional')?.addEventListener('click', () => { document.getElementById('form-novo-adicional').hidden = false; document.getElementById('adicional-nome').focus(); }); document.getElementById('cancelar-form-adicional')?.addEventListener('click', () => { document.getElementById('form-novo-adicional').hidden = true; });
+  document.getElementById('form-novo-adicional')?.addEventListener('submit', async evento => { evento.preventDefault(); if (!podeEditar) return; const form = evento.currentTarget; const botao = form.querySelector('[type=submit]'); botao.disabled = true; try { await enviar('/api/admin/adicionais', 'POST', { nome: form.nome.value, preco: moeda(form.preco.value), ativo: form.ativo.checked }); form.reset(); form.ativo.checked = true; form.hidden = true; aviso('Adicional criado.'); await carregarAdicionais(); } catch (erro) { aviso(erro.message, true); } finally { botao.disabled = false; } });
+  document.getElementById('abrir-form-taxa')?.addEventListener('click', () => { document.getElementById('form-nova-taxa').hidden = false; document.getElementById('taxa-nome').focus(); }); document.getElementById('cancelar-form-taxa')?.addEventListener('click', () => { document.getElementById('form-nova-taxa').hidden = true; });
+  document.getElementById('form-nova-taxa')?.addEventListener('submit', async evento => { evento.preventDefault(); if (!podeEditar) return; const form = evento.currentTarget; const botao = form.querySelector('[type=submit]'); botao.disabled = true; try { await enviar('/api/admin/taxas-entrega', 'POST', { nome: form.nome.value, cidade: form.cidade.value, uf: form.uf.value, taxa: moeda(form.taxa.value), ativo: true }); form.reset(); form.hidden = true; aviso('Taxa de entrega criada.'); await carregarTaxas(); } catch (erro) { aviso(erro.message, true); } finally { botao.disabled = false; } });
+  document.querySelectorAll('.aba-regra').forEach(aba => aba.addEventListener('click', () => { document.querySelectorAll('.aba-regra').forEach(item => { const ativo = item === aba; item.classList.toggle('ativa', ativo); item.setAttribute('aria-selected', String(ativo)); document.getElementById(item.getAttribute('aria-controls')).hidden = !ativo; }); }));
 });

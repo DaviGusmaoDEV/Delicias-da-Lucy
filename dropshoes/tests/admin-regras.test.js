@@ -29,6 +29,11 @@ test('regras comerciais: Admin 1 escreve e Admin 2/cliente apenas consultam', as
   assert.equal(assoc.status, 200);
   assert.equal((await req('/api/admin/produtos/p1/adicionais', 'PUT', { adicional_ids: [criado.body.id] }, 'admin2')).status, 403);
   assert.equal((await req('/api/admin/produtos/p1/adicionais', 'PUT', { adicional_ids: [criado.body.id] }, 'admin1')).status, 200);
+  assert.deepEqual((await req(`/api/admin/adicionais/${criado.body.id}/produtos`, 'GET', undefined, 'admin2')).body.produto_ids, ['p1']);
+  assert.equal((await req(`/api/admin/adicionais/${criado.body.id}/produtos`, 'PUT', { produto_ids: ['missing'] }, 'admin1')).status, 400);
+  assert.equal((await req(`/api/admin/adicionais/${criado.body.id}/produtos`, 'PUT', { produto_ids: [] }, 'admin2')).status, 403);
+  assert.equal((await req(`/api/admin/adicionais/${criado.body.id}/produtos`, 'PUT', { produto_ids: [] }, 'admin1')).status, 200);
+  assert.equal(db.tabelas.produto_adicionais[0].ativo, false);
   const taxa = await req('/api/admin/taxas-entrega', 'POST', { nome: 'Vila Tibério', cidade: 'Ribeirão Preto', uf: 'sp', taxa: 7, ativo: true }, 'admin1');
   assert.equal(taxa.status, 201);
   assert.equal(db.tabelas.delivery_bairro_taxas.at(-1).chave_normalizada, 'vila tiberio');
