@@ -32,6 +32,34 @@ function mostrarErro(erro) {
   if (!aviso) { aviso = document.createElement('p'); aviso.id = 'erro-pedidos'; aviso.setAttribute('role', 'alert'); document.getElementById('lista-pedidos')?.before(aviso); }
   aviso.textContent = erro.message;
 }
+function adicionarDetalhesItens(card, itens) {
+  const detalhes = document.createElement('div');
+  detalhes.className = 'detalhes-itens-pedido';
+  for (const item of itens || []) {
+    const bloco = document.createElement('section');
+    bloco.className = 'detalhe-item-pedido';
+    const titulo = document.createElement('strong');
+    titulo.textContent = `${item.quantidade || 0}x ${item.products?.nome || 'Item'}`;
+    bloco.append(titulo);
+    if (Array.isArray(item.escolhas_snapshot) && item.escolhas_snapshot.length) {
+      const escolhas = document.createElement('p');
+      escolhas.textContent = `Escolhas: ${item.escolhas_snapshot.map(escolha => escolha.nome || 'Opção').join(' • ')}`;
+      bloco.append(escolhas);
+    }
+    if (Array.isArray(item.adicionais_snapshot) && item.adicionais_snapshot.length) {
+      const adicionais = document.createElement('p');
+      adicionais.textContent = `Adicionais: ${item.adicionais_snapshot.map(adicional => `${adicional.nome || 'Adicional'} + ${dinheiro(adicional.preco)}`).join(' • ')}`;
+      bloco.append(adicionais);
+    }
+    if (item.observacao_item) {
+      const observacao = document.createElement('p');
+      observacao.textContent = `Observação: ${item.observacao_item}`;
+      bloco.append(observacao);
+    }
+    detalhes.append(bloco);
+  }
+  if (detalhes.children.length) card.append(detalhes);
+}
 async function atualizarStatus(id, status) {
   if (alterando) return;
   if (status === 'cancelado' && !window.confirm('Cancelar este pedido? Se já estiver pago, o reembolso deve ser processado no provedor de pagamento.')) return;
@@ -62,6 +90,7 @@ async function carregar() {
     const pagamentoInfo = descricaoPagamento(pedido);
     card.className = `pedido-card status-${pedido.status} ${pagamentoInfo.classe}`;
     card.innerHTML = `<div class="pedido-cabecalho"><h2>${esc(rotuloPedido(pedido, { tecnico: true }))}</h2><span class="status-pedido status-${esc(pedido.status)}">${situacao.texto}</span></div><p class="status-detalhe">${situacao.detalhe}</p><p><strong>Cliente:</strong> ${esc(pedido.cliente_nome || pedido.profiles?.nome || 'Cliente')}</p><p><strong>Telefone:</strong> ${esc(pedido.cliente_telefone || pedido.profiles?.telefone || 'Não informado')}</p><p><strong>Horário:</strong> ${esc(new Date(pedido.data_criacao).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }))}</p><p><strong>Entrega:</strong> ${esc(pedido.endereco)}, nº ${esc(pedido.numero_casa)} — ${esc(pedido.bairro)}, CEP ${esc(pedido.cep)}</p><p><strong>Itens:</strong> ${esc(itens)}</p><p><strong>Total:</strong> ${dinheiro(pedido.valor)}</p><div class="pedido-acoes"></div>`;
+    adicionarDetalhesItens(card, pedido.itens_pedido);
     if (pedido.observacao_geral) { const obs = document.createElement('p'); obs.textContent = `Observação: ${pedido.observacao_geral}`; card.append(obs); }
     const pagamento = document.createElement('p'); pagamento.className = 'detalhe-pagamento'; pagamento.textContent = pagamentoInfo.texto; card.append(pagamento);
     const acoes = card.querySelector('.pedido-acoes');

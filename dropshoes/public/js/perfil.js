@@ -54,6 +54,24 @@ function adicionarItens(card, pedido) {
     const nome = item.products?.nome || item.nome || 'Produto';
     linha.textContent = `${item.quantidade || 0} × ${nome}`;
     if (item.subtotal != null) linha.append(` — ${dinheiro(item.subtotal)}`);
+    if (Array.isArray(item.escolhas_snapshot) && item.escolhas_snapshot.length) {
+      const escolhas = document.createElement('div');
+      escolhas.className = 'item-escolhas-pedido';
+      escolhas.textContent = `Escolhas incluídas: ${item.escolhas_snapshot.map(escolha => escolha.nome || 'Opção').join(' • ')}`;
+      linha.append(escolhas);
+    }
+    if (Array.isArray(item.adicionais_snapshot) && item.adicionais_snapshot.length) {
+      const adicionais = document.createElement('div');
+      adicionais.className = 'item-adicionais-pedido';
+      adicionais.textContent = `Adicionais: ${item.adicionais_snapshot.map(adicional => `${adicional.nome || 'Adicional'} + ${dinheiro(adicional.preco)}`).join(' • ')}`;
+      linha.append(adicionais);
+    }
+    if (item.observacao_item) {
+      const observacao = document.createElement('div');
+      observacao.className = 'item-observacao-pedido';
+      observacao.textContent = `Observação: ${item.observacao_item}`;
+      linha.append(observacao);
+    }
     lista.append(linha);
   }
   card.append(titulo, lista);

@@ -124,6 +124,19 @@
                 <textarea id="prod-descricao" class="form-control" rows="3" maxlength="2000" placeholder="Ingredientes e detalhes do produto"></textarea>
             </div>
 
+            <fieldset class="form-group editor-escolhas-produto" id="editor-escolhas-produto">
+                <legend>Escolhas incluídas no produto</legend>
+                <p class="ajuda-campo">Configure opções que fazem parte do produto e não alteram o preço.</p>
+                <label for="escolhas-nome-grupo">Nome do grupo</label>
+                <input id="escolhas-nome-grupo" class="form-control" type="text" maxlength="120" placeholder="Ex.: Escolha seus ingredientes">
+                <div class="grid-limites-escolhas">
+                    <label for="escolhas-minimo">Mínimo<input id="escolhas-minimo" class="form-control" type="number" min="0" max="100" value="0"></label>
+                    <label for="escolhas-maximo">Máximo<input id="escolhas-maximo" class="form-control" type="number" min="1" max="100" value="5"></label>
+                </div>
+                <div id="lista-opcoes-escolhas" class="lista-opcoes-escolhas"></div>
+                <button type="button" class="btn btn-secondary" id="adicionar-opcao-escolha">+ Adicionar opção</button>
+            </fieldset>
+
             <fieldset class="form-group imagem-produto-editor">
                 <legend>Imagem do produto</legend>
                 <p class="ajuda-campo">JPG, PNG ou WebP de até 10 MB. A imagem será otimizada automaticamente.</p>
@@ -175,6 +188,19 @@
                 <label for="prod-descricao-especial">Descrição:</label>
                 <textarea id="prod-descricao-especial" class="form-control" rows="3" maxlength="2000" placeholder="Ingredientes e detalhes do produto"></textarea>
             </div>
+
+            <fieldset class="form-group editor-escolhas-produto" id="editor-escolhas-produto-especial">
+                <legend>Escolhas incluídas no produto</legend>
+                <p class="ajuda-campo">Configure opções que fazem parte do produto e não alteram o preço.</p>
+                <label for="escolhas-nome-grupo-especial">Nome do grupo</label>
+                <input id="escolhas-nome-grupo-especial" class="form-control" type="text" maxlength="120" placeholder="Ex.: Escolha seus ingredientes">
+                <div class="grid-limites-escolhas">
+                    <label for="escolhas-minimo-especial">Mínimo<input id="escolhas-minimo-especial" class="form-control" type="number" min="0" max="100" value="0"></label>
+                    <label for="escolhas-maximo-especial">Máximo<input id="escolhas-maximo-especial" class="form-control" type="number" min="1" max="100" value="5"></label>
+                </div>
+                <div id="lista-opcoes-escolhas-especial" class="lista-opcoes-escolhas"></div>
+                <button type="button" class="btn btn-secondary" id="adicionar-opcao-escolha-especial">+ Adicionar opção</button>
+            </fieldset>
 
             <fieldset class="form-group imagem-produto-editor">
                 <legend>Imagem do produto</legend>

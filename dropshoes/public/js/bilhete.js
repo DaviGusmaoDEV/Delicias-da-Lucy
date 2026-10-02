@@ -2,7 +2,12 @@ const esc = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 const dinheiro = valor => Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const rotuloPedido = pedido => Number.isSafeInteger(Number(pedido?.numero_pedido)) && Number(pedido.numero_pedido) > 0 ? `Pedido N${pedido.numero_pedido}` : 'Pedido histórico';
 export function bilhetePedido(pedido) {
-  const itens = (pedido.itens_pedido || []).map(item => `<li><b>${esc(item.quantidade)}x ${esc(item.products?.nome || 'Item')}</b><br>${esc(dinheiro(item.preco_unitario * item.quantidade))}${item.observacao_item ? `<br>Obs.: ${esc(item.observacao_item)}` : ''}</li>`).join('');
+  const itens = (pedido.itens_pedido || []).map(item => {
+    const escolhas = Array.isArray(item.escolhas_snapshot) && item.escolhas_snapshot.length ? `<div><b>ESCOLHAS:</b><ul>${item.escolhas_snapshot.map(escolha => `<li>${esc(escolha.nome || 'Opção')}</li>`).join('')}</ul></div>` : '';
+    const adicionais = Array.isArray(item.adicionais_snapshot) && item.adicionais_snapshot.length ? `<div><b>ADICIONAIS:</b><ul>${item.adicionais_snapshot.map(adicional => `<li>${esc(adicional.nome || 'Adicional')} + ${esc(dinheiro(adicional.preco))}</li>`).join('')}</ul></div>` : '';
+    const observacao = item.observacao_item ? `<div><b>OBSERVAÇÃO:</b> ${esc(item.observacao_item)}</div>` : '';
+    return `<li><b>${esc(item.quantidade)}x ${esc(item.products?.nome || 'Item')}</b><br>${esc(dinheiro(item.preco_unitario * item.quantidade))}${escolhas}${adicionais}${observacao}</li>`;
+  }).join('');
   const tipoEntrega = { dinheiro: 'DINHEIRO', cartao: 'CARTÃO' }[pedido.tipo_pagamento_entrega];
   const troco = pedido.tipo_pagamento_entrega === 'dinheiro' && pedido.troco_para != null ? ` — TROCO PARA ${dinheiro(pedido.troco_para)} — LEVAR TROCO ${dinheiro(Math.max(0, Number(pedido.troco_para) - Number(pedido.valor)))}` : '';
   const pagamento = pedido.pagamento === 'entrega' ? `PAGAMENTO NA ENTREGA${tipoEntrega ? ` — ${tipoEntrega}` : ''}${troco}` : pedido.pagamento_status === 'approved' ? `PAGO — ${pedido.pagamento_provedor === 'mercadopago_pix' ? 'Pix — Mercado Pago' : 'InfinitePay'}` : 'PAGAMENTO NÃO CONFIRMADO';

@@ -60,8 +60,8 @@ test('cardápio reutiliza o carrinho existente e oferece feedback sem alerta tem
 
 test('personalização permite zero adicionais e oferece foco/escape', () => {
   const js = ler('js/produtos.js');
-  assert.match(js, /adicionarAoCarrinho\(produto, selecionados\)/);
-  assert.match(js, /const primeiroCheckbox = lista\.querySelector\('input'\)/);
+  assert.match(js, /adicionarAoCarrinho\(produto, selecionados(?:, escolhasSelecionadas)?\)/);
+  assert.match(js, /const primeiroCheckbox = listaEscolhas\.querySelector\('input'\) \|\| lista\.querySelector\('input'\)/);
   assert.match(js, /evento\.key === 'Escape'/);
   assert.doesNotMatch(ler('tela cliente/Produtos.html'), /<input[^>]+required/i);
 });

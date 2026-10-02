@@ -6,7 +6,7 @@ function bancoSimulado() {
     ],
     products: [{ id: 'p1', nome: 'Produto teste', preco: 12.35, categoria: 'outros', imagem_url: 'https://example.test/foto.jpg', descricao: 'Descrição existente', ativo: true }],
     clientes_visitantes: [], pedidos: [], itens_pedido: [], fluxo_caixa: [], pagamento_eventos: [],
-    delivery_bairro_taxas: [], adicionais: [], produto_adicionais: []
+    delivery_bairro_taxas: [], adicionais: [], produto_adicionais: [], produto_grupos_escolha: [], produto_opcoes_escolha: []
   };
   let contador = 0;
   let numeroPedido = 0;
@@ -42,7 +42,17 @@ function bancoSimulado() {
       // pagamento: "entrega" e persistia "site".
       const pedido = { id: `novo-${++contador}`, numero_pedido: ++numeroPedido, data_criacao: new Date().toISOString(), ...p_pedido, ...(db.rpcPagamentoLegado ? { pagamento: 'site' } : {}) };
       tabelas.pedidos.push(pedido);
-      tabelas.itens_pedido.push(...p_itens.map(item => ({ id: `novo-${++contador}`, ...item, pedido_id: pedido.id })));
+      const itensPersistidos = p_itens.map(item => ({
+        id: `novo-${++contador}`,
+        ...item,
+        escolhas_snapshot: (item.escolhas_ids || []).map(id => {
+          const opcao = tabelas.produto_opcoes_escolha.find(registro => String(registro.id) === String(id));
+          const grupo = opcao && tabelas.produto_grupos_escolha.find(registro => String(registro.id) === String(opcao.grupo_id));
+          return opcao && grupo ? { id: opcao.id, grupo_id: grupo.id, nome: opcao.nome, grupo_nome: grupo.nome } : null;
+        }).filter(Boolean),
+        pedido_id: pedido.id
+      }));
+      tabelas.itens_pedido.push(...itensPersistidos);
       return { data: { ...pedido }, error: null };
     },
     from(tabela) {

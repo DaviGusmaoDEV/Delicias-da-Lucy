@@ -123,7 +123,14 @@ const adicionaisIdsNormalizados = valor => {
   if (ids.length !== new Set(ids).size) throw new Error('Adicional duplicado.');
   return ids.sort((a, b) => a.localeCompare(b));
 };
-const identidadeItem = (produtoId, adicionaisIds) => `${String(produtoId)}|${adicionaisIds.join(',')}`;
+const escolhasIdsNormalizados = valor => {
+  if (valor == null) return [];
+  if (!Array.isArray(valor)) throw new Error('Escolhas incluídas inválidas.');
+  const ids = valor.map(id => String(id)).filter(Boolean);
+  if (ids.length !== new Set(ids).size) throw new Error('Escolha incluída duplicada.');
+  return ids.sort((a, b) => a.localeCompare(b));
+};
+const identidadeItem = (produtoId, adicionaisIds, escolhasIds = []) => `${String(produtoId)}|a:${adicionaisIds.join(',')}|e:${escolhasIds.join(',')}`;
 const pagamentoPixPublico = pagamento => pagamento && ({ provider: 'mercadopago_pix', qr_code: pagamento.qr_code, qr_code_base64: pagamento.qr_code_base64, payment_id: pagamento.payment_id, order_id: pagamento.order_id, status: pagamento.status, expires_at: pagamento.expires_at });
 const pedidoPagamentoPixPublico = pedido => ({ id: pedido.id, numero_pedido: pedido.numero_pedido ?? null, valor: pedido.valor, status: pedido.status, pagamento: pedido.pagamento, pagamento_status: pedido.pagamento_status, pagamento_provedor: 'mercadopago_pix' });
 rota('post', '/api/webhooks/mercadopago', pagamentos.notificar);
@@ -151,6 +158,70 @@ rota('get', '/api/endereco', limiteEntrega, async (req, res) => { try { if (type
 
 rota('get', '/api/produtos', async (req, res) => { const { data, error } = await supabase.from('products').select('id,nome,preco,categoria,descricao,imagem_url,isEspecial,ativo').eq('ativo', true).order('nome'); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.json(data); });
 rota('get', '/api/admin/produtos', autenticar, soAdmin, async (_req, res) => { const { data, error } = await supabase.from('products').select('id,nome,preco,categoria,descricao,imagem_url,isEspecial,ativo').order('nome'); if (error) return res.status(400).json({ erro: 'Não foi possível concluir a operação. Verifique os dados e tente novamente.' }); res.json(data || []); });
+async function carregarEscolhasProduto(produtoId, apenasAtivas = true) {
+  let gruposQuery = supabase.from('produto_grupos_escolha').select('id,produto_id,nome,min_escolhas,max_escolhas,ativo,ordem').eq('produto_id', produtoId);
+  if (apenasAtivas) gruposQuery = gruposQuery.eq('ativo', true);
+  const grupos = await gruposQuery.order('ordem').order('nome');
+  if (grupos.error) return { error: grupos.error };
+  const ids = (grupos.data || []).map(grupo => String(grupo.id));
+  if (!ids.length) return { data: [] };
+  let opcoesQuery = supabase.from('produto_opcoes_escolha').select('id,grupo_id,nome,ativo,ordem').in('grupo_id', ids);
+  if (apenasAtivas) opcoesQuery = opcoesQuery.eq('ativo', true);
+  const opcoes = await opcoesQuery.order('ordem').order('nome');
+  if (opcoes.error) return { error: opcoes.error };
+  const porGrupo = new Map((opcoes.data || []).map(opcao => [String(opcao.grupo_id), []]));
+  for (const opcao of opcoes.data || []) porGrupo.get(String(opcao.grupo_id))?.push(opcao);
+  return { data: (grupos.data || []).map(grupo => ({ ...grupo, opcoes: porGrupo.get(String(grupo.id)) || [] })) };
+}
+rota('get', '/api/produtos/:id/escolhas', async (req, res) => {
+  const produto = await supabase.from('products').select('id,ativo').eq('id', req.params.id).maybeSingle();
+  if (produto.error) return res.status(503).json({ erro: 'Não foi possível carregar as escolhas.' });
+  if (!produto.data || produto.data.ativo === false) return res.status(404).json({ erro: 'Produto não encontrado.' });
+  const escolhas = await carregarEscolhasProduto(req.params.id);
+  if (escolhas.error) return res.status(503).json({ erro: 'Não foi possível carregar as escolhas.' });
+  res.json(escolhas.data || []);
+});
+rota('get', '/api/admin/produtos/:id/escolhas', autenticar, soAdmin, async (req, res) => {
+  const produto = await supabase.from('products').select('id').eq('id', req.params.id).maybeSingle();
+  if (produto.error) return res.status(503).json({ erro: 'Não foi possível carregar as escolhas.' });
+  if (!produto.data) return res.status(404).json({ erro: 'Produto não encontrado.' });
+  const escolhas = await carregarEscolhasProduto(req.params.id, false);
+  if (escolhas.error) return res.status(503).json({ erro: 'Não foi possível carregar as escolhas.' });
+  res.json(escolhas.data || []);
+});
+rota('put', '/api/admin/produtos/:id/escolhas', autenticar, soAdmin, async (req, res) => {
+  const grupos = req.body?.grupos;
+  if (!Array.isArray(grupos) || grupos.length > 20) return res.status(400).json({ erro: 'Informe uma lista válida de grupos de escolhas.' });
+  for (const grupo of grupos) {
+    if (typeof grupo.nome !== 'string' || !grupo.nome.trim() || grupo.nome.trim().length > 120 || !Number.isInteger(grupo.min_escolhas) || !Number.isInteger(grupo.max_escolhas) || grupo.min_escolhas < 0 || grupo.max_escolhas < 1 || grupo.min_escolhas > grupo.max_escolhas || grupo.max_escolhas > 100 || !Array.isArray(grupo.opcoes) || grupo.opcoes.length > 200) return res.status(400).json({ erro: 'Grupo de escolhas inválido.' });
+    const nomes = new Set();
+    for (const opcao of grupo.opcoes) {
+      const nome = typeof opcao.nome === 'string' ? opcao.nome.trim() : '';
+      if (!nome || nome.length > 120 || nomes.has(nome.toLocaleLowerCase())) return res.status(400).json({ erro: 'Opção de escolha inválida ou duplicada.' });
+      nomes.add(nome.toLocaleLowerCase());
+    }
+  }
+  const produto = await supabase.from('products').select('id').eq('id', req.params.id).maybeSingle();
+  if (produto.error) return res.status(503).json({ erro: 'Não foi possível validar o produto.' });
+  if (!produto.data) return res.status(404).json({ erro: 'Produto não encontrado.' });
+  const antigos = await supabase.from('produto_grupos_escolha').select('id').eq('produto_id', req.params.id);
+  if (antigos.error) return res.status(503).json({ erro: 'Não foi possível atualizar as escolhas.' });
+  for (const grupo of antigos.data || []) {
+    const removido = await supabase.from('produto_grupos_escolha').delete().eq('id', grupo.id);
+    if (removido.error) return res.status(503).json({ erro: 'Não foi possível atualizar as escolhas.' });
+  }
+  for (const [indice, grupo] of grupos.entries()) {
+    const inserido = await supabase.from('produto_grupos_escolha').insert([{ produto_id: req.params.id, nome: grupo.nome.trim(), min_escolhas: grupo.min_escolhas, max_escolhas: grupo.max_escolhas, ativo: grupo.ativo !== false, ordem: Number.isInteger(grupo.ordem) ? grupo.ordem : indice }]).select('id,produto_id,nome,min_escolhas,max_escolhas,ativo,ordem').single();
+    if (inserido.error || !inserido.data) return res.status(400).json({ erro: 'Não foi possível salvar o grupo de escolhas.' });
+    const opcoes = grupo.opcoes.map((opcao, ordem) => ({ grupo_id: inserido.data.id, nome: opcao.nome.trim(), ativo: opcao.ativo !== false, ordem: Number.isInteger(opcao.ordem) ? opcao.ordem : ordem }));
+    if (opcoes.length) {
+      const inseridas = await supabase.from('produto_opcoes_escolha').insert(opcoes);
+      if (inseridas.error) return res.status(400).json({ erro: 'Não foi possível salvar as opções de escolha.' });
+    }
+  }
+  const resultado = await carregarEscolhasProduto(req.params.id, false);
+  res.json(resultado.data || []);
+});
 rota('get', '/api/produtos/:id/adicionais', async (req, res) => {
   const produto = await supabase.from('products').select('id,ativo').eq('id', req.params.id).maybeSingle();
   if (produto.error) return res.status(503).json({ erro: 'Não foi possível carregar os adicionais.' });
@@ -414,7 +485,7 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
   if (!Array.isArray(itens) || !itens.length || itens.length > 100 || itens.some(item => !item || !['string', 'number'].includes(typeof item.produto_id))) return res.status(400).json({ erro: 'Adicione ao menos um item ao carrinho.' });
   let identidades;
   try {
-    identidades = itens.map(item => identidadeItem(item.produto_id, adicionaisIdsNormalizados(item.adicionais_ids)));
+    identidades = itens.map(item => identidadeItem(item.produto_id, adicionaisIdsNormalizados(item.adicionais_ids), escolhasIdsNormalizados(item.escolhas_ids)));
   } catch (error) { return res.status(400).json({ erro: error.message }); }
   if (new Set(identidades).size !== identidades.length) return res.status(400).json({ erro: 'Há itens iguais repetidos no carrinho.' });
   if ([endereco, numero_casa, bairro, cep].some(campo => typeof campo !== 'string' || !campo.trim() || campo.length > 250) || (observacao_geral != null && typeof observacao_geral !== 'string')) return res.status(400).json({ erro: 'Preencha rua, número, bairro e CEP para a entrega.' });
@@ -434,6 +505,17 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
   const ids = itens.map(item => item.produto_id); const { data: produtos, error: produtosErro } = await supabase.from('products').select('id,nome,preco,ativo').in('id', ids).eq('ativo', true);
   if (produtosErro || produtos?.length !== new Set(ids).size) return res.status(400).json({ erro: 'Um produto do carrinho não está mais disponível.' });
   const mapa = new Map(produtos.map(p => [String(p.id), p]));
+  const todosEscolhas = itens.flatMap(item => { try { return escolhasIdsNormalizados(item.escolhas_ids); } catch { return []; } });
+  const idsEscolhas = [...new Set(todosEscolhas)];
+  let gruposEscolhas = [];
+  let opcoesEscolhas = [];
+  const consultasEscolhas = await Promise.all([
+    supabase.from('produto_grupos_escolha').select('id,produto_id,nome,min_escolhas,max_escolhas,ativo,ordem').in('produto_id', ids),
+    idsEscolhas.length ? supabase.from('produto_opcoes_escolha').select('id,grupo_id,nome,ativo,ordem').in('id', idsEscolhas) : { data: [], error: null }
+  ]);
+  if (consultasEscolhas[0].error || consultasEscolhas[1].error) return res.status(503).json({ erro: 'As escolhas incluídas ainda não estão disponíveis para este pedido.' });
+  gruposEscolhas = consultasEscolhas[0].data || [];
+  opcoesEscolhas = consultasEscolhas[1].data || [];
   const todosAdicionais = itens.flatMap(item => { try { return adicionaisIdsNormalizados(item.adicionais_ids); } catch { return []; } });
   const idsAdicionais = [...new Set(todosAdicionais)];
   let adicionais = [];
@@ -465,6 +547,20 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
       const precoBaseCentavos = centavos(produto?.preco);
       if (!Number.isInteger(precoBaseCentavos) || precoBaseCentavos <= 0) throw new Error('Preço de produto inválido.');
       const idsDoItem = adicionaisIdsNormalizados(item.adicionais_ids);
+      const idsEscolhasDoItem = escolhasIdsNormalizados(item.escolhas_ids);
+      const gruposDoProduto = gruposEscolhas.filter(grupo => String(grupo.produto_id) === String(produto.id) && grupo.ativo !== false);
+      const opcoesDoProduto = new Map(opcoesEscolhas.filter(opcao => opcao.ativo !== false).map(opcao => [String(opcao.id), opcao]));
+      const opcoesSelecionadas = [];
+      for (const escolhaId of idsEscolhasDoItem) {
+        const opcao = opcoesDoProduto.get(escolhaId);
+        const grupo = opcao && gruposDoProduto.find(itemGrupo => String(itemGrupo.id) === String(opcao.grupo_id));
+        if (!opcao || !grupo) throw new Error('Escolha incluída inexistente, inativa ou não permitida para este produto.');
+        opcoesSelecionadas.push({ id: opcao.id, nome: opcao.nome, grupo_id: grupo.id, grupo_nome: grupo.nome });
+      }
+      for (const grupo of gruposDoProduto) {
+        const totalGrupo = opcoesSelecionadas.filter(opcao => String(opcao.grupo_id) === String(grupo.id)).length;
+        if (totalGrupo < grupo.min_escolhas || totalGrupo > grupo.max_escolhas) throw new Error(`Escolha entre ${grupo.min_escolhas} e ${grupo.max_escolhas} opção(ões) em “${grupo.nome}”.`);
+      }
       const permitidos = mapaPermitidos.get(String(produto.id)) || new Set();
       const snapshotAdicionais = idsDoItem.map(id => {
         const adicional = mapaAdicionais.get(id);
@@ -483,6 +579,7 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
         quantidade,
         produto_nome_snapshot: String(produto.nome || '').slice(0, 150),
         preco_base_unitario: reaisDeCentavos(precoBaseCentavos),
+        escolhas_ids: opcoesSelecionadas.map(escolha => escolha.id),
         adicionais_snapshot: snapshotAdicionais,
         preco_adicionais_unitario: reaisDeCentavos(adicionaisCentavos),
         preco_unitario: reaisDeCentavos(unitarioCentavos),

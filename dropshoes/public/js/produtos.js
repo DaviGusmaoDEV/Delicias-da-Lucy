@@ -9,6 +9,8 @@ let produtos = [];
 let ultimaAtualizacao = 0;
 let temporizadorFeedback = null;
 const adicionaisCache = new Map();
+const escolhasCache = new Map();
+const escolhasAdmin = { normal: [], especial: [] };
 const arquivosImagem = { normal: null, especial: null };
 const removerImagem = { normal: false, especial: false };
 const INTERVALO_ATUALIZACAO = 30_000;
@@ -42,45 +44,91 @@ function informarProdutoAdicionado(item) {
   clearTimeout(temporizadorFeedback);
   temporizadorFeedback = setTimeout(() => { feedback.hidden = true; }, 10_000);
 }
+function contarEscolhas(lista, grupoId) {
+  return [...lista.querySelectorAll('input[data-grupo-id]:checked')].filter(input => String(input.dataset.grupoId) === String(grupoId)).length;
+}
 async function selecionarAdicionais(produto, card, acionador) {
   const painel = card.querySelector('.seletor-adicionais');
   const lista = card.querySelector('.lista-adicionais');
-  if (!painel || !lista) return adicionarAoCarrinho(produto);
+  const painelEscolhas = card.querySelector('.seletor-escolhas-incluidas');
+  const listaEscolhas = card.querySelector('.lista-escolhas-incluidas');
+  if (!painel || !lista || !painelEscolhas || !listaEscolhas) return adicionarAoCarrinho(produto);
   let adicionais = adicionaisCache.get(String(produto.id));
-  if (!adicionais) {
-    painel.hidden = false;
-    lista.textContent = 'Carregando adicionais…';
-    try {
-      adicionais = await api(`/api/produtos/${encodeURIComponent(produto.id)}/adicionais`);
-      adicionaisCache.set(String(produto.id), adicionais);
-    } catch {
-      painel.hidden = true;
-      aviso('Não foi possível carregar os adicionais.', 'erro');
-      return false;
-    }
+  let grupos = escolhasCache.get(String(produto.id));
+  painel.hidden = true; painelEscolhas.hidden = true;
+  lista.textContent = 'Carregando adicionais…'; listaEscolhas.textContent = 'Carregando escolhas…';
+  try {
+    const resultados = await Promise.all([
+      adicionais || api(`/api/produtos/${encodeURIComponent(produto.id)}/adicionais`),
+      grupos || api(`/api/produtos/${encodeURIComponent(produto.id)}/escolhas`)
+    ]);
+    adicionais = resultados[0]; grupos = resultados[1];
+    adicionaisCache.set(String(produto.id), adicionais);
+    escolhasCache.set(String(produto.id), grupos);
+  } catch {
+    painel.hidden = true; painelEscolhas.hidden = true;
+    aviso('Não foi possível carregar as opções do produto.', 'erro');
+    return false;
   }
-  if (!adicionais.length) return adicionarAoCarrinho(produto);
-  painel.hidden = false;
+  const temAdicionais = adicionais.length > 0;
+  const temEscolhas = grupos.length > 0;
+  if (!temAdicionais && !temEscolhas) return adicionarAoCarrinho(produto);
+  painel.hidden = !temAdicionais;
+  painelEscolhas.hidden = !temEscolhas;
   lista.innerHTML = '';
-  adicionais.forEach(adicional => {
+  listaEscolhas.innerHTML = '';
+  const sanitizar = valor => String(valor).replace(/[^a-z0-9_-]/gi, '-');
+  grupos.forEach(grupo => {
+    const grupoEl = document.createElement('fieldset'); grupoEl.className = 'grupo-escolhas-incluidas'; grupoEl.dataset.grupoId = String(grupo.id);
+    const legenda = document.createElement('legend'); legenda.textContent = grupo.nome; grupoEl.append(legenda);
+    const instrucao = document.createElement('p'); instrucao.className = 'instrucao-escolha'; instrucao.textContent = grupo.min_escolhas ? `Escolha de ${grupo.min_escolhas} a ${grupo.max_escolhas} opção(ões)` : `Escolha até ${grupo.max_escolhas} opção(ões)`; grupoEl.append(instrucao);
+    for (const opcao of grupo.opcoes || []) {
+      const id = `escolha-${sanitizar(produto.id)}-${sanitizar(opcao.id)}`;
+      const label = document.createElement('label'); label.className = 'opcao-escolha-incluida'; label.htmlFor = id;
+      const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.id = id; checkbox.value = String(opcao.id); checkbox.dataset.nome = opcao.nome; checkbox.dataset.grupoId = String(grupo.id); checkbox.dataset.grupoNome = grupo.nome; checkbox.dataset.max = String(grupo.max_escolhas);
+      const texto = document.createElement('span'); texto.textContent = opcao.nome;
+      label.append(checkbox, texto); grupoEl.append(label);
+    }
+    listaEscolhas.append(grupoEl);
+  });
+  for (const adicional of adicionais) {
     const id = `adicional-${String(produto.id).replace(/[^a-z0-9_-]/gi, '-')}-${String(adicional.id).replace(/[^a-z0-9_-]/gi, '-')}`;
     const label = document.createElement('label'); label.className = 'opcao-adicional'; label.htmlFor = id;
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.id = id; checkbox.value = String(adicional.id); checkbox.dataset.nome = adicional.nome; checkbox.dataset.preco = String(adicional.preco);
     const texto = document.createElement('span'); texto.textContent = `${adicional.nome} + ${dinheiro(adicional.preco)}`;
     label.append(checkbox, texto); lista.append(label);
-  });
+  }
+  const atualizarLimites = () => {
+    const resumoLimites = [];
+    const resumoSelecao = [];
+    for (const grupo of grupos) {
+      const total = contarEscolhas(listaEscolhas, grupo.id);
+      listaEscolhas.querySelectorAll('input[data-grupo-id]').forEach(input => { if (String(input.dataset.grupoId) === String(grupo.id)) input.disabled = !input.checked && total >= grupo.max_escolhas; });
+      resumoLimites.push(grupo.min_escolhas ? `Escolha de ${grupo.min_escolhas} a ${grupo.max_escolhas}` : `Escolha até ${grupo.max_escolhas}`);
+      resumoSelecao.push(`${total} de ${grupo.max_escolhas} selecionadas`);
+    }
+    const limite = card.querySelector('.texto-limite-escolhas');
+    if (limite) limite.textContent = resumoLimites.join(' • ');
+    const contador = card.querySelector('.contador-escolhas');
+    if (contador) contador.textContent = resumoSelecao.join(' • ');
+  };
+  const escolhasValidas = () => grupos.every(grupo => { const total = contarEscolhas(listaEscolhas, grupo.id); return total >= grupo.min_escolhas && total <= grupo.max_escolhas; });
   const atualizarPreco = () => {
     const adicionaisSelecionados = [...lista.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, preco: Number(input.dataset.preco) }));
     const total = Number(produto.preco) + adicionaisSelecionados.reduce((soma, adicional) => soma + adicional.preco, 0);
     card.querySelector('.preco-selecao-total').textContent = `Total unitário: ${dinheiro(total)}`;
   };
   lista.querySelectorAll('input').forEach(input => input.addEventListener('change', atualizarPreco));
+  listaEscolhas.querySelectorAll('input').forEach(input => input.addEventListener('change', atualizarLimites));
   atualizarPreco();
-  const primeiroCheckbox = lista.querySelector('input');
+  atualizarLimites();
+  const primeiroCheckbox = listaEscolhas.querySelector('input') || lista.querySelector('input');
   if (primeiroCheckbox) primeiroCheckbox.focus();
   card.querySelector('.btn-confirmar-adicionais').onclick = () => {
+    if (!escolhasValidas()) { aviso('Escolha as opções obrigatórias antes de adicionar o produto.', 'erro'); return; }
+    const escolhasSelecionadas = [...listaEscolhas.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, grupo_id: input.dataset.grupoId, grupo_nome: input.dataset.grupoNome }));
     const selecionados = [...lista.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, preco: Number(input.dataset.preco) }));
-    const adicionado = adicionarAoCarrinho(produto, selecionados);
+    const adicionado = adicionarAoCarrinho(produto, selecionados, escolhasSelecionadas);
     if (adicionado) { painel.hidden = true; acionador.focus(); }
   };
   card.querySelector('.btn-cancelar-adicionais').onclick = () => { painel.hidden = true; acionador.focus(); };
@@ -266,6 +314,54 @@ function dadosDoFormulario(especial) {
     isEspecial: especial
   };
 }
+function refsEscolhas(especial) {
+  const sufixo = especial ? '-especial' : '';
+  return {
+    nome: document.getElementById(`escolhas-nome-grupo${sufixo}`),
+    minimo: document.getElementById(`escolhas-minimo${sufixo}`),
+    maximo: document.getElementById(`escolhas-maximo${sufixo}`),
+    lista: document.getElementById(`lista-opcoes-escolhas${sufixo}`),
+    adicionar: document.getElementById(`adicionar-opcao-escolha${sufixo}`)
+  };
+}
+function renderizarEditorEscolhas(especial, grupos = []) {
+  const refs = refsEscolhas(especial); if (!refs.lista) return;
+  const grupo = grupos[0] || { nome: '', min_escolhas: 0, max_escolhas: 5, opcoes: [] };
+  refs.nome.value = grupo.nome || '';
+  refs.minimo.value = Number.isInteger(grupo.min_escolhas) ? grupo.min_escolhas : 0;
+  refs.maximo.value = Number.isInteger(grupo.max_escolhas) ? grupo.max_escolhas : 5;
+  refs.lista.replaceChildren();
+  for (const opcao of grupo.opcoes || []) adicionarLinhaOpcao(refs.lista, opcao.nome);
+}
+function adicionarLinhaOpcao(lista, valor = '') {
+  const linha = document.createElement('div'); linha.className = 'linha-opcao-escolha';
+  const input = document.createElement('input'); input.type = 'text'; input.className = 'form-control'; input.maxLength = 120; input.placeholder = 'Nome da opção'; input.value = valor;
+  const remover = document.createElement('button'); remover.type = 'button'; remover.className = 'btn btn-cancelar'; remover.textContent = 'Remover'; remover.onclick = () => linha.remove();
+  linha.append(input, remover); lista.append(linha); input.focus();
+}
+function lerEscolhasAdmin(especial) {
+  const refs = refsEscolhas(especial); if (!refs.nome || !refs.lista || !refs.nome.value.trim()) return [];
+  const opcoes = [...refs.lista.querySelectorAll('input')].map(input => input.value.trim()).filter(Boolean).map((nome, ordem) => ({ nome, ativo: true, ordem }));
+  return [{ nome: refs.nome.value.trim(), min_escolhas: Number(refs.minimo.value || 0), max_escolhas: Number(refs.maximo.value || 0), ativo: true, ordem: 0, opcoes }];
+}
+async function carregarEscolhasAdmin(produto, especial) {
+  renderizarEditorEscolhas(especial, []);
+  if (!produto?.id) return;
+  try {
+    const grupos = await api(`/api/admin/produtos/${encodeURIComponent(produto.id)}/escolhas`);
+    escolhasAdmin[especial ? 'especial' : 'normal'] = grupos;
+    renderizarEditorEscolhas(especial, grupos);
+  } catch (erro) { aviso(`Não foi possível carregar as escolhas incluídas: ${erro.message}`, 'erro'); }
+}
+async function salvarEscolhasAdmin(id, especial) {
+  if (!id) return;
+  const grupos = lerEscolhasAdmin(especial);
+  if (grupos.length && grupos[0].opcoes.length === 0) throw new Error('Adicione pelo menos uma opção ou deixe o grupo sem nome.');
+  const maximo = grupos[0]?.max_escolhas;
+  const minimo = grupos[0]?.min_escolhas;
+  if (grupos.length && (!Number.isInteger(minimo) || !Number.isInteger(maximo) || minimo < 0 || maximo < 1 || minimo > maximo)) throw new Error('Informe limites válidos para as escolhas.');
+  await enviar(`/api/admin/produtos/${encodeURIComponent(id)}/escolhas`, 'PUT', { grupos });
+}
 function abrirModal(produto = null, especial = false) {
   const sufixo = especial ? '-especial' : ''; const modal = document.getElementById(`modal-produto${sufixo}`); const form = document.getElementById(`form-produto${sufixo}`);
   if (!podeEditarProdutos || !modal || !form) return; form.reset();
@@ -279,6 +375,7 @@ function abrirModal(produto = null, especial = false) {
   atualizarPreviewImagem(especial, null, produto?.imagem_url || '');
   document.getElementById(`modal-produto-titulo${sufixo}`).textContent = produto ? 'Editar produto' : especial ? 'Novo produto promocional' : 'Novo produto';
   const categoria = document.getElementById(`prod-categoria${sufixo}`); if (categoria && produto?.categoria) categoria.value = produto.categoria;
+  carregarEscolhasAdmin(produto, especial);
   modal.showModal();
 }
 async function salvarProduto(event, especial) {
@@ -290,6 +387,7 @@ async function salvarProduto(event, especial) {
   if (botao) botao.disabled = true;
   try {
     const retorno = await enviar(`/api/produtos${produto.id ? `/${encodeURIComponent(produto.id)}` : ''}`, produto.id ? 'PUT' : 'POST', produto);
+    await salvarEscolhasAdmin(retorno.id, especial);
     const chave = especial ? 'especial' : 'normal';
     const arquivo = arquivosImagem[chave];
     if (arquivo) {
@@ -328,6 +426,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('abrirModalProdutoEspecial')?.addEventListener('click', () => abrirModal(null, true));
   document.getElementById('form-produto')?.addEventListener('submit', evento => salvarProduto(evento, false));
   document.getElementById('form-produto-especial')?.addEventListener('submit', evento => salvarProduto(evento, true));
+  document.getElementById('adicionar-opcao-escolha')?.addEventListener('click', () => { const refs = refsEscolhas(false); adicionarLinhaOpcao(refs.lista); });
+  document.getElementById('adicionar-opcao-escolha-especial')?.addEventListener('click', () => { const refs = refsEscolhas(true); adicionarLinhaOpcao(refs.lista); });
   configurarEditorImagem(false); configurarEditorImagem(true);
   document.getElementById('btn-fechar-modal')?.addEventListener('click', () => document.getElementById('modal-produto').close());
   document.getElementById('btn-fechar-modal-especial')?.addEventListener('click', () => document.getElementById('modal-produto-especial').close());
