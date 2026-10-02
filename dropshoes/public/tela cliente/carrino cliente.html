@@ -97,6 +97,12 @@
                         <legend>Como você deseja pagar na entrega?</legend>
                         <label class="opcao-tipo-pagamento"><input type="radio" name="tipo-pagamento-entrega" value="dinheiro"> <span>Dinheiro</span></label>
                         <label class="opcao-tipo-pagamento"><input type="radio" name="tipo-pagamento-entrega" value="cartao"> <span>Cartão</span></label>
+                        <div id="troco-pagamento-container" class="troco-pagamento" hidden>
+                            <label for="troco-pagamento">Troco para quantos R$?</label>
+                            <input id="troco-pagamento" class="form-control" type="text" inputmode="decimal" autocomplete="off" placeholder="R$ 100,00" aria-describedby="ajuda-troco-pagamento erro-troco-pagamento">
+                            <small id="ajuda-troco-pagamento">Opcional. Deixe vazio se for pagar o valor exato.</small>
+                            <p id="erro-troco-pagamento" class="form-error" role="alert" hidden></p>
+                        </div>
                         <p id="erro-tipo-pagamento-entrega" class="form-error" role="alert" hidden></p>
                     </fieldset>
                 </fieldset>

@@ -99,15 +99,20 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   assert.equal(entregaCriada.body.pedido.pagamento, 'entrega');
   assert.equal(entregaCriada.body.pedido.pagamento_status, 'pending');
   assert.equal(entregaCriada.body.pedido.tipo_pagamento_entrega, 'dinheiro');
+  assert.equal(entregaCriada.body.pedido.troco_para, null);
   assert.equal(entregaCriada.body.payment_url, undefined);
   assert.equal(chamadasCheckout, 1);
   for (const [tipo, chave] of [[undefined, '00000000-0000-4000-8000-000000000007'], ['pix', '00000000-0000-4000-8000-000000000008'], ['qualquer', '00000000-0000-4000-8000-000000000009']]) {
     const invalido = { ...pedidoEntrega, checkout_chave: chave, tipo_pagamento_entrega: tipo };
     assert.equal((await req('/api/pedidos', 'POST', invalido, token)).status, 400);
   }
-  const cartao = await req('/api/pedidos', 'POST', { ...pedidoEntrega, tipo_pagamento_entrega: 'cartao', checkout_chave: '00000000-0000-4000-8000-000000000010' }, token);
+  const cartao = await req('/api/pedidos', 'POST', { ...pedidoEntrega, tipo_pagamento_entrega: 'cartao', troco_para: 100, checkout_chave: '00000000-0000-4000-8000-000000000010' }, token);
   assert.equal(cartao.status, 201);
   assert.equal(cartao.body.pedido.tipo_pagamento_entrega, 'cartao');
+  assert.equal(cartao.body.pedido.troco_para, null);
+  const dinheiroComTroco = await req('/api/pedidos', 'POST', { ...pedidoEntrega, troco_para: 100, checkout_chave: '00000000-0000-4000-8000-000000000012' }, token);
+  assert.equal(dinheiroComTroco.status, 201);
+  assert.equal(dinheiroComTroco.body.pedido.troco_para, 100);
   const onlineComTipo = await req('/api/pedidos', 'POST', { ...pedido, tipo_pagamento_entrega: 'dinheiro', checkout_chave: '00000000-0000-4000-8000-000000000011' }, token);
   assert.equal(onlineComTipo.status, 201);
   assert.equal(onlineComTipo.body.pedido.tipo_pagamento_entrega, null);
@@ -143,7 +148,7 @@ test('integração HTTP: cadastro, permissões, produtos, caixa, pedidos e erros
   const receitaEntrega = db.tabelas.fluxo_caixa.filter(item => item.pedido_id === entregaCriada.body.pedido.id && item.tipo === 'receita');
   assert.equal(receitaEntrega.length, 1);
   assert.equal(receitaEntrega[0].valor, entregaCriada.body.pedido.valor);
-  assert.equal((await req('/api/meus-pedidos', 'GET', undefined, token)).body.length, 6);
+  assert.equal((await req('/api/meus-pedidos', 'GET', undefined, token)).body.length, 7);
   db.tabelas.pedidos.push({ id: 'cancelado-sem-receita', status: 'cancelado', pagamento: 'entrega', pagamento_status: 'pending', valor: 12 });
   db.tabelas.itens_pedido.push({ id: 'item-cancelado', pedido_id: 'cancelado-sem-receita', produto_id: 'p1', quantidade: 1, preco_unitario: 12 });
   assert.equal((await req('/api/pedidos/cancelado-sem-receita', 'DELETE', undefined, admin1)).status, 204);

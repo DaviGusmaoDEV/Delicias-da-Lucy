@@ -19,6 +19,8 @@ test('Admin exibe forma, tipo e status de pagamento separadamente', () => {
   assert.match(js, /tipo_pagamento_entrega/);
   assert.match(js, /Tipo:/);
   assert.match(js, /Status:/);
+  assert.match(js, /Troco para:/);
+  assert.match(js, /Levar troco:/);
 });
 
 test('ciclo de vida do produto usa status textual e não exclusão física na UI', () => {

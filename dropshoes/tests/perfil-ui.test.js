@@ -50,4 +50,5 @@ test('perfil diferencia o tipo de pagamento na entrega sem inventar histórico',
   assert.match(js, /Dinheiro/);
   assert.match(js, /Cartão/);
   assert.match(js, /Pagar na entrega\$\{tipo \?/);
+  assert.match(js, /Troco para/);
 });

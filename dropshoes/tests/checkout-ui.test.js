@@ -30,10 +30,15 @@ test('checkout oferece tipo de pagamento acessível somente para entrega', () =>
   assert.match(html, /name=["']tipo-pagamento-entrega["'][^>]*value=["']dinheiro["']/);
   assert.match(html, /name=["']tipo-pagamento-entrega["'][^>]*value=["']cartao["']/);
   assert.match(html, /id=["']tipo-pagamento-entrega["'][^>]*tabindex=["']-1["']/);
+  assert.match(html, /id=["']troco-pagamento["'][^>]*inputmode=["']decimal["']/);
+  assert.match(html, /for=["']troco-pagamento["'][^>]*>Troco para quantos R\$\?<\/label>/);
   const js = ler('js/carrinho.js');
   assert.match(js, /Escolha se o pagamento na entrega será em dinheiro ou cartão/);
   assert.match(js, /tipo_pagamento_entrega/);
   assert.match(js, /opcao\.checked = false/);
+  assert.match(js, /troco_para/);
+  assert.match(js, /tipo === 'dinheiro'/);
+  assert.match(js, /parseMoedaBrasileira/);
 });
 
 test('template do checkout oferece quantidade, subtotal do item e remoção com nomes contextuais', () => {

@@ -49,14 +49,31 @@ function limparErrosCheckout() {
 }
 function atualizarTipoPagamentoEntrega() {
   const provedor = document.querySelector('input[name="provedor-pagamento"]:checked')?.value;
+  const tipo = document.querySelector('input[name="tipo-pagamento-entrega"]:checked')?.value;
   const area = document.getElementById('tipo-pagamento-entrega');
   const ativo = provedor === 'entrega';
   if (area) area.hidden = !ativo;
+  const campoTroco = document.getElementById('troco-pagamento-container');
+  const mostrarTroco = ativo && tipo === 'dinheiro';
+  if (campoTroco) campoTroco.hidden = !mostrarTroco;
+  if (!mostrarTroco) {
+    const input = document.getElementById('troco-pagamento');
+    if (input) input.value = '';
+    const erroTroco = document.getElementById('erro-troco-pagamento');
+    if (erroTroco) { erroTroco.textContent = ''; erroTroco.hidden = true; }
+  }
   if (!ativo) {
     document.querySelectorAll('input[name="tipo-pagamento-entrega"]').forEach(opcao => { opcao.checked = false; });
     const erro = document.getElementById('erro-tipo-pagamento-entrega');
     if (erro) { erro.textContent = ''; erro.hidden = true; }
   }
+}
+function parseMoedaBrasileira(valor) {
+  const texto = String(valor || '').trim().replace(/R\$\s*/gi, '').replace(/\s/g, '');
+  if (!texto) return null;
+  const normalizado = texto.includes(',') ? texto.replace(/\./g, '').replace(',', '.') : texto;
+  const numero = Number(normalizado);
+  return Number.isFinite(numero) ? numero : NaN;
 }
 export const obterCarrinho = () => carrinho.map(item => ({ ...item }));
 export function limparCarrinho() { carrinho = []; localStorage.removeItem('carrinho'); renderizarCarrinho(); emitirAtualizacao('limpar'); }
@@ -172,6 +189,14 @@ export async function finalizarCompra() {
     document.getElementById('tipo-pagamento-entrega')?.focus({ preventScroll: false });
     return;
   }
+  const textoTroco = tipo_pagamento_entrega === 'dinheiro' ? document.getElementById('troco-pagamento')?.value : '';
+  const troco_para = textoTroco?.trim() ? parseMoedaBrasileira(textoTroco) : null;
+  if (tipo_pagamento_entrega === 'dinheiro' && troco_para !== null && (!Number.isFinite(troco_para) || troco_para <= 0)) {
+    const erro = document.getElementById('erro-troco-pagamento');
+    if (erro) { erro.textContent = 'Informe um valor de troco válido.'; erro.hidden = false; }
+    document.getElementById('troco-pagamento')?.focus();
+    return;
+  }
   if (cliente_nome.length < 2) { marcarErroCampo('cliente-nome', 'Informe seu nome completo.', true); return; }
   if (!/^(?:55)?\d{10,11}$/.test(cliente_telefone.replace(/[\s()+-]/g, ''))) { marcarErroCampo('cliente-telefone', 'Informe um telefone válido com DDD.', true); return; }
   const enderecoInicial = camposEntrega();
@@ -185,7 +210,7 @@ export async function finalizarCompra() {
     if (!entrega.bairro) { marcarErroCampo('bairro', 'Confira o bairro.', true); return; }
     if (Object.values(entrega).some(valor => !valor)) { informarFrete('Confira os dados do endereço para calcular a entrega.', true); return; }
     // Visitantes compram sem conta: o próprio POST do pedido cria uma sessão técnica HttpOnly.
-    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, subtotal_esperado: subtotal(), cliente_nome, cliente_telefone, provedor_pagamento, ...(tipo_pagamento_entrega ? { tipo_pagamento_entrega } : {}), observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, adicionais_ids: (item.adicionais || []).map(adicional => adicional.id), observacao_item: item.observacao || '' })) };
+    const corpo = { ...entrega, taxa_entrega: valorFreteAtual, subtotal_esperado: subtotal(), cliente_nome, cliente_telefone, provedor_pagamento, tipo_pagamento_entrega: tipo_pagamento_entrega || null, troco_para: tipo_pagamento_entrega === 'dinheiro' ? troco_para : null, observacao_geral: document.getElementById('observacao-geral')?.value.trim() || '', pagamento, itens: carrinho.map(item => ({ produto_id: item.id, quantidade: item.quantidade, adicionais_ids: (item.adicionais || []).map(adicional => adicional.id), observacao_item: item.observacao || '' })) };
     const resumo = new TextEncoder().encode(JSON.stringify(corpo));
     const assinatura = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', resumo)), b => b.toString(16).padStart(2, '0')).join('');
     let tentativa;
@@ -258,6 +283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     atualizarTipoPagamentoEntrega();
   };
   document.querySelectorAll('input[name="provedor-pagamento"]').forEach(opcao => opcao.addEventListener('change', atualizarTextoPagamento));
+  document.querySelectorAll('input[name="tipo-pagamento-entrega"]').forEach(opcao => opcao.addEventListener('change', atualizarTipoPagamentoEntrega));
   atualizarTextoPagamento();
   document.getElementById('cep')?.addEventListener('blur', () => { if (document.getElementById('cep').value.replace(/\D/g, '').length === 8) atualizarEntrega(); });
   document.getElementById('cep')?.addEventListener('input', () => { ++calculoAtual; cotacaoAnterior = null; cotacaoEmAndamento = null; consultaCepAnterior = ''; valorFreteAtual = 0; limparErroCampo('cep'); atualizarResumo(); informarFrete('Calcule a entrega para o novo CEP.'); });

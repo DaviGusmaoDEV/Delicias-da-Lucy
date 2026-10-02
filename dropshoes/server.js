@@ -346,6 +346,8 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
   if (!['cliente', 'visitante'].includes(req.user.role)) return res.status(403).json({ erro: 'Pedidos devem ser feitos pela conta de cliente.' });
   const { itens, observacao_geral, endereco, numero_casa, bairro, cep, pagamento, checkout_chave, cliente_nome, cliente_telefone } = req.body;
   const tipoPagamentoEntrega = pagamento === 'entrega' ? req.body.tipo_pagamento_entrega : null;
+  const trocoParaInformado = req.body.troco_para;
+  const trocoParaConsiderado = pagamento === 'entrega' && tipoPagamentoEntrega === 'dinheiro' ? trocoParaInformado : null;
   const subtotalEsperado = req.body.subtotal_esperado;
   let emailPedido = '';
   if (!emailPedido && req.user.role === 'cliente') {
@@ -366,6 +368,7 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
   if ([endereco, numero_casa, bairro, cep].some(campo => typeof campo !== 'string' || !campo.trim() || campo.length > 250) || (observacao_geral != null && typeof observacao_geral !== 'string')) return res.status(400).json({ erro: 'Preencha rua, número, bairro e CEP para a entrega.' });
   if (!['site', 'entrega'].includes(pagamento)) return res.status(400).json({ erro: 'Forma de pagamento inválida.' });
   if (pagamento === 'entrega' && !['dinheiro', 'cartao'].includes(tipoPagamentoEntrega)) return res.status(400).json({ erro: 'Escolha se o pagamento na entrega será em dinheiro ou cartão.' });
+  if (trocoParaConsiderado !== null && trocoParaConsiderado !== undefined && (typeof trocoParaConsiderado !== 'number' || !Number.isFinite(trocoParaConsiderado) || trocoParaConsiderado <= 0 || trocoParaConsiderado > 99999999.99 || Math.abs(trocoParaConsiderado - Math.round(trocoParaConsiderado * 100) / 100) > 1e-9)) return res.status(400).json({ erro: 'Informe um valor de troco válido.' });
   if (pagamentoOnline && !pagamentosAtivos?.disponivel) return res.status(503).json({ erro: 'Pagamento online indisponível. Tente novamente mais tarde.' });
   if (typeof checkout_chave !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkout_chave)) return res.status(400).json({ erro: 'Atualize o carrinho e tente novamente.' });
   const { data: existente, error: buscaErro } = await pedidosDoComprador(supabase.from('pedidos').select('*').eq('checkout_chave', checkout_chave), req.user).maybeSingle();
@@ -436,8 +439,12 @@ rota('post', '/api/pedidos', limitePedidos, autenticarOuCriarCompra, async (req,
     });
   } catch (error) { return res.status(400).json({ erro: error.message }); }
   const subtotal = reaisDeCentavos(subtotalCentavos);
+  const trocoParaCentavos = trocoParaConsiderado == null ? null : centavos(trocoParaConsiderado);
+  const totalCentavos = subtotalCentavos + centavos(taxa);
+  if (trocoParaCentavos !== null && (!Number.isSafeInteger(trocoParaCentavos) || trocoParaCentavos < totalCentavos)) return res.status(400).json({ erro: 'O valor para troco não pode ser menor que o total do pedido.' });
   if (subtotalEsperado !== undefined && (typeof subtotalEsperado !== 'number' || !Number.isFinite(subtotalEsperado) || centavos(subtotalEsperado) !== subtotalCentavos)) return res.status(409).json({ erro: 'Os preços foram atualizados. Revise o carrinho.' });
-  const { data: pedido, error } = await supabase.rpc('criar_pedido_com_itens', { p_pedido: { usuario_id: req.user.role === 'cliente' ? req.user.id : null, visitante_id: req.user.role === 'visitante' ? req.user.id : null, cliente_nome: cliente_nome.trim(), cliente_email: emailPedido || null, cliente_telefone: cliente_telefone.replace(/\D/g, ''), valor: Math.round((subtotal + taxa) * 100) / 100, subtotal, taxa_entrega: taxa, status: 'pendente', observacao_geral: observacao_geral?.slice(0, 500) || null, endereco: endereco.trim(), numero_casa: numero_casa.trim(), bairro: bairro.trim(), cep: String(cep).replace(/\D/g, ''), pagamento, tipo_pagamento_entrega: tipoPagamentoEntrega, checkout_chave, pagamento_status: 'pending' }, p_itens: itensConfirmados });
+  const trocoPara = trocoParaCentavos === null ? null : reaisDeCentavos(trocoParaCentavos);
+  const { data: pedido, error } = await supabase.rpc('criar_pedido_com_itens', { p_pedido: { usuario_id: req.user.role === 'cliente' ? req.user.id : null, visitante_id: req.user.role === 'visitante' ? req.user.id : null, cliente_nome: cliente_nome.trim(), cliente_email: emailPedido || null, cliente_telefone: cliente_telefone.replace(/\D/g, ''), valor: Math.round((subtotal + taxa) * 100) / 100, subtotal, taxa_entrega: taxa, status: 'pendente', observacao_geral: observacao_geral?.slice(0, 500) || null, endereco: endereco.trim(), numero_casa: numero_casa.trim(), bairro: bairro.trim(), cep: String(cep).replace(/\D/g, ''), pagamento, tipo_pagamento_entrega: tipoPagamentoEntrega, troco_para: trocoPara, checkout_chave, pagamento_status: 'pending' }, p_itens: itensConfirmados });
   if (error || !pedido) return res.status(503).json({ erro: 'Não foi possível salvar o pedido. Tente novamente.' });
   if (pagamento === 'entrega') return confirmarPedidoEntrega(pedido, res);
   if (provedorSolicitado === 'mercadopago_pix') {

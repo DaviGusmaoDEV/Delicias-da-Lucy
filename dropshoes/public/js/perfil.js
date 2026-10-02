@@ -36,7 +36,8 @@ function detalhesPagamento(pedido) {
   if (pedido.pagamento === 'site') return textoPagamento(pedido.pagamento_status);
   if (pedido.pagamento === 'entrega') {
     const tipo = { dinheiro: 'Dinheiro', cartao: 'Cartão' }[pedido.tipo_pagamento_entrega];
-    return `Pagar na entrega${tipo ? ` • ${tipo}` : ''}`;
+    const troco = pedido.troco_para != null ? ` • Troco para: ${dinheiro(pedido.troco_para)}` : '';
+    return `Pagar na entrega${tipo ? ` • ${tipo}` : ''}${pedido.tipo_pagamento_entrega === 'dinheiro' ? troco : ''}`;
   }
   return null;
 }

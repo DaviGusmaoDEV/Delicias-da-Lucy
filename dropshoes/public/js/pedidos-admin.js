@@ -20,7 +20,8 @@ const esc = valor => String(valor ?? '').replace(/[&<>"']/g, char => ({ '&': '&a
 function descricaoPagamento(pedido) {
   if (pedido.pagamento === 'entrega') {
     const tipo = { dinheiro: 'Dinheiro', cartao: 'Cartão' }[pedido.tipo_pagamento_entrega];
-    return { classe: 'pagamento-entrega', texto: `Forma: Pagar na entrega${tipo ? ` — Tipo: ${tipo}` : ''} — Status: ${STATUS_PAGAMENTO[pedido.pagamento_status] || 'Pagamento pendente'}` };
+    const troco = pedido.tipo_pagamento_entrega === 'dinheiro' && pedido.troco_para != null ? ` — Troco para: ${dinheiro(pedido.troco_para)} — Levar troco: ${dinheiro(Math.max(0, Number(pedido.troco_para) - Number(pedido.valor)))}` : '';
+    return { classe: 'pagamento-entrega', texto: `Forma: Pagar na entrega${tipo ? ` — Tipo: ${tipo}` : ''}${troco} — Status: ${STATUS_PAGAMENTO[pedido.pagamento_status] || 'Pagamento pendente'}` };
   }
   const pix = pedido.pagamento_provedor === 'mercadopago_pix';
   const provedor = pix ? 'Pix — Mercado Pago' : pedido.pagamento_provedor === 'infinitepay' || String(pedido.pagamento_id || '').startsWith('infinitepay:') ? 'InfinitePay' : 'Pagamento online';

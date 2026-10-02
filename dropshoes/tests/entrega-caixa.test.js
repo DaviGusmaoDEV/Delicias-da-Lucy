@@ -64,6 +64,16 @@ test('bilhete inclui nome, rua, bairro, número e itens, sem CEP e com escape de
   assert.match(html, /&lt;script&gt;/);
 });
 
+test('bilhete informa troco somente para dinheiro na entrega', async () => {
+  const { bilhetePedido } = await modulo('bilhete.js');
+  const dinheiro = bilhetePedido({ pagamento: 'entrega', tipo_pagamento_entrega: 'dinheiro', troco_para: 100, valor: 42, itens_pedido: [] });
+  const cartao = bilhetePedido({ pagamento: 'entrega', tipo_pagamento_entrega: 'cartao', troco_para: 100, valor: 42, itens_pedido: [] });
+  assert.match(dinheiro, /DINHEIRO/);
+  assert.match(dinheiro, /R\$\s*100,00/);
+  assert.match(dinheiro, /R\$\s*58,00/);
+  assert.doesNotMatch(cartao, /100,00|58,00/);
+});
+
 test('número comercial usa N1 e não transforma ID técnico histórico em número comercial', async () => {
   const { numeroComercial, rotuloPedido } = await modulo('numero-pedido.js');
   assert.equal(numeroComercial({ id: 70, numero_pedido: 1 }), 1);
