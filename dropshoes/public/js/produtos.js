@@ -47,6 +47,12 @@ function informarProdutoAdicionado(item) {
 function contarEscolhas(lista, grupoId) {
   return [...lista.querySelectorAll('input[data-grupo-id]:checked')].filter(input => String(input.dataset.grupoId) === String(grupoId)).length;
 }
+export function escolhasValidas(grupos, contar) {
+  return grupos.every(grupo => {
+    const total = contar(grupo.id);
+    return total >= grupo.min_escolhas && total <= grupo.max_escolhas;
+  });
+}
 async function selecionarAdicionais(produto, card, acionador) {
   const painel = card.querySelector('.seletor-adicionais');
   const lista = card.querySelector('.lista-adicionais');
@@ -112,7 +118,6 @@ async function selecionarAdicionais(produto, card, acionador) {
     const contador = card.querySelector('.contador-escolhas');
     if (contador) contador.textContent = resumoSelecao.join(' • ');
   };
-  const escolhasValidas = () => grupos.every(grupo => { const total = contarEscolhas(listaEscolhas, grupo.id); return total >= grupo.min_escolhas && total <= grupo.max_escolhas; });
   const atualizarPreco = () => {
     const adicionaisSelecionados = [...lista.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, preco: Number(input.dataset.preco) }));
     const total = Number(produto.preco) + adicionaisSelecionados.reduce((soma, adicional) => soma + adicional.preco, 0);
@@ -124,14 +129,14 @@ async function selecionarAdicionais(produto, card, acionador) {
   atualizarLimites();
   const primeiroCheckbox = listaEscolhas.querySelector('input') || lista.querySelector('input');
   if (primeiroCheckbox) primeiroCheckbox.focus();
-  card.querySelector('.btn-confirmar-adicionais').onclick = () => {
-    if (!escolhasValidas()) { aviso('Escolha as opções obrigatórias antes de adicionar o produto.', 'erro'); return; }
+  card.querySelector('.btn-confirmar-configuracao').onclick = () => {
+    if (!escolhasValidas(grupos, grupoId => contarEscolhas(listaEscolhas, grupoId))) { aviso('Escolha a quantidade obrigatória de opções antes de adicionar o produto.', 'erro'); return; }
     const escolhasSelecionadas = [...listaEscolhas.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, grupo_id: input.dataset.grupoId, grupo_nome: input.dataset.grupoNome }));
     const selecionados = [...lista.querySelectorAll('input:checked')].map(input => ({ id: input.value, nome: input.dataset.nome, preco: Number(input.dataset.preco) }));
     const adicionado = adicionarAoCarrinho(produto, selecionados, escolhasSelecionadas);
-    if (adicionado) { painel.hidden = true; acionador.focus(); }
+    if (adicionado) { painel.hidden = true; painelEscolhas.hidden = true; acionador.focus(); }
   };
-  card.querySelector('.btn-cancelar-adicionais').onclick = () => { painel.hidden = true; acionador.focus(); };
+  card.querySelector('.btn-cancelar-configuracao').onclick = () => { painel.hidden = true; painelEscolhas.hidden = true; acionador.focus(); };
   painel.onkeydown = evento => {
     if (evento.key === 'Escape') { evento.preventDefault(); painel.hidden = true; acionador.focus(); }
   };

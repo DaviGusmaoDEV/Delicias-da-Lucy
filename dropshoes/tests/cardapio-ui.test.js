@@ -30,7 +30,7 @@ test('template do produto mantém seletores funcionais e ação textual explíci
   assert.doesNotMatch(html, /style=["'][^"']*width\s*:\s*200px/i);
   assert.match(html, /seletor-adicionais/);
   assert.match(html, /lista-adicionais/);
-  assert.match(html, /btn-confirmar-adicionais/);
+  assert.match(html, /btn-confirmar-configuracao/);
   assert.match(html, /Adicionais opcionais/i);
   assert.match(html, /Escolha se quiser adicionar algo/i);
   assert.match(html, /Adicionar ao carrinho/i);
@@ -61,9 +61,36 @@ test('cardápio reutiliza o carrinho existente e oferece feedback sem alerta tem
 test('personalização permite zero adicionais e oferece foco/escape', () => {
   const js = ler('js/produtos.js');
   assert.match(js, /adicionarAoCarrinho\(produto, selecionados(?:, escolhasSelecionadas)?\)/);
+  assert.match(js, /btn-confirmar-configuracao/);
   assert.match(js, /const primeiroCheckbox = listaEscolhas\.querySelector\('input'\) \|\| lista\.querySelector\('input'\)/);
   assert.match(js, /evento\.key === 'Escape'/);
   assert.doesNotMatch(ler('tela cliente/Produtos.html'), /<input[^>]+required/i);
+});
+
+test('produto somente com escolhas mantém a ação final fora da seção de adicionais', () => {
+  const html = ler('tela cliente/Produtos.html');
+  const inicioAdicionais = html.indexOf('<section class="seletor-adicionais"');
+  const fimAdicionais = html.indexOf('</section>', inicioAdicionais);
+  const acao = html.indexOf('class="acoes-configuracao-produto"');
+  assert.ok(inicioAdicionais >= 0 && fimAdicionais > inicioAdicionais && acao > fimAdicionais);
+  assert.match(html, /class="[^"]*\bbtn-confirmar-configuracao\b[^"]*"[^>]*>\s*Adicionar ao carrinho/);
+  assert.match(html, /class="[^"]*\bbtn-cancelar-configuracao\b[^"]*"[^>]*>\s*Cancelar/);
+});
+
+test('limites configuráveis aceitam somente as quantidades min/max do grupo', () => {
+  const fonte = ler('js/produtos.js')
+    .replace(/^import .*;$/gm, '')
+    .replace(/\bexport\s+(?=(?:const|function|async\s+function)\b)/g, '')
+    .concat('\n;globalThis.__escolhasValidas = escolhasValidas;');
+  const contexto = { document: { addEventListener: () => {} }, window: {} };
+  vm.runInNewContext(fonte, contexto);
+  const valido = (grupos, totais) => contexto.__escolhasValidas(grupos, id => totais[id] || 0);
+  assert.equal(valido([{ id: 'g', min_escolhas: 0, max_escolhas: 5 }], { g: 0 }), true);
+  assert.equal(valido([{ id: 'g', min_escolhas: 0, max_escolhas: 5 }], { g: 5 }), true);
+  assert.equal(valido([{ id: 'g', min_escolhas: 1, max_escolhas: 5 }], { g: 0 }), false);
+  assert.equal(valido([{ id: 'g', min_escolhas: 1, max_escolhas: 5 }], { g: 1 }), true);
+  assert.equal(valido([{ id: 'g', min_escolhas: 0, max_escolhas: 3 }], { g: 4 }), false);
+  assert.equal(valido([{ id: 'g', min_escolhas: 1, max_escolhas: 3 }], { g: 3 }), true);
 });
 
 test('renderização contempla carregamento, erro, vazio, filtro, promoção e imagem ausente', () => {
@@ -136,9 +163,44 @@ test('combinações iguais agregam e combinações diferentes permanecem separad
   assert.equal(linhas.find(item => item.adicionais.some(adicional => adicional.id === 'a')).quantidade, 2);
 });
 
+test('escolhas incluídas persistem, não alteram preço e distinguem configurações', () => {
+  const armazenado = new Map();
+  const fonte = ler('js/carrinho.js')
+    .replace(/^import .*;$/gm, '')
+    .replace(/\bexport\s+(?=(?:const|function|async\s+function)\b)/g, '')
+    .concat('\n;globalThis.__carrinhoEscolhas = { adicionarAoCarrinho, obterCarrinho };');
+  const criarContexto = () => {
+    const contexto = {
+      localStorage: { getItem: chave => armazenado.get(chave) ?? null, setItem: (chave, valor) => armazenado.set(chave, valor), removeItem: chave => armazenado.delete(chave) },
+      document: { getElementById: () => null, addEventListener: () => {}, querySelector: () => null, querySelectorAll: () => [] },
+      window: { dispatchEvent: () => {}, addEventListener: () => {} }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } },
+      Swal: { fire: () => {} }, URLSearchParams, console
+    };
+    vm.runInNewContext(fonte, contexto);
+    return contexto.__carrinhoEscolhas;
+  };
+  const produto = { id: 'p-escolhas', nome: 'Produto configurável', preco: 20 };
+  const escolhasAB = [{ id: 'a', nome: 'A', grupo_id: 'g1', grupo_nome: 'Grupo' }, { id: 'b', nome: 'B', grupo_id: 'g1', grupo_nome: 'Grupo' }];
+  const escolhasAC = [{ id: 'a', nome: 'A', grupo_id: 'g1', grupo_nome: 'Grupo' }, { id: 'c', nome: 'C', grupo_id: 'g1', grupo_nome: 'Grupo' }];
+  const carrinho = criarContexto();
+  carrinho.adicionarAoCarrinho(produto, [], escolhasAB);
+  carrinho.adicionarAoCarrinho(produto, [], escolhasAB);
+  carrinho.adicionarAoCarrinho(produto, [{ id: 'extra', nome: 'Extra', preco: 3 }], escolhasAC);
+  const linhas = carrinho.obterCarrinho();
+  assert.equal(linhas.length, 2);
+  assert.equal(linhas.find(item => item.escolhas.some(escolha => escolha.id === 'b')).quantidade, 2);
+  assert.equal(linhas.find(item => item.escolhas.some(escolha => escolha.id === 'c')).preco, 20);
+  assert.equal(linhas.find(item => item.escolhas.some(escolha => escolha.id === 'c')).adicionais[0].preco, 3);
+  assert.deepEqual(JSON.parse(armazenado.get('carrinho')).map(item => item.escolhas.map(escolha => escolha.id)), [['a', 'b'], ['a', 'c']]);
+  const recarregado = criarContexto().obterCarrinho();
+  assert.equal(recarregado.length, 2);
+  assert.deepEqual([...recarregado[0].escolhas.map(escolha => escolha.id)], ['a', 'b']);
+});
+
 test('filtros preservam categoria, produtos normais e ofertas especiais', () => {
   const fonte = ler('js/produtos.js')
     .replace(/^import .*;$/gm, '')
+    .replace(/\bexport\s+(?=(?:const|function|async\s+function)\b)/g, '')
     .concat('\n;globalThis.__filtrarProdutos = filtrarProdutos;');
   const contexto = { document: { addEventListener: () => {} }, window: {} };
   vm.runInNewContext(fonte, contexto);

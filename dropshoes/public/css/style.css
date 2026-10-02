@@ -1217,8 +1217,8 @@ input[type="radio"] {
 .pagina-cardapio .opcao-adicional:hover,
 .pagina-cardapio .opcao-adicional:focus-within { background: #ffedd5; }
 .pagina-cardapio .opcao-adicional input { width: 1.25rem; height: 1.25rem; accent-color: var(--color-brand-strong); }
-.pagina-cardapio .acoes-adicionais { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.pagina-cardapio .acoes-adicionais .btn { flex: 1 1 10rem; min-height: var(--control-height); }
+.pagina-cardapio .acoes-configuracao-produto { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pagina-cardapio .acoes-configuracao-produto .btn { flex: 1 1 10rem; min-height: var(--control-height); }
 
 .pagina-cardapio .feedback-carrinho {
     position: fixed;
