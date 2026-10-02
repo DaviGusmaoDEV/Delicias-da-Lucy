@@ -2184,6 +2184,71 @@ body[data-acesso="cliente"] #meu-perfil .dado-grupo p {
     }
 }
 
+/* Perfil admin: organiza os dados existentes sem alterar seus contratos. */
+body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem clamp(1rem, 3vw, 2rem);
+    padding: clamp(1.5rem, 3vw, 2rem);
+}
+
+body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel > h2 {
+    grid-column: 1 / -1;
+    margin: 0 0 .25rem;
+    color: var(--color-text);
+    font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+}
+
+body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel > p {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+    margin: 0;
+    padding: .9rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-subtle);
+    color: var(--color-text-muted);
+    line-height: 1.35;
+}
+
+body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel > p > span {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--color-text);
+    font-size: 1.0625rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel > p:nth-of-type(3) {
+    grid-column: 1 / -1;
+}
+
+body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel > .btn {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: .25rem;
+}
+
+@media (max-width: 767px) {
+    body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        padding: 1.25rem;
+    }
+
+    body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel > p:nth-of-type(3),
+    body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel > .btn {
+        grid-column: auto;
+    }
+
+    body[data-acesso="admin"] main#conteudo-principal > .hero + .card-painel > .btn {
+        width: 100%;
+    }
+}
+
 .pagina-carrinho .carrinho-item-total-bloco > span {
     color: var(--color-text-muted);
     font-size: 0.9375rem;
