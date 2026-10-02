@@ -2137,6 +2137,53 @@ dialog::backdrop { background: rgba(23, 28, 43, .56); backdrop-filter: blur(5px)
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
+/* Perfil cliente: dados da conta com leitura confortável e sem dependência
+   dos estilos da listagem de pedidos. */
+body[data-acesso="cliente"] #meu-perfil {
+    display: grid;
+    gap: var(--space-5);
+    padding: clamp(1.5rem, 3vw, 2rem);
+}
+
+body[data-acesso="cliente"] #meu-perfil .grid-dados {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+body[data-acesso="cliente"] #meu-perfil .dado-grupo {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-subtle);
+}
+
+body[data-acesso="cliente"] #meu-perfil .dado-label {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: .9375rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+body[data-acesso="cliente"] #meu-perfil .dado-grupo p {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: var(--color-text);
+    font-size: 1.0625rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 767px) {
+    body[data-acesso="cliente"] #meu-perfil .grid-dados {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
 .pagina-carrinho .carrinho-item-total-bloco > span {
     color: var(--color-text-muted);
     font-size: 0.9375rem;
