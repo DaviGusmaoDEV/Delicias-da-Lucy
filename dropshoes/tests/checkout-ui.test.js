@@ -75,6 +75,10 @@ test('CSS do checkout prioriza leitura, toque, seleção perceptível e layout s
   assert.match(css, /\.pagina-carrinho\s+\.btn-controle-qtd\s*\{[^}]*width:\s*48px[^}]*min-height:\s*48px/s);
   assert.match(css, /\.pagina-carrinho\s+\.btn-remover-item\s*\{[^}]*min-height:\s*44px/s);
   assert.match(css, /\.pagina-carrinho\s+\.opcao-pagamento-pix:has\(input:checked\)/);
+  assert.match(css, /\.pagina-carrinho\s+\.opcao-pagamento-pix\s*\{[^}]*border-color:\s*#0879BF[^}]*background:\s*#E6F4FF/s);
+  assert.match(css, /\.pagina-carrinho\s+\.opcao-pagamento-inf\s*\{[^}]*border-color:\s*#087F6D[^}]*background:\s*#E6FAF5/s);
+  assert.match(css, /\.pagina-carrinho\s+\.opcao-pagamento-pix:has\(input:checked\)\s*\{[^}]*background:\s*#E6F4FF/s);
+  assert.match(css, /\.pagina-carrinho\s+\.opcao-pagamento-inf:has\(input:checked\)\s*\{[^}]*background:\s*#E6FAF5/s);
   assert.match(css, /\.pagina-carrinho\s+\.opcao-tipo-pagamento:has\(input:checked\)/);
   assert.match(css, /\.pagina-carrinho\s+\.tipo-pagamento-entrega\[hidden\]/);
   assert.match(css, /\.pagina-carrinho\s+\.resumo-linha\.total\s+strong/);

@@ -1757,11 +1757,11 @@ dialog .form-control {
 .pagina-carrinho .opcao-pagamento-pix small,
 .pagina-carrinho .opcao-pagamento-inf small,
 .pagina-carrinho .opcao-pagamento-retirada small { grid-column: 2; font-weight: 400; color: #666; }
-.pagina-carrinho .opcao-pagamento-pix { border-color: #fde68a; background: #fffbeb; }
-.pagina-carrinho .opcao-pagamento-inf { border-color: #fed7aa; background: #fff7ed; }
+.pagina-carrinho .opcao-pagamento-pix { border-color: #0879BF; background: #E6F4FF; }
+.pagina-carrinho .opcao-pagamento-inf { border-color: #087F6D; background: #E6FAF5; }
 .pagina-carrinho .opcao-pagamento-retirada { border-color: #e9d5ff; background: #faf5ff; }
-.pagina-carrinho .opcao-pagamento-pix:has(input:checked) { border-color: #ca8a04; background: #fef3c7; }
-.pagina-carrinho .opcao-pagamento-inf:has(input:checked) { border-color: #f97316; background: #ffedd5; }
+.pagina-carrinho .opcao-pagamento-pix:has(input:checked) { border-color: #0879BF; background: #E6F4FF; }
+.pagina-carrinho .opcao-pagamento-inf:has(input:checked) { border-color: #087F6D; background: #E6FAF5; }
 .pagina-carrinho .opcao-pagamento-retirada:has(input:checked) { border-color: #a855f7; background: #f3e8ff; }
 .pagina-carrinho .info-frete-erro { color: #b42318; font-weight: 700; }
 .pagina-carrinho .resumo-carrinho { padding-top: 4px; }
