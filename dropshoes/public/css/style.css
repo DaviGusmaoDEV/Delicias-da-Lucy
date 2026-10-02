@@ -10,6 +10,8 @@
     --color-background: #fffaf3;
     --color-surface: #ffffff;
     --color-surface-subtle: #f8fafc;
+    --color-surface-warm: #fff7ed;
+    --color-surface-warm-strong: #ffedd5;
     --color-text: #172033;
     --color-text-muted: #526071;
     --color-border: #cbd5e1;
@@ -66,10 +68,13 @@
     --radius-sm: 0.5rem;
     --radius-md: 0.75rem;
     --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
     --radius-pill: 999px;
     --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
     --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.10);
     --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.16);
+    --shadow-warm: 0 12px 30px rgba(154, 77, 0, 0.12);
+    --focus-ring: #1d4ed8;
     --z-sidebar: 200;
     --z-overlay: 900;
     --z-dialog: 1000;
@@ -1935,6 +1940,201 @@ dialog .form-control {
     display: grid;
     gap: var(--space-1);
     justify-items: end;
+}
+
+/* ==========================================================================
+   ✨ 14. IDENTIDADE VISUAL COMPARTILHADA
+   O Cardápio é a referência: acolhedor, claro, espaçado e objetivo.
+   Estas regras refinam as superfícies existentes sem mudar contratos.
+   ========================================================================== */
+body {
+    background:
+        radial-gradient(circle at 92% 0%, rgba(255, 237, 213, .72), transparent 28rem),
+        var(--color-background);
+}
+
+.sidebar {
+    background: linear-gradient(180deg, #171c2b 0%, var(--color-sidebar) 100%);
+    border-right-color: rgba(255, 255, 255, .08);
+}
+.sidebar-header { border-bottom-color: rgba(255, 255, 255, .1); }
+.sidebar .logo { letter-spacing: -.035em; }
+.sidebar-nav { gap: .35rem; }
+.sidebar-nav .nav-item {
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    transition: var(--transition-fast);
+}
+.sidebar-nav .nav-item:hover,
+.sidebar-nav .nav-item:focus-visible {
+    background: rgba(255, 247, 237, .1);
+    border-color: rgba(255, 237, 213, .16);
+}
+.sidebar-nav .nav-item.active {
+    background: linear-gradient(90deg, rgba(245, 158, 11, .22), rgba(245, 158, 11, .08));
+    border-color: rgba(253, 186, 116, .32);
+    color: #fff7ed;
+    box-shadow: inset 3px 0 0 var(--color-brand);
+}
+
+.container { gap: clamp(1.25rem, 3vw, 2rem); }
+.hero {
+    padding: clamp(1.5rem, 4vw, 2.75rem);
+    border: 1px solid #fed7aa;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, var(--color-surface-warm) 0%, var(--color-surface-warm-strong) 100%);
+    color: var(--color-text);
+    text-align: left;
+    box-shadow: var(--shadow-warm);
+}
+.hero h1 {
+    margin-bottom: var(--space-2);
+    color: var(--color-text);
+    font-size: clamp(1.8rem, 4vw, 2.75rem);
+    letter-spacing: -.04em;
+}
+.hero p { margin: 0; color: var(--color-text-muted); }
+.hero-kicker,
+.checkout-kicker,
+.pix-kicker {
+    color: var(--color-brand-strong) !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.btn { border-radius: var(--radius-md); font-weight: 800; }
+.btn-primary {
+    background: var(--color-brand-strong);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(154, 77, 0, .12);
+}
+.btn-primary:hover { background: #7c3f00; box-shadow: var(--shadow-md); }
+.btn-success { background: var(--color-success); }
+.btn-outline { border-radius: var(--radius-md); }
+.btn-cancelar { border-radius: var(--radius-md); }
+
+.form-control {
+    border-color: #d7dee8;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, .02);
+}
+.form-control:hover { border-color: #b8c4d3; }
+.form-control:focus { border-color: var(--color-focus); box-shadow: 0 0 0 4px rgba(29, 78, 216, .14); }
+label, legend { letter-spacing: -.01em; }
+
+.box-sidebar,
+.card-painel,
+.dashboard-painel,
+.dashboard-quadro,
+.filtros-fluxo-caixa,
+.regras-secao,
+.painel-regra,
+.table-responsive {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+}
+.painel-regra { padding: clamp(1rem, 3vw, 1.5rem); }
+.box-sidebar { padding: clamp(1rem, 3vw, 1.5rem); }
+.dashboard-painel,
+.dashboard-quadro { box-shadow: var(--shadow-sm); }
+.card-financeiro { border-radius: var(--radius-lg); }
+
+.main-content:has(> h1) {
+    display: grid;
+    gap: var(--space-3);
+    padding: clamp(1.5rem, 4vw, 2.75rem);
+    border: 1px solid #fed7aa;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, var(--color-surface-warm) 0%, var(--color-surface-warm-strong) 100%);
+    box-shadow: var(--shadow-warm);
+}
+.main-content > h1 { color: var(--color-text); letter-spacing: -.04em; }
+.main-content > p { color: var(--color-text-muted); }
+.header-fluxo-topo {
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    border: 1px solid #fed7aa;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, var(--color-surface-warm) 0%, var(--color-surface-warm-strong) 100%);
+    box-shadow: var(--shadow-warm);
+}
+.header-fluxo-topo h1 { color: var(--color-text); letter-spacing: -.04em; }
+.header-fluxo-topo p { color: var(--color-text-muted); }
+
+.table-responsive { overflow: auto; }
+.modern-table th { background: #fff7ed; color: var(--color-brand-strong); }
+.modern-table td { background: var(--color-surface); }
+.modern-table tbody tr:hover td { background: #fffbf5; }
+
+.pedido-card,
+.regra-card,
+.opcao-produto-associacao,
+.opcao-adicional-admin {
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, .02);
+}
+.pedido-card { border-left-width: .4rem; }
+.pedido-cabecalho h3 { letter-spacing: -.025em; }
+.status-pedido { border-radius: var(--radius-pill); }
+
+.pagina-carrinho .checkout-shell { gap: var(--space-5); }
+.pagina-carrinho .checkout-cabecalho {
+    margin: calc(var(--space-2) * -1);
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    border: 1px solid #fed7aa;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, var(--color-surface-warm) 0%, var(--color-surface-warm-strong) 100%);
+    box-shadow: var(--shadow-warm);
+}
+.pagina-carrinho .checkout-secao,
+.pagina-carrinho .pagamento-container { border-radius: var(--radius-lg); box-shadow: none; }
+.pagina-carrinho .item-carrinho-linha { border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+.pagina-carrinho .resumo-carrinho { border-radius: var(--radius-lg); box-shadow: var(--shadow-warm); }
+.pagina-carrinho .opcao-pagamento-pix,
+.pagina-carrinho .opcao-pagamento-inf,
+.pagina-carrinho .opcao-pagamento-retirada { border-radius: var(--radius-lg); }
+
+.pix-pagina { background: var(--color-background); }
+.pix-cartao {
+    border-color: #fed7aa;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(180deg, #fffdf9 0%, var(--color-surface) 100%);
+    box-shadow: var(--shadow-warm);
+}
+.pix-total { color: var(--color-brand-strong); }
+.pix-qr { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+
+.card-login {
+    padding: clamp(1.5rem, 5vw, 2.5rem);
+    border: 1px solid #fed7aa;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(180deg, #fffdf9 0%, var(--color-surface) 100%);
+    box-shadow: var(--shadow-warm);
+}
+.card-login::before { content: none; }
+.card-login h1,
+.card-login h2 { color: var(--color-text); letter-spacing: -.035em; }
+.login-page {
+    background:
+        radial-gradient(circle at 10% 10%, rgba(255, 237, 213, .85), transparent 24rem),
+        var(--color-background);
+}
+
+.associacoes-dialog,
+dialog { border: 1px solid var(--color-border); border-radius: var(--radius-xl); }
+.associacoes-dialog::backdrop,
+dialog::backdrop { background: rgba(23, 28, 43, .56); backdrop-filter: blur(5px); }
+
+@media (max-width: 680px) {
+    .hero, .header-fluxo-topo { padding: var(--space-5); }
+    .pagina-carrinho .checkout-cabecalho { margin: 0; }
+    .main-content:has(> h1) { padding: var(--space-5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
 .pagina-carrinho .carrinho-item-total-bloco > span {
